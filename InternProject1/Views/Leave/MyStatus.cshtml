@@ -60,7 +60,6 @@
                                     <span class="fw-semibold text-dark">@item.End_Date.ToString("dd MMM yyyy")</span>
                                 </td>
                                 <td class="small text-muted">
-                                    @* FIXED: Using Reasons to match your database *@
                                     @(string.IsNullOrEmpty(item.Reasons) ? "No reason provided" : item.Reasons)
                                 </td>
                             </tr>
@@ -70,11 +69,13 @@
             </table>
         </div>
 
-        @* Action Buttons for Personal Records *@
+        @* UPDATED: The button is now a link that triggers the Excel download *@
         <div class="d-flex justify-content-end mt-4 gap-2">
-            <button class="btn btn-sm px-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 8px; border: none; font-weight: 600; font-size: 0.8rem;">
-                <i class="bi bi-file-earmark-excel me-1"></i> Export My Records
-            </button>
+            <a asp-controller="Leave" asp-action="ExportMyStatusExcel"
+               class="btn btn-sm px-4 shadow-sm d-flex align-items-center"
+               style="background-color: #DDE7F2; border-radius: 8px; border: none; font-weight: 600; font-size: 0.8rem; color: #333; text-decoration: none;">
+                <i class="bi bi-file-earmark-excel me-2"></i> Export My Records
+            </a>
         </div>
     </div>
 </div>

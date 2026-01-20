@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using InternProject1.Data;
+// REMOVED: DinkToPdf usings are no longer needed
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,16 +11,17 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// --- ADDED FOR SESSION SUPPORT ---
-// This allows the app to store UserID and UserName after login
-builder.Services.AddDistributedMemoryCache(); // Required for Session
+// REMOVED: builder.Services.AddSingleton(typeof(IConverter)...) 
+// SelectPdf works automatically once the NuGet package is installed.
+
+// --- SESSION SUPPORT ---
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Session lasts for 30 minutes
-    options.Cookie.HttpOnly = true; // Security: prevents client-side script access
-    options.Cookie.IsEssential = true; // Essential for the app to function
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
-// ----------------------------------
 
 var app = builder.Build();
 
@@ -35,16 +37,12 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// --- ADDED FOR SESSION SUPPORT ---
-// This MUST be placed after UseRouting and BEFORE UseAuthorization
+// UseSession MUST be between UseRouting and UseAuthorization
 app.UseSession();
-// ----------------------------------
 
 app.UseAuthorization();
 
-
-
-// 3. Set the default route (Login page)
+// 3. Set the default route
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
