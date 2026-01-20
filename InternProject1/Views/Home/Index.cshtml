@@ -1,8 +1,30 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Dashboard";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container mt-5">
+    <div class="jumbotron text-center bg-light p-5 shadow-sm rounded">
+        <h1 class="display-4 text-primary fw-bold">TimeVIA Dashboard</h1>
+        <p class="lead">Smart Attendance & Leave Management System</p>
+        <hr class="my-4">
+        <p>Welcome back! Use the quick links below to manage your attendance.</p>
+
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <a href="/Attendance/Create" class="btn btn-success btn-lg w-100 p-4 mb-3">
+                    <i class="bi bi-qr-code"></i><br />Clock In / Out
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="/LeaveRequest/Create" class="btn btn-info text-white btn-lg w-100 p-4 mb-3">
+                    <i class="bi bi-calendar-event"></i><br />Apply Leave
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="/Account/Login" class="btn btn-outline-primary btn-lg w-100 p-4 mb-3">
+                    <i class="bi bi-person-circle"></i><br />Switch Account
+                </a>
+            </div>
+        </div>
+    </div>
 </div>

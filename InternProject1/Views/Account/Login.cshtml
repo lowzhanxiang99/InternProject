@@ -1,0 +1,59 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body {
+            background-color: #e3f2fd;
+            height: 100vh;
+        }
+
+        .blue-section {
+            background: linear-gradient(135deg, #90caf9 0%, #42a5f5 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-container {
+            background-color: #f8fbff;
+            padding: 5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <div class="col-md-6 form-container d-flex align-items-center">
+                <div class="w-75 mx-auto">
+                    <h2 class="fw-bold">Login</h2>
+                    <h4 class="text-primary">Welcome Back</h4>
+                    <p class="text-muted small">Please enter your Attendance credentials.</p>
+
+                    <form asp-action="Login" method="post">
+                        <div class="mb-3"><label>Email ID</label><input name="email" class="form-control" placeholder="Enter Email ID" /></div>
+                        <div class="mb-3"><label>Password</label><input name="password" type="password" class="form-control" placeholder="Password" /></div>
+                        <div class="d-flex justify-content-between mb-4">
+                            <div><input type="checkbox" /> Remember me</div>
+                            <a href="#" class="text-decoration-none small">Forgot Password?</a>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">LOGIN</button>
+                        <p class="mt-4 text-center small">Don't you have account? <a asp-action="Register">Register here</a></p>
+                    </form>
+                </div>
+            </div>
+            <div class="col-md-6 blue-section">
+                <div class="text-center p-5 border border-light rounded-4 bg-white bg-opacity-10">
+                    <h1 class="display-2 fw-bold">TimeVIA</h1>
+                    <p class="fst-italic">"Attendance is the first step to success, be present to win."</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
