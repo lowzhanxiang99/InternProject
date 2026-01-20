@@ -14,10 +14,8 @@ public class AccountController : Controller
         _context = context;
     }
 
-    // GET: Account/Register
     public IActionResult Register() => View();
 
-    // POST: Account/Register
     [HttpPost]
     public async Task<IActionResult> Register(Employee employee)
     {
@@ -30,10 +28,8 @@ public class AccountController : Controller
         return View(employee);
     }
 
-    // GET: Account/Login
     public IActionResult Login() => View();
 
-    // POST: Account/Login
     [HttpPost]
     public async Task<IActionResult> Login(string email, string password)
     {
@@ -42,11 +38,19 @@ public class AccountController : Controller
 
         if (user != null)
         {
-            // For now, just redirect to Home. In a real app, you'd set a Cookie here.
+            // Store data in session to be used by the Dashboard
+            HttpContext.Session.SetInt32("UserID", user.Employee_ID);
+            HttpContext.Session.SetString("UserName", $"{user.First_Name} {user.Last_Name}");
             return RedirectToAction("Index", "Home");
         }
 
         ViewBag.Error = "Invalid email or password";
         return View();
+    }
+
+    public IActionResult Logout()
+    {
+        HttpContext.Session.Clear();
+        return RedirectToAction("Login");
     }
 }
