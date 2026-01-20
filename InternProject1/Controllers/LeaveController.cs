@@ -91,7 +91,6 @@ public class LeaveController : Controller
         return View(await requests.ToListAsync());
     }
 
-    // Export ALL (For Admin)
     [HttpGet]
     public async Task<IActionResult> ExportToExcel(string searchString, DateTime? fromDate, DateTime? toDate)
     {
@@ -103,7 +102,6 @@ public class LeaveController : Controller
 
     // --- PERSONAL USER SECTION ---
 
-    // GET: Leave/MyStatus
     public async Task<IActionResult> MyStatus()
     {
         var userId = HttpContext.Session.GetInt32("UserID");
@@ -117,7 +115,6 @@ public class LeaveController : Controller
         return View(myRequests);
     }
 
-    // Export Personal Records ONLY
     [HttpGet]
     public async Task<IActionResult> ExportMyStatusExcel()
     {
@@ -127,6 +124,7 @@ public class LeaveController : Controller
         var data = await _context.LeaveRequests
                                  .Include(l => l.Employee)
                                  .Where(l => l.Employee_ID == userId)
+                                 .OrderByDescending(l => l.Request_Date) // Added for consistency
                                  .ToListAsync();
 
         return GenerateExcelFile(data, "My_Leave_History.xlsx");
@@ -155,6 +153,7 @@ public class LeaveController : Controller
             worksheet.Cell(1, 3).Value = "Start Date";
             worksheet.Cell(1, 4).Value = "End Date";
             worksheet.Cell(1, 5).Value = "Employee Name";
+            worksheet.Cell(1, 6).Value = "Reason"; // Added column
 
             var headerRow = worksheet.Row(1);
             headerRow.Style.Font.Bold = true;
@@ -168,6 +167,7 @@ public class LeaveController : Controller
                 worksheet.Cell(row, 3).Value = item.Start_Date.ToString("dd-MM-yyyy");
                 worksheet.Cell(row, 4).Value = item.End_Date.ToString("dd-MM-yyyy");
                 worksheet.Cell(row, 5).Value = $"{item.Employee?.First_Name} {item.Employee?.Last_Name}";
+                worksheet.Cell(row, 6).Value = item.Reasons; // Mapping the database 'Reasons' column
                 row++;
             }
 

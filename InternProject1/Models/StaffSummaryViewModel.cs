@@ -2,7 +2,7 @@
 {
     public class StaffSummaryViewModel
     {
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; }
         public int AttendanceCount { get; set; }
         public int LateCount { get; set; }
         public int LeaveCount { get; set; }
