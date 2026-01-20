@@ -1,19 +1,37 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace InternProject1.Models;
-
-public class LeaveRequest
+namespace InternProject1.Models
 {
-    [Key]
-    public int Leave_ID { get; set; }
-    public int Employee_ID { get; set; }
-    public string? Leave_Type { get; set; }
-    public DateTime Start_Date { get; set; }
-    public DateTime End_Date { get; set; }
-    public string? Reasons { get; set; }
-    public string Status { get; set; } = "Pending"; // Default status
+    public class LeaveRequest
+    {
+        [Key]
+        public int Leave_ID { get; set; } // Primary Key from ERD
 
-    [ForeignKey("Employee_ID")]
-    public virtual Employee? Employee { get; set; }
+        [Required]
+        public int Employee_ID { get; set; } // Foreign Key from ERD
+
+        public string? Leave_Type { get; set; } // Nullable to avoid compiler errors
+
+        [DataType(DataType.Date)]
+        public DateTime Start_Date { get; set; } // From ERD
+
+        [DataType(DataType.Date)]
+        public DateTime End_Date { get; set; } // From ERD
+
+        // Inside Models/LeaveRequest.cs
+        public DateTime? Request_Date { get; set; }
+
+        public string? Reasons { get; set; } // Nullable string for "Enter Reasons" field
+
+        public string? Status { get; set; } = "Pending"; // Matches status dots in your design
+
+        public int? Leave_Balance { get; set; } // Included from ERD to prevent submission fails
+
+        // Navigation property to link to the Employee table
+        [ForeignKey("Employee_ID")]
+        public virtual Employee? Employee { get; set; }
+
+        public string? Reason { get; set; }
+    }
 }

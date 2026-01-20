@@ -9,5 +9,5 @@ public class Shift
     public TimeSpan Start_Time { get; set; }
     public TimeSpan End_Time { get; set; }
 
-    public ICollection<Employee> Employees { get; set; }
+    public ICollection<Employee>? Employees { get; set; }
 }

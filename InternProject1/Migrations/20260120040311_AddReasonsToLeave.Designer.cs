@@ -4,6 +4,7 @@ using InternProject1.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260120040311_AddReasonsToLeave")]
+    partial class AddReasonsToLeave
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -43,9 +46,11 @@ namespace InternProject1.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Location_Lat_Long")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Attendance_ID");
@@ -64,6 +69,7 @@ namespace InternProject1.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Department_ID"));
 
                     b.Property<string>("Department_Name")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Manager_ID")
@@ -157,14 +163,8 @@ namespace InternProject1.Migrations
                     b.Property<string>("Leave_Type")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Reason")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Reasons")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("Request_Date")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("Start_Date")
                         .HasColumnType("datetime2");
@@ -188,6 +188,7 @@ namespace InternProject1.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Manager_ID"));
 
                     b.Property<string>("Manager_Name")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Manager_ID");
@@ -210,6 +211,7 @@ namespace InternProject1.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Month")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("TotalAbsend")

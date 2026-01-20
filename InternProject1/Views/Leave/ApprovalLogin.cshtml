@@ -1,0 +1,39 @@
+﻿@{
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-5">
+    <div class="text-center mb-4">
+        <h3 class="fw-bold text-dark" style="text-decoration: underline;">Leave Approval</h3>
+        <h4 class="text-danger mt-4 fw-bold">Warning ! Only Authorized Users Are Allowed To Log In.</h4>
+    </div>
+
+    <div class="mx-auto shadow-lg rounded-3 overflow-hidden" style="max-width: 500px; border: 1px solid #ddd;">
+        <div class="bg-primary text-white text-center py-3 fs-4 fw-bold" style="background-color: #3498db !important;">
+            Welcome! Please sign in.
+        </div>
+
+        <div class="bg-white p-5">
+            <form asp-action="ApprovalLogin" method="post">
+                @if (ViewBag.Error != null)
+                {
+                    <p class="text-danger small text-center mb-3">@ViewBag.Error</p>
+                }
+
+                <div class="mb-4">
+                    <input type="text" name="username" class="form-control border-0 border-bottom rounded-0 fs-5" placeholder="Username" required style="border-color: #ccc !important;" />
+                </div>
+
+                <div class="mb-5">
+                    <input type="password" name="password" class="form-control border-0 border-bottom rounded-0 fs-5" placeholder="Password" required style="border-color: #ccc !important;" />
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-success px-5 py-2 fs-5 fw-bold shadow-sm" style="background-color: #4CAF50; border: none; min-width: 200px;">
+                        SIGN IN
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

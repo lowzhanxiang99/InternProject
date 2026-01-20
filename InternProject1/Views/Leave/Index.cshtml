@@ -17,7 +17,13 @@
                     Leave Application
                 </a>
 
-                <a asp-controller="Leave" asp-action="Approval"
+                <a asp-controller="Leave" asp-action="MyStatus"
+                   class="btn shadow-sm py-4 fs-4 fw-semibold rounded-3 border-0 transition-hover"
+                   style="background-color: #BDD2E7; color: #333;">
+                    Check Leave Status
+                </a>
+
+                <a asp-controller="Leave" asp-action="ApprovalLogin"
                    class="btn shadow-sm py-4 fs-4 fw-semibold rounded-3 border-0 transition-hover"
                    style="background-color: #BDD2E7; color: #333;">
                     Leave Approval
@@ -28,6 +34,7 @@
 </div>
 
 <style>
+    /* Smooth hover effects to match your style */
     .transition-hover {
         transition: all 0.2s ease-in-out;
     }
@@ -36,5 +43,6 @@
             background-color: #A9C2DB !important;
             transform: translateY(-3px);
             box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+            color: #000 !important;
         }
 </style>
