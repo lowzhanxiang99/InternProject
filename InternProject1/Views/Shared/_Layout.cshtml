@@ -1,54 +1,80 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Http
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - InternProject1</title>
-    <script type="importmap"></script>
+    <title>@ViewData["Title"] - TimeVIA</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/InternProject1.styles.css" asp-append-version="true" />
+    <style>
+        /* Highlight the active menu item to match your design */
+        .nav-link.active {
+            background-color: #0d6efd !important;
+            color: white !important;
+            border-radius: 8px;
+        }
+
+        .nav-link:hover:not(.active) {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">TimeVIA</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
+    <div class="d-flex" id="wrapper">
+        <div class="bg-white border-end shadow-sm" id="sidebar-wrapper" style="width: 280px; min-height: 100vh;">
+            <div class="sidebar-heading p-4 text-primary fw-bold fs-3">TimeVIA</div>
 
-                        <li class="nav-item">
-                            <a class="nav-link text-primary fw-bold" asp-area="" asp-controller="Account" asp-action="Login">Login</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-success fw-bold" asp-area="" asp-controller="Account" asp-action="Register">Register</a>
-                        </li>
-                    </ul>
+            <div class="list-group list-group-flush px-3">
+                <div class="text-center py-4 mb-3">
+                    <div class="rounded-circle bg-light mx-auto mb-2 shadow-sm d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; border: 2px solid #f8f9fa;">
+                        <i class="bi bi-person text-secondary fs-1"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0">@(Context.Session.GetString("UserName") ?? "Guest")</h6>
                 </div>
+
+                <a asp-controller="Home" asp-action="Index"
+                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
+                    <i class="bi bi-grid-fill me-2"></i> Dashboard
+                </a>
+
+                <a asp-controller="Attendance" asp-action="Index"
+                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Attendance" ? "active" : "")">
+                    <i class="bi bi-qr-code-scan me-2"></i> Check-in & Out
+                </a>
+
+                <a asp-controller="Leave" asp-action="Index"
+                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Leave" ? "active" : "")">
+                    <i class="bi bi-calendar2-check me-2"></i> Leave Application
+                </a>
+
+                <a href="#" class="nav-link p-3 mb-2">
+                    <i class="bi bi-file-earmark-bar-graph me-2"></i> Attendance Report
+                </a>
+
+                <a href="#" class="nav-link p-3 mb-2">
+                    <i class="bi bi-people me-2"></i> Employee Attendance Monitoring
+                </a>
+
+                <a href="#" class="nav-link p-3 mb-2">
+                    <i class="bi bi-person-circle me-2"></i> My Account
+                </a>
+
+                <a asp-controller="Account" asp-action="Logout" class="nav-link p-3 mt-4 text-danger border-top">
+                    <i class="bi bi-box-arrow-left me-2"></i> Logout
+                </a>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+        </div>
+
+        <div id="page-content-wrapper" class="flex-grow-1 bg-light">
+            <main role="main" class="p-4">
+                @RenderBody()
+            </main>
+        </div>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - InternProject1 - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

@@ -1,0 +1,40 @@
+﻿@{
+    ViewData["Title"] = "Leave Management";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center align-items-center" style="min-height: 70vh;">
+        <div class="col-md-8 text-center">
+            <h2 class="fw-bold text-dark mb-5" style="text-decoration: underline; text-underline-offset: 10px;">
+                Leave Application & Leave Approval
+            </h2>
+
+            <div class="d-grid gap-4 col-md-5 mx-auto mt-5">
+                <a asp-controller="Leave" asp-action="Apply"
+                   class="btn shadow-sm py-4 fs-4 fw-semibold rounded-3 border-0 transition-hover"
+                   style="background-color: #BDD2E7; color: #333;">
+                    Leave Application
+                </a>
+
+                <a asp-controller="Leave" asp-action="Approval"
+                   class="btn shadow-sm py-4 fs-4 fw-semibold rounded-3 border-0 transition-hover"
+                   style="background-color: #BDD2E7; color: #333;">
+                    Leave Approval
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .transition-hover {
+        transition: all 0.2s ease-in-out;
+    }
+
+        .transition-hover:hover {
+            background-color: #A9C2DB !important;
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+        }
+</style>
