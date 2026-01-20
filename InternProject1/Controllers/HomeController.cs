@@ -1,32 +1,20 @@
-using System.Diagnostics;
-using InternProject1.Models;
 using Microsoft.AspNetCore.Mvc;
+using InternProject1.Models;
 
-namespace InternProject1.Controllers
+namespace InternProject1.Controllers;
+
+public class HomeController : Controller
 {
-    public class HomeController : Controller
+    // This is the main Dashboard page
+    public IActionResult Index()
     {
-        private readonly ILogger<HomeController> _logger;
+        // Later, we will add code here to check if the user is logged in.
+        // For now, it just shows the Welcome page.
+        return View();
+    }
 
-        public HomeController(ILogger<HomeController> logger)
-        {
-            _logger = logger;
-        }
-
-        public IActionResult Index()
-        {
-            return View();
-        }
-
-        public IActionResult Privacy()
-        {
-            return View();
-        }
-
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
+    public IActionResult Privacy()
+    {
+        return View();
     }
 }
