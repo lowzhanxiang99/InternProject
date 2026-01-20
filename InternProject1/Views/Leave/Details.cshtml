@@ -1,0 +1,23 @@
+﻿@model InternProject1.Models.LeaveRequest
+
+<div class="container py-5">
+    <div class="card shadow border-0 mx-auto" style="max-width: 600px;">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="mb-0">Review Leave Request - @Model.Employee?.Last_Name</h5>
+        </div>
+        <div class="card-body p-4">
+            <p><strong>Employee:</strong> @Model.Employee?.First_Name @Model.Employee?.Last_Name</p>
+            <p><strong>Date Range:</strong> @Model.Start_Date.ToShortDateString() to @Model.End_Date.ToShortDateString()</p>
+            <p><strong>Reason:</strong> @Model.Reasons</p>
+            <hr />
+            <div class="text-center mt-4">
+                <form asp-action="UpdateStatus" method="post" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Leave_ID" />
+                    <button type="submit" name="status" value="Approve" class="btn btn-success px-4 me-2">Approve</button>
+                    <button type="submit" name="status" value="Reject" class="btn btn-danger px-4">Reject</button>
+                </form>
+                <a asp-action="Approval" class="btn btn-secondary px-4 ms-2">Back</a>
+            </div>
+        </div>
+    </div>
+</div>

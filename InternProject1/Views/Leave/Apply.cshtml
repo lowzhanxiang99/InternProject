@@ -1,6 +1,8 @@
 ﻿@{
     ViewData["Title"] = "Leave Application";
     Layout = "_Layout";
+    // Get today's date in yyyy-MM-dd format for the HTML min attribute
+    string today = DateTime.Now.ToString("yyyy-MM-dd");
 }
 
 <div class="container-fluid py-4">
@@ -11,42 +13,70 @@
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fw-semibold">Enter Your Name:</label>
                 <div class="col-md-8">
-                    <input type="text" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" style="background-color: #DDE7F2;" placeholder="Enter Name" value="@Context.Session.GetString("UserName")" readonly />
+                    <input type="text" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
+                           style="background-color: #DDE7F2;" placeholder="Enter Name"
+                           value="@Context.Session.GetString("UserName")" readonly />
                 </div>
             </div>
 
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fw-semibold">Enter Your ID:</label>
                 <div class="col-md-8">
-                    <input type="text" name="Employee_ID" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" style="background-color: #DDE7F2;" placeholder="Enter ID" value="@Context.Session.GetInt32("UserID")" readonly />
+                    <input type="text" name="Employee_ID" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
+                           style="background-color: #DDE7F2;" placeholder="Enter ID"
+                           value="@Context.Session.GetInt32("UserID")" readonly />
                 </div>
             </div>
 
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fw-semibold">Enter Start Date:</label>
                 <div class="col-md-8">
-                    <input type="date" name="Start_Date" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" style="background-color: #DDE7F2;" required />
+                    <input type="date" name="Start_Date" id="startDate"
+                           class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
+                           style="background-color: #DDE7F2;" min="@today" required />
                 </div>
             </div>
 
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fw-semibold">Enter End Date:</label>
                 <div class="col-md-8">
-                    <input type="date" name="End_Date" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" style="background-color: #DDE7F2;" required />
+                    <input type="date" name="End_Date" id="endDate"
+                           class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
+                           style="background-color: #DDE7F2;" min="@today" required />
                 </div>
             </div>
 
             <div class="row mb-5 align-items-start">
                 <label class="col-md-4 fw-semibold mt-2">Enter Reasons:</label>
                 <div class="col-md-8">
-                    <textarea name="Reasons" class="form-control border-0 shadow-sm py-2 px-3 rounded-3" style="background-color: #DDE7F2;" rows="4" placeholder="Enter Reasons" required></textarea>
+                    <textarea name="Reasons" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
+                              style="background-color: #DDE7F2;" rows="4"
+                              placeholder="Describe why you are taking leave..." required></textarea>
                 </div>
             </div>
 
             <div class="text-end mt-4">
-                <button type="submit" class="btn btn-success px-5 py-2 me-3 rounded-3 shadow-sm" style="background-color: #A5D6A7; border: none; color: #1B5E20;">Submit</button>
-                <a asp-action="Index" class="btn btn-danger px-5 py-2 rounded-3 shadow-sm" style="background-color: #EF9A9A; border: none; color: #B71C1C;">Cancel</a>
+                <button type="submit" class="btn btn-success px-5 py-2 me-3 rounded-3 shadow-sm"
+                        style="background-color: #A5D6A7; border: none; color: #1B5E20;">
+                    Submit
+                </button>
+                <a asp-action="Index" class="btn btn-danger px-5 py-2 rounded-3 shadow-sm"
+                   style="background-color: #EF9A9A; border: none; color: #B71C1C;">Cancel</a>
             </div>
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Logic to prevent End Date from being before Start Date
+        document.getElementById('startDate').addEventListener('change', function() {
+            var startDate = this.value;
+            var endDateInput = document.getElementById('endDate');
+            endDateInput.min = startDate;
+            if (endDateInput.value && endDateInput.value < startDate) {
+                endDateInput.value = startDate;
+            }
+        });
+    </script>
+}

@@ -2,39 +2,66 @@
 
 <div class="container-fluid py-4">
     <div class="card border-0 shadow-sm p-4 rounded-4 bg-white">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h5 class="fw-bold m-0">Leave Approval</h5>
-            <div class="d-flex gap-2 align-items-center">
-                <span class="small text-muted">Show Entries</span>
-                <div class="d-flex gap-1 align-items-center bg-light p-1 rounded">
-                    <span class="small px-2">From: <input type="date" class="border-0 bg-transparent small" /></span>
-                    <span class="small px-2">To: <input type="date" class="border-0 bg-transparent small" /></span>
+        <form method="get" asp-action="Approval" id="filterForm">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold m-0">Leave Approval</h5>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="small text-muted">Show Entries</span>
+                    <div class="d-flex gap-1 align-items-center bg-light p-1 rounded">
+                        <span class="small px-2">
+                            From:
+                            <input type="date" name="fromDate" value="@Context.Request.Query["fromDate"]"
+                                   class="border-0 bg-transparent small" onchange="this.form.submit()" />
+                        </span>
+                        <span class="small px-2">
+                            To:
+                            <input type="date" name="toDate" value="@Context.Request.Query["toDate"]"
+                                   class="border-0 bg-transparent small" onchange="this.form.submit()" />
+                        </span>
+                    </div>
+                    <button type="button" onclick="exportData()" class="btn btn-primary btn-sm px-3 rounded-3 shadow-sm">
+                        <i class="bi bi-download me-1"></i> Export
+                    </button>
                 </div>
-                <button class="btn btn-primary btn-sm px-3 rounded-3 shadow-sm"><i class="bi bi-download me-1"></i> Export</button>
             </div>
-        </div>
 
-        <div class="input-group mb-4 w-25 shadow-sm rounded-3">
-            <input type="text" class="form-control border-0 py-2" placeholder="Search..." />
-            <span class="input-group-text bg-white border-0"><i class="bi bi-search text-primary"></i></span>
-        </div>
+            <div class="input-group mb-4 w-25 shadow-sm rounded-3">
+                <input type="text" name="searchString" value="@Context.Request.Query["searchString"]"
+                       class="form-control border-0 py-2" placeholder="Search..." />
+                <button type="submit" class="input-group-text bg-white border-0">
+                    <i class="bi bi-search text-primary"></i>
+                </button>
+            </div>
+        </form>
 
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead class="text-secondary small border-bottom">
                     <tr>
-                        <th>Request <i class="bi bi-arrow-down-up ms-1"></i></th>
-                        <th>Status <i class="bi bi-arrow-down-up ms-1"></i></th>
+                        <th>
+                            <a asp-action="Approval" asp-route-sortOrder="@ViewData["DateSortParm"]" class="text-decoration-none text-secondary">
+                                Request <i class="bi bi-arrow-down-up ms-1"></i>
+                            </a>
+                        </th>
+                        <th>
+                            <a asp-action="Approval" asp-route-sortOrder="@ViewData["StatusSortParm"]" class="text-decoration-none text-secondary">
+                                Status <i class="bi bi-arrow-down-up ms-1"></i>
+                            </a>
+                        </th>
                         <th>Start Date <i class="bi bi-arrow-down-up ms-1"></i></th>
                         <th>End Date <i class="bi bi-arrow-down-up ms-1"></i></th>
-                        <th>Name <i class="bi bi-arrow-down-up ms-1"></i></th>
+                        <th colspan="2">
+                            <a asp-action="Approval" asp-route-sortOrder="@ViewData["NameSortParm"]" class="text-decoration-none text-secondary">
+                                Name <i class="bi bi-arrow-down-up ms-1"></i>
+                            </a>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td class="small text-muted">@DateTime.Now.ToString("dd-MM-yyyy")</td>
+                            <td class="small text-muted">@item.Request_Date?.ToString("dd-MM-yyyy")</td>
                             <td>
                                 @if (item.Status == "Approve")
                                 {
@@ -52,7 +79,11 @@
                             <td class="small text-muted">@item.Start_Date.ToString("dd-MM-yy")</td>
                             <td class="small text-muted">@item.End_Date.ToString("dd-MM-yy")</td>
                             <td class="small text-muted">@item.Employee?.First_Name</td>
-                            <td class="small text-muted">@item.Employee?.Last_Name</td>
+                            <td class="small text-muted">
+                                <a asp-action="Details" asp-route-id="@item.Leave_ID" class="text-decoration-none text-muted fw-bold link-primary">
+                                    @item.Employee?.Last_Name
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -77,3 +108,28 @@
         </div>
     </div>
 </div>
+
+<style>
+    .link-primary:hover {
+        color: #0d6efd !important;
+        text-decoration: underline !important;
+    }
+
+    thead th a:hover {
+        color: #0d6efd !important;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        function exportData() {
+            // Extract current filters from the DOM
+            const search = document.querySelector('input[name="searchString"]').value;
+            const from = document.querySelector('input[name="fromDate"]').value;
+            const to = document.querySelector('input[name="toDate"]').value;
+
+            // Redirect to the controller action with query parameters
+            window.location.href = `/Leave/ExportToExcel?searchString=${encodeURIComponent(search)}&fromDate=${from}&toDate=${to}`;
+        }
+    </script>
+}
