@@ -33,18 +33,20 @@ public class AccountController : Controller
     [HttpPost]
     public async Task<IActionResult> Login(string email, string password)
     {
+        // Search for the user in the Employees table
         var user = await _context.Employees
             .FirstOrDefaultAsync(u => u.Employee_Email == email && u.Password == password);
 
         if (user != null)
         {
-            // Store data in session to be used by the Dashboard
+            // Login successful: Save details to Session
             HttpContext.Session.SetInt32("UserID", user.Employee_ID);
             HttpContext.Session.SetString("UserName", $"{user.First_Name} {user.Last_Name}");
             return RedirectToAction("Index", "Home");
         }
 
-        ViewBag.Error = "Invalid email or password";
+        // Login failed: Provide specific feedback
+        ViewBag.ErrorMessage = "Invalid email or password. Please check your credentials and try again.";
         return View();
     }
 
