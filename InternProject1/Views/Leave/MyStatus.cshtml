@@ -1,46 +1,80 @@
 ﻿@model IEnumerable<InternProject1.Models.LeaveRequest>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4" style="background-color: #f4f7f9; min-height: 90vh;">
     <div class="card border-0 shadow-sm p-4 rounded-4 bg-white">
-        <h5 class="fw-bold mb-4">My Leave Status</h5>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="fw-bold m-0">My Leave Status History</h5>
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-3">
+                <i class="bi bi-arrow-left me-1"></i> Back to Menu
+            </a>
+        </div>
 
         <div class="table-responsive">
             <table class="table align-middle">
-                <thead class="text-secondary small border-bottom">
+                <thead class="text-secondary small border-bottom" style="background-color: #f8f9fa;">
                     <tr>
-                        <th>Request Date</th>
-                        <th>Status</th>
-                        <th>Period</th>
-                        <th>Reason</th>
+                        <th class="py-3">Request Date</th>
+                        <th class="py-3">Status</th>
+                        <th class="py-3">Period</th>
+                        <th class="py-3">Reason</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var item in Model)
+                    @if (!Model.Any())
                     {
                         <tr>
-                            <td class="small text-muted">@item.Request_Date?.ToString("dd-MM-yyyy")</td>
-                            <td>
-                                @if (item.Status == "Approve")
-                                {
-                                    <span class="small text-success fw-bold"><i class="bi bi-circle-fill me-1"></i> Approved</span>
-                                }
-                                else if (item.Status == "Reject")
-                                {
-                                    <span class="small text-danger fw-bold"><i class="bi bi-circle-fill me-1"></i> Rejected</span>
-                                }
-                                else
-                                {
-                                    <span class="small text-warning fw-bold"><i class="bi bi-circle-fill me-1"></i> Pending</span>
-                                }
-                            </td>
-                            <td class="small text-muted">
-                                @item.Start_Date.ToString("dd MMM") - @item.End_Date.ToString("dd MMM yyyy")
-                            </td>
-                            <td class="small text-muted">@item.Reason</td>
+                            <td colspan="4" class="text-center py-5 text-muted small">No leave records found.</td>
                         </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="small text-muted py-3">
+                                    @item.Request_Date?.ToString("dd-MM-yyyy")
+                                </td>
+                                <td>
+                                    @if (item.Status == "Approve")
+                                    {
+                                        <span class="badge rounded-pill bg-success-subtle text-success px-3">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Approved
+                                        </span>
+                                    }
+                                    else if (item.Status == "Reject")
+                                    {
+                                        <span class="badge rounded-pill bg-danger-subtle text-danger px-3">
+                                            <i class="bi bi-x-circle-fill me-1"></i> Rejected
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge rounded-pill bg-warning-subtle text-warning px-3">
+                                            <i class="bi bi-clock-fill me-1"></i> Pending
+                                        </span>
+                                    }
+                                </td>
+                                <td class="small text-muted">
+                                    <span class="fw-semibold text-dark">@item.Start_Date.ToString("dd MMM")</span>
+                                    to
+                                    <span class="fw-semibold text-dark">@item.End_Date.ToString("dd MMM yyyy")</span>
+                                </td>
+                                <td class="small text-muted">
+                                    @* FIXED: Using Reasons to match your database *@
+                                    @(string.IsNullOrEmpty(item.Reasons) ? "No reason provided" : item.Reasons)
+                                </td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>
+        </div>
+
+        @* Action Buttons for Personal Records *@
+        <div class="d-flex justify-content-end mt-4 gap-2">
+            <button class="btn btn-sm px-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 8px; border: none; font-weight: 600; font-size: 0.8rem;">
+                <i class="bi bi-file-earmark-excel me-1"></i> Export My Records
+            </button>
         </div>
     </div>
 </div>

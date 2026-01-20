@@ -32,4 +32,5 @@ public class Employee
     public int? Shift_ID { get; set; }
     [ForeignKey("Shift_ID")]
     public virtual Shift? Shift { get; set; }
+    public string Employee_Name { get; internal set; }
 }

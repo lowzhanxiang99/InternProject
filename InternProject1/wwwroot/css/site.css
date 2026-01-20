@@ -12,7 +12,7 @@ html {
 }
 
 body {
-    background-color: #f0f7ff; /* Soft blue background from Jane Cooper design */
+    background-color: #f4f7f9; /* Clean light grey/blue background */
     margin-bottom: 60px;
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     color: #333;
@@ -24,6 +24,7 @@ body {
     max-width: 280px;
     background-color: #ffffff;
     transition: all 0.3s;
+    z-index: 1000;
 }
 
 /* Sidebar Links (Nav-pills style) */
@@ -31,64 +32,85 @@ body {
     color: #6c757d;
     font-weight: 500;
     padding: 12px 20px !important;
-    transition: 0.3s;
+    transition: 0.3s ease;
+    border: 1px solid transparent; /* Prepare for the subtle border */
 }
 
     .nav-link:hover {
         background-color: #f8fbff;
         color: #0d6efd;
+        border-radius: 8px;
     }
 
     .nav-link.active {
-        background-color: #0d6efd !important; /* Blue highlight */
+        background-color: #0d6efd !important; /* Royal Blue active state */
         color: #ffffff !important;
-        border-radius: 10px;
+        border-radius: 8px;
         box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
     }
 
-/* Dashboard Cards */
-.card {
-    border-radius: 15px; /* Matches the Jane Cooper mockup */
-    border: none;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+/* Report Header Styles */
+.report-header-bar {
+    background-color: #BDD2E7;
+    border-bottom: 1px solid #adc5de;
+}
+
+/* Attendance Overview Boxes */
+.overview-card {
+    background-color: #DDE7F2 !important;
+    border-radius: 12px !important;
+    border: none !important;
     transition: transform 0.2s ease;
 }
 
-    .card:hover {
-        transform: translateY(-5px);
+    .overview-card:hover {
+        transform: translateY(-3px);
     }
 
-/* Circular Progress Rings (Leave Balance) */
-.rounded-circle.border-4 {
-    border-width: 6px !important; /* Thick rings */
+/* Attendance Table Specifics */
+.table-report thead {
+    background-color: #4A77A5 !important; /* Dark blue header */
+    color: #ffffff !important;
+}
+
+.table-report tbody tr {
     background-color: #ffffff;
+    border-bottom: 1px solid #eee;
 }
 
-/* Insights Icon Boxes */
-.bg-primary.bg-opacity-10 {
-    background-color: rgba(13, 110, 253, 0.1) !important;
+/* Pill Buttons (Convert to Excel/PDF) */
+.btn-report-action {
+    background-color: #DDE7F2;
+    color: #333;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: 0.2s;
 }
 
-.bg-info.bg-opacity-10 {
-    background-color: rgba(13, 202, 240, 0.1) !important;
-}
+    .btn-report-action:hover {
+        background-color: #BDD2E7;
+        color: #000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
 
 /* Form Controls & Buttons */
-.btn-outline-primary {
-    border-radius: 20px;
-    font-weight: 500;
-}
-
-.form-control {
+.btn-main-menu {
+    background-color: #BDD2E7;
+    color: #333;
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    font-weight: 600;
 }
 
-    .btn:focus, .form-control:focus {
-        box-shadow: 0 0 0 0.25rem rgba(37, 140, 251, 0.2);
-    }
+/* Dashboard Cards */
+.card-custom {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
 
-/* Scrollbar styling for a cleaner look */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 6px;
 }

@@ -11,18 +11,21 @@
             </h2>
 
             <div class="d-grid gap-4 col-md-5 mx-auto mt-5">
+                @* 1. Leave Application: Stays the same *@
                 <a asp-controller="Leave" asp-action="Apply"
                    class="btn shadow-sm py-4 fs-4 fw-semibold rounded-3 border-0 transition-hover"
                    style="background-color: #BDD2E7; color: #333;">
                     Leave Application
                 </a>
 
+                @* 2. FIXED: Pointing to Leave Controller to find Views/Leave/MyStatus.cshtml *@
                 <a asp-controller="Leave" asp-action="MyStatus"
                    class="btn shadow-sm py-4 fs-4 fw-semibold rounded-3 border-0 transition-hover"
                    style="background-color: #BDD2E7; color: #333;">
                     Check Leave Status
                 </a>
 
+                @* 3. Leave Approval: Requires admin@gmail.com login *@
                 <a asp-controller="Leave" asp-action="ApprovalLogin"
                    class="btn shadow-sm py-4 fs-4 fw-semibold rounded-3 border-0 transition-hover"
                    style="background-color: #BDD2E7; color: #333;">
@@ -34,7 +37,7 @@
 </div>
 
 <style>
-    /* Smooth hover effects to match your style */
+    /* Smooth hover effects */
     .transition-hover {
         transition: all 0.2s ease-in-out;
     }
