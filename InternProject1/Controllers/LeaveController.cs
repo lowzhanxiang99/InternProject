@@ -3,7 +3,7 @@ using InternProject1.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
-using ClosedXML.Excel; // Required for Excel export
+using ClosedXML.Excel;
 using System.IO;
 
 public class LeaveController : Controller
@@ -14,6 +14,7 @@ public class LeaveController : Controller
 
     public IActionResult Index() => View();
 
+    // GET: Leave/Apply
     public IActionResult Apply()
     {
         if (HttpContext.Session.GetInt32("UserID") == null)
@@ -21,6 +22,7 @@ public class LeaveController : Controller
         return View();
     }
 
+    // POST: Leave/Apply
     [HttpPost]
     public async Task<IActionResult> Apply(LeaveRequest leave)
     {
@@ -48,6 +50,8 @@ public class LeaveController : Controller
         }
     }
 
+    // --- ADMIN/MANAGER SECTION ---
+
     public IActionResult ApprovalLogin() => View();
 
     [HttpPost]
@@ -58,24 +62,20 @@ public class LeaveController : Controller
             HttpContext.Session.SetString("IsManager", "true");
             return RedirectToAction("Approval");
         }
-        ViewBag.Error = "Warning ! Only Authorized Users Are Allowed To Log In.";
+        ViewBag.Error = "Warning! Only Authorized Users Are Allowed To Log In.";
         return View();
     }
 
     public async Task<IActionResult> Approval(string searchString, DateTime? fromDate, DateTime? toDate, string sortOrder)
     {
         if (HttpContext.Session.GetString("IsManager") != "true")
-        {
             return RedirectToAction("ApprovalLogin");
-        }
 
         ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
         ViewData["DateSortParm"] = sortOrder == "Date" ? "date_desc" : "Date";
         ViewData["StatusSortParm"] = sortOrder == "Status" ? "status_desc" : "Status";
 
         var requests = _context.LeaveRequests.Include(l => l.Employee).AsQueryable();
-
-        // Reusable filtering logic
         requests = ApplyFilters(requests, searchString, fromDate, toDate);
 
         requests = sortOrder switch
@@ -91,72 +91,93 @@ public class LeaveController : Controller
         return View(await requests.ToListAsync());
     }
 
-    // NEW: Export to Excel Action
+    // Export ALL (For Admin)
     [HttpGet]
     public async Task<IActionResult> ExportToExcel(string searchString, DateTime? fromDate, DateTime? toDate)
     {
         var query = _context.LeaveRequests.Include(l => l.Employee).AsQueryable();
-
-        // Apply the same filters as the table view
         query = ApplyFilters(query, searchString, fromDate, toDate);
-
         var data = await query.ToListAsync();
+        return GenerateExcelFile(data, "All_Leave_Requests.xlsx");
+    }
 
+    // --- PERSONAL USER SECTION ---
+
+    // GET: Leave/MyStatus
+    public async Task<IActionResult> MyStatus()
+    {
+        var userId = HttpContext.Session.GetInt32("UserID");
+        if (userId == null) return RedirectToAction("Login", "Account");
+
+        var myRequests = await _context.LeaveRequests
+                                       .Where(l => l.Employee_ID == userId)
+                                       .OrderByDescending(l => l.Request_Date)
+                                       .ToListAsync();
+
+        return View(myRequests);
+    }
+
+    // Export Personal Records ONLY
+    [HttpGet]
+    public async Task<IActionResult> ExportMyStatusExcel()
+    {
+        var userId = HttpContext.Session.GetInt32("UserID");
+        if (userId == null) return RedirectToAction("Login", "Account");
+
+        var data = await _context.LeaveRequests
+                                 .Include(l => l.Employee)
+                                 .Where(l => l.Employee_ID == userId)
+                                 .ToListAsync();
+
+        return GenerateExcelFile(data, "My_Leave_History.xlsx");
+    }
+
+    // --- SHARED UTILITIES ---
+
+    private IQueryable<LeaveRequest> ApplyFilters(IQueryable<LeaveRequest> query, string searchString, DateTime? fromDate, DateTime? toDate)
+    {
+        if (!String.IsNullOrEmpty(searchString))
+            query = query.Where(s => s.Employee.First_Name.Contains(searchString) || s.Employee.Last_Name.Contains(searchString));
+
+        if (fromDate.HasValue) query = query.Where(l => l.Start_Date >= fromDate.Value);
+        if (toDate.HasValue) query = query.Where(l => l.End_Date <= toDate.Value);
+
+        return query;
+    }
+
+    private FileContentResult GenerateExcelFile(List<LeaveRequest> data, string fileName)
+    {
         using (var workbook = new XLWorkbook())
         {
-            var worksheet = workbook.Worksheets.Add("Leave Requests");
-            var currentRow = 1;
+            var worksheet = workbook.Worksheets.Add("Leave Records");
+            worksheet.Cell(1, 1).Value = "Request Date";
+            worksheet.Cell(1, 2).Value = "Status";
+            worksheet.Cell(1, 3).Value = "Start Date";
+            worksheet.Cell(1, 4).Value = "End Date";
+            worksheet.Cell(1, 5).Value = "Employee Name";
 
-            // Define Headers
-            worksheet.Cell(currentRow, 1).Value = "Request Date";
-            worksheet.Cell(currentRow, 2).Value = "Status";
-            worksheet.Cell(currentRow, 3).Value = "Start Date";
-            worksheet.Cell(currentRow, 4).Value = "End Date";
-            worksheet.Cell(currentRow, 5).Value = "Employee Name";
-
-            // Formatting headers
             var headerRow = worksheet.Row(1);
             headerRow.Style.Font.Bold = true;
             headerRow.Style.Fill.BackgroundColor = XLColor.LightGray;
 
-            // Fill Data
+            int row = 2;
             foreach (var item in data)
             {
-                currentRow++;
-                worksheet.Cell(currentRow, 1).Value = item.Request_Date?.ToString("dd-MM-yyyy");
-                worksheet.Cell(currentRow, 2).Value = item.Status;
-                worksheet.Cell(currentRow, 3).Value = item.Start_Date.ToString("dd-MM-yyyy");
-                worksheet.Cell(currentRow, 4).Value = item.End_Date.ToString("dd-MM-yyyy");
-                worksheet.Cell(currentRow, 5).Value = $"{item.Employee?.First_Name} {item.Employee?.Last_Name}";
+                worksheet.Cell(row, 1).Value = item.Request_Date?.ToString("dd-MM-yyyy");
+                worksheet.Cell(row, 2).Value = item.Status;
+                worksheet.Cell(row, 3).Value = item.Start_Date.ToString("dd-MM-yyyy");
+                worksheet.Cell(row, 4).Value = item.End_Date.ToString("dd-MM-yyyy");
+                worksheet.Cell(row, 5).Value = $"{item.Employee?.First_Name} {item.Employee?.Last_Name}";
+                row++;
             }
 
             worksheet.Columns().AdjustToContents();
-
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
-                var content = stream.ToArray();
-                return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "LeaveRequests.xlsx");
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
         }
-    }
-
-    // Helper method to keep filtering logic consistent
-    private IQueryable<LeaveRequest> ApplyFilters(IQueryable<LeaveRequest> query, string searchString, DateTime? fromDate, DateTime? toDate)
-    {
-        if (!String.IsNullOrEmpty(searchString))
-        {
-            query = query.Where(s => s.Employee.First_Name.Contains(searchString) || s.Employee.Last_Name.Contains(searchString));
-        }
-        if (fromDate.HasValue)
-        {
-            query = query.Where(l => l.Start_Date >= fromDate.Value);
-        }
-        if (toDate.HasValue)
-        {
-            query = query.Where(l => l.End_Date <= toDate.Value);
-        }
-        return query;
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -177,20 +198,5 @@ public class LeaveController : Controller
             await _context.SaveChangesAsync();
         }
         return RedirectToAction(nameof(Approval));
-    }
-    // GET: Employee's Personal Leave Status History
-    public async Task<IActionResult> MyStatus()
-    {
-        // Ensure user is logged in
-        var userId = HttpContext.Session.GetInt32("UserID");
-        if (userId == null) return RedirectToAction("Login", "Account");
-
-        // Fetch only requests for this specific user
-        var myRequests = await _context.LeaveRequests
-                                       .Where(l => l.Employee_ID == userId)
-                                       .OrderByDescending(l => l.Request_Date)
-                                       .ToListAsync();
-
-        return View(myRequests);
     }
 }
