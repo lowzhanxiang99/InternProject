@@ -2,6 +2,7 @@
 using InternProject1.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,13 +13,15 @@ namespace InternProject1.Controllers
     public class AttendanceController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<AttendanceController> _logger;
 
-        public AttendanceController(ApplicationDbContext context)
+        public AttendanceController(ApplicationDbContext context, ILogger<AttendanceController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
-        // Helper method to get current user ID - using ControllerBase.HttpContext
+        // Helper method to get current user ID
         private int GetCurrentUserId()
         {
             // For now, return a default user ID (e.g., 1)
@@ -33,7 +36,6 @@ namespace InternProject1.Controllers
             return 1;
         }
 
-        // ... rest of your controller methods remain the same
         public async Task<IActionResult> Index()
         {
             int employeeId = GetCurrentUserId();
@@ -189,14 +191,66 @@ namespace InternProject1.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        public IActionResult Report()
+        [HttpGet]
+        public async Task<IActionResult> GetAttendanceDetails(DateTime date)
         {
-            return View();
-        }
+            try
+            {
+                int userId = GetCurrentUserId();
 
-        public IActionResult Monitor()
-        {
-            return View();
+                // Find attendance for the specific date and user
+                var attendance = await _context.Attendances
+                    .FirstOrDefaultAsync(a => a.Employee_ID == userId && a.Date.Date == date.Date);
+
+                if (attendance == null)
+                {
+                    return Json(new
+                    {
+                        success = true,
+                        hasAttendance = false,
+                        message = "No attendance record found"
+                    });
+                }
+
+                // Calculate working hours if both clock in and out exist
+                TimeSpan? workingHours = null;
+                if (attendance.ClockInTime.HasValue && attendance.ClockOutTime.HasValue)
+                {
+                    var totalDuration = attendance.ClockOutTime.Value - attendance.ClockInTime.Value;
+                    var breakTime = attendance.TotalBreakTime ?? TimeSpan.Zero;
+                    workingHours = totalDuration - breakTime;
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    hasAttendance = true,
+                    attendance = new
+                    {
+                        id = attendance.Attendance_ID,
+                        clockInTime = attendance.ClockInTime?.ToString(@"hh\:mm\:ss"),
+                        clockOutTime = attendance.ClockOutTime?.ToString(@"hh\:mm\:ss"),
+                        totalBreakTime = attendance.TotalBreakTime.HasValue ? new
+                        {
+                            hours = attendance.TotalBreakTime.Value.Hours,
+                            minutes = attendance.TotalBreakTime.Value.Minutes,
+                            seconds = attendance.TotalBreakTime.Value.Seconds
+                        } : null,
+                        workingHours = workingHours.HasValue ? new
+                        {
+                            hours = workingHours.Value.Hours,
+                            minutes = workingHours.Value.Minutes,
+                            seconds = workingHours.Value.Seconds
+                        } : null,
+                        status = attendance.Status,
+                        isOnBreak = attendance.IsOnBreak
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
     }
 }
