@@ -4,6 +4,7 @@ using InternProject1.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260120142325_AddBreakPropertiesToAttendance")]
+    partial class AddBreakPropertiesToAttendance
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -96,9 +99,6 @@ namespace InternProject1.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Employee_ID"));
 
-                    b.Property<int>("AnnualLeaveDays")
-                        .HasColumnType("int");
-
                     b.Property<string>("Branch")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -109,14 +109,12 @@ namespace InternProject1.Migrations
                     b.Property<int?>("Department_ID")
                         .HasColumnType("int");
 
-                    b.Property<int>("EmergencyLeaveDays")
-                        .HasColumnType("int");
-
                     b.Property<string>("Employee_Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Employee_Name")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Employee_Phone")
@@ -134,12 +132,6 @@ namespace InternProject1.Migrations
                     b.Property<string>("Last_Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("MCDays")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OtherLeaveDays")
-                        .HasColumnType("int");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -177,9 +169,6 @@ namespace InternProject1.Migrations
 
                     b.Property<DateTime>("End_Date")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("LeaveType")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("Leave_Balance")
                         .HasColumnType("int");

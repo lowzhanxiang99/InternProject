@@ -1,0 +1,1458 @@
+﻿@model List<Attendance>
+@{
+    ViewData["Title"] = "Check-In/Check-Out";
+    Layout = "_Layout";
+
+    // Get selected month/year from query string or use current
+    int selectedMonth = DateTime.Now.Month;
+    int selectedYear = DateTime.Now.Year;
+
+    if (Context.Request.Query.ContainsKey("month") && int.TryParse(Context.Request.Query["month"], out int month))
+    {
+        selectedMonth = month;
+    }
+    if (Context.Request.Query.ContainsKey("year") && int.TryParse(Context.Request.Query["year"], out int year))
+    {
+        selectedYear = year;
+    }
+
+    var selectedDate = new DateTime(selectedYear, selectedMonth, 1);
+
+    // Get today's attendance if exists
+    var todayAttendance = Model?.FirstOrDefault(a => a.Date.Date == DateTime.Today);
+    var recentAttendance = Model?.Where(a => a.Date.Date < DateTime.Today)
+                                 .OrderByDescending(a => a.Date)
+                                 .Take(5)
+                                 .ToList();
+
+    // Get attendance for selected month
+    var monthlyAttendance = Model?.Where(a => a.Date.Month == selectedMonth && a.Date.Year == selectedYear).ToList();
+}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    /* ===== MAIN CONTAINER ===== */
+    .container-fluid {
+        background: #F3F8FB !important;
+        min-height: 100vh;
+        padding: 0;
+    }
+
+    /* ===== HEADER SECTION ===== */
+    .d-flex.justify-content-between.align-items-center.mb-4 {
+        padding: 0 40px;
+        margin-top: 20px;
+        margin-bottom: 20px !important;
+    }
+
+    h1.h3.mb-0 {
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 500;
+        font-size: 20px;
+        line-height: 30px;
+        text-transform: capitalize;
+        color: #122539;
+        margin: 0;
+    }
+
+    /* ===== DROPDOWN STYLES ===== */
+    .form-select.form-select-sm {
+        background: #FFFFFF;
+        border: 1px solid #AAD9F9 !important;
+        border-radius: 4px;
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 21px;
+        color: #2C5B8C;
+        padding: 6px 12px;
+        height: 40px;
+        min-width: 120px;
+    }
+
+        .form-select.form-select-sm.me-2 {
+            min-width: 134px;
+        }
+
+    /* ===== CARD STYLES ===== */
+    .card {
+        background: #FFFFFF !important;
+        border: 1px solid #C6E6FB !important;
+        box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
+        border-radius: 12px !important;
+    }
+
+        .card.shadow-sm.border-0.h-100 {
+            height: 350px !important;
+        }
+
+    .card-body {
+        padding: 10px;
+    }
+
+        .card-body.p-3 {
+            padding: 10px !important;
+        }
+
+    .col-md-8 .card-body {
+        padding-right: 0px;
+    }
+
+    /* ===== CALENDAR STYLES ===== */
+    .simple-calendar {
+        font-size: 0.8rem;
+    }
+
+    .calendar-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-weight: 500;
+        color: #5A91CB !important;
+        margin-bottom: 5px;
+		margin-top: 30px;
+        padding: 0 2px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 14px;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+    }
+
+    .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background-color: transparent;
+        font-size: 14px;
+        font-weight: 400;
+        color: #122539;
+        font-family: 'Poppins', sans-serif;
+        width: 33px;
+        height: 33px;
+        margin: 0 auto;
+    }
+
+        .calendar-day.today {
+            background: #5A91CB !important;
+            color: #FFFFFF !important;
+            font-weight: 400;
+        }
+
+        .calendar-day.empty {
+            background-color: transparent;
+            visibility: hidden;
+        }
+
+    .card-title.mb-3 {
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 600;
+        font-size: 20px;
+        line-height: 26px;
+        text-align: center;
+        color: #2C5B8C;
+        margin-bottom: 10px !important;
+		margin-top: 20px !important;
+    }
+
+    /* ===== CLOCK SECTION - 40% LEFT SIDE ===== */
+    .border-end {
+        border-right: 1px solid #D6E3F2 !important;
+    }
+
+    /* Left column - 40% for clock */
+    .col-md-4.border-end {
+        width: 40% !important;
+        flex: 0 0 40% !important;
+        max-width: 40% !important;
+        padding-right: 10px !important;
+        padding-left: 0 !important;
+    }
+
+    /* Right column - 60% for summary and buttons */
+    .col-md-8 {
+        width: 60% !important;
+        flex: 0 0 60% !important;
+        max-width: 60% !important;
+        padding-left: 10px !important;
+        padding-right: 0 !important;
+    }
+
+    .analog-clock-container {
+        position: relative;
+        margin: 0 auto;
+        width: 200px !important;
+        height: 200px !important;
+    }
+
+    #analog-clock {
+        display: block;
+        margin: 0 auto;
+        width: 200px;
+        height: 200px;
+    }
+
+        #analog-clock circle:nth-child(1) {
+            fill: #D6E3F2 !important;
+            stroke: #D6E3F2 !important;
+            stroke-width: 0 !important;
+            filter: drop-shadow(2.44929e-15px 40px 80px rgba(46, 47, 49, 0.114)) drop-shadow(inset -5.66059e-16px -9.24444px 9.24444px #DCE2EC) drop-shadow(inset 5.66059e-16px 9.24444px 9.24444px #EDF4FE);
+        }
+
+        #analog-clock circle:nth-child(2) {
+            fill: #FBFBFB !important;
+            stroke: transparent !important;
+            filter: drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.12));
+        }
+
+        /* Clock center dot */
+        #analog-clock circle:last-child {
+            fill: #DC2D7C !important;
+            r: 3 !important;
+            cx: 100;
+            cy: 100;
+        }
+
+    /* Digital time display */
+    .digital-time-display {
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 600;
+        font-size: 28px !important;
+        line-height: 42px;
+        text-align: center;
+        color: #2C5B8C;
+        display: block;
+        margin-top: 15px !important;
+    }
+
+    #am-pm {
+        font-family: 'Poppins', sans-serif;
+        font-size: 16px !important;
+        color: #2C5B8C;
+        margin-left: 5px;
+    }
+
+    .date-display {
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 400;
+        font-size: 16px !important;
+        line-height: 24px;
+        color: #1F4062;
+        margin-top: 5px;
+        display: block;
+    }
+
+    /* ===== RIGHT COLUMN ADJUSTMENTS - 60% ===== */
+    .d-flex.flex-column.justify-content-center.h-100 {
+        justify-content: space-between !important;
+        height: 100%;
+        padding-left: 20px;
+		padding-right: 20px;
+    }
+
+    /* ===== SUMMARY BOXES - IMPROVED LAYOUT ===== */
+    .summary-section {
+        margin-bottom: 10px;
+    }
+
+    .d-grid.gap-3 {
+        gap: 10px !important;
+    }
+
+    .summary-box {
+        background: #FFFFFF !important;
+        border: 1px solid #C6E6FB !important;
+        box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
+        border-radius: 12px !important;
+        padding: 12px 14px !important;
+        text-align: left !important;
+        min-height: auto;
+    }
+
+    .summary-title {
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 400;
+        font-size: 16px !important;
+        line-height: 24px;
+        color: #1F4062 !important;
+        margin-bottom: 2px !important;
+        text-transform: none !important;
+        letter-spacing: 0 !important;
+    }
+
+    .summary-time {
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 700 !important;
+        font-size: 18px !important;
+        line-height: 33px;
+        color: #2C5B8C !important;
+    }
+
+    /* ===== BUTTON SECTION ===== */
+    #buttonSection {
+        margin-top: -20px !important;
+    }
+
+    .btn-lg.w-100.py-3 {
+        background: linear-gradient(180deg, #94D145 0%, #52B623 100%) !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 8px 8px !important;
+        height: 44px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
+        .btn-lg.w-100.py-3 h4 {
+            font-family: 'Poppins', sans-serif;
+            font-style: normal;
+            font-weight: 600;
+            font-size: 16px !important;
+            line-height: 24px;
+            color: #FFFFFF;
+            margin-bottom: 0 !important;
+        }
+
+        .btn-lg.w-100.py-3 small {
+            font-family: 'Poppins', sans-serif;
+            font-style: normal;
+            font-weight: 400;
+            font-size: 12px !important;
+            line-height: 18px;
+            color: #FFFFFF;
+            opacity: 0.8;
+        }
+
+    /* Break button */
+    .btn-outline-primary.btn-lg.w-100.py-3 {
+        background: #FFFFFF !important;
+        border: 1px solid #C6E6FB !important;
+        box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
+        border-radius: 8px !important;
+        color: #2C5B8C !important;
+        padding: 10px 20px !important;
+        height: 44px !important;
+    }
+
+        .btn-outline-primary.btn-lg.w-100.py-3 h4 {
+            color: #2C5B8C !important;
+            font-size: 16px !important;
+        }
+
+        .btn-outline-primary.btn-lg.w-100.py-3 small {
+            color: #6c757d !important;
+            font-size: 12px !important;
+        }
+
+    /* Danger button (Check Out) */
+    .btn-danger.btn-lg.w-100.py-3 {
+        background: linear-gradient(180deg, #FF9C8E 0%, #F5533D 100%) !important;
+        padding: 10px 20px !important;
+        height: 44px !important;
+    }
+
+    /* ===== ALERT ADJUSTMENTS ===== */
+    .alert-warning, .alert-success {
+        background: #FFFFFF !important;
+        border: 1px solid #C6E6FB !important;
+        box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
+        border-radius: 8px !important;
+        color: #122539 !important;
+        padding: 15px !important;
+        margin-top: 20px !important;
+    }
+
+        .alert-warning h5, .alert-success h5 {
+            font-size: 18px !important;
+            margin-bottom: 10px !important;
+        }
+
+        .alert-warning p, .alert-success p {
+            font-size: 14px !important;
+            margin-bottom: 0 !important;
+        }
+
+    /* ===== SMALL TEXT ADJUSTMENTS ===== */
+    .mt-2.text-center small {
+        font-size: 14px !important;
+        line-height: 21px;
+    }
+
+    /* ===== RECENT ACTIVITY TABLE ===== */
+    .card-header.bg-white {
+        background: #FFFFFF !important;
+        border-bottom: 1px solid #D6E3F2 !important;
+        padding: 18px 32px !important;
+    }
+
+        .card-header.bg-white h5 {
+            font-family: 'Poppins', sans-serif;
+            font-style: normal;
+            font-weight: 500;
+            font-size: 20px;
+            line-height: 30px;
+            color: #122539;
+            margin: 0;
+        }
+
+    .table-responsive {
+        padding: 0 32px 32px 32px;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+        .table thead th {
+            font-family: 'Poppins', sans-serif;
+            font-style: normal;
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 24px;
+            color: #2C5B8C;
+            border-bottom: 2px solid #D6E3F2;
+            padding: 16px 8px;
+            background: #FFFFFF;
+        }
+
+        .table tbody td {
+            font-family: 'Poppins', sans-serif;
+            font-style: normal;
+            font-weight: 400;
+            font-size: 16px;
+            line-height: 24px;
+            color: #5A91CB;
+            padding: 16px 8px;
+            border-bottom: 2px solid #D6E3F2;
+        }
+
+    .table-hover tbody tr:hover {
+        background-color: #F3F8FB;
+    }
+
+    /* ===== STATUS INDICATORS ===== */
+    .table tbody tr:first-child td:nth-child(2)::before {
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background: linear-gradient(180deg, #94D145 0%, #52B623 100%);
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    /* ===== TEXT MUTED ===== */
+    .text-muted {
+        color: #5A91CB !important;
+    }
+
+    .text-center.text-muted.py-4 {
+        color: #5A91CB !important;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* ===== LAYOUT FIXES ===== */
+    .row.mb-4 {
+        margin-bottom: 20px !important;
+        padding: 0 20px;
+        padding-right: 2px;
+    }
+
+    .row:not(.mb-4) {
+        padding: 0 20px 32px 20px;
+    }
+
+    /* ===== SPINNER ===== */
+    .spinner-border {
+        border-color: #2C5B8C !important;
+        border-right-color: transparent !important;
+    }
+
+    /* ===== RESPONSIVE ADJUSTMENTS ===== */
+    @@media (max-width: 992px) {
+        .col-md-4.border-end, .col-md-8 {
+            width: 100% !important;
+            flex: 0 0 100% !important;
+            max-width: 100% !important;
+            padding: 15px !important;
+        }
+
+        .col-md-4.border-end {
+            border-right: none !important;
+            border-bottom: 1px solid #D6E3F2 !important;
+            padding-bottom: 30px !important;
+        }
+
+        .analog-clock-container {
+            width: 180px !important;
+            height: 180px !important;
+        }
+
+        #analog-clock {
+            width: 180px;
+            height: 180px;
+        }
+
+        .digital-time-display {
+            font-size: 24px !important;
+            line-height: 36px;
+        }
+
+        .date-display {
+            font-size: 14px !important;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .row.mb-4, .row:not(.mb-4) {
+            padding: 0 20px;
+        }
+
+        .analog-clock-container {
+            width: 160px !important;
+            height: 160px !important;
+        }
+
+        #analog-clock {
+            width: 160px;
+            height: 160px;
+        }
+
+        .calendar-day {
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
+        }
+
+        .summary-box {
+            padding: 18px 20px !important;
+        }
+
+        .summary-title {
+            font-size: 14px !important;
+        }
+
+        .summary-time {
+            font-size: 18px !important;
+            line-height: 27px;
+        }
+
+        .btn-lg.w-100.py-3,
+        .btn-outline-primary.btn-lg.w-100.py-3,
+        .btn-danger.btn-lg.w-100.py-3 {
+            height: 40px !important;
+            padding: 8px 16px !important;
+        }
+
+            .btn-lg.w-100.py-3 h4,
+            .btn-outline-primary.btn-lg.w-100.py-3 h4,
+            .btn-danger.btn-lg.w-100.py-3 h4 {
+                font-size: 14px !important;
+                line-height: 21px;
+            }
+
+            .btn-lg.w-100.py-3 small,
+            .btn-outline-primary.btn-lg.w-100.py-3 small,
+            .btn-danger.btn-lg.w-100.py-3 small {
+                font-size: 11px !important;
+                line-height: 16px;
+            }
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Check-In & Check-Out</h1>
+                <div class="d-flex align-items-center">
+                    <!-- Month Dropdown -->
+                    <select class="form-select form-select-sm me-2" id="monthSelect" style="min-width: 120px;">
+                        @{
+                            var monthNames = new[] { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+                        }
+                        @for (int i = 0; i < monthNames.Length; i++)
+                        {
+                            if (selectedMonth == i + 1)
+                            {
+                                <option value="@(i + 1)" selected>@monthNames[i]</option>
+                            }
+                            else
+                            {
+                                <option value="@(i + 1)">@monthNames[i]</option>
+                            }
+                        }
+                    </select>
+
+                    <!-- Year Dropdown -->
+                    <select class="form-select form-select-sm" id="yearSelect" style="min-width: 100px;">
+                        @for (int y = DateTime.Now.Year - 5; y <= DateTime.Now.Year + 1; y++)
+                        {
+                            if (y == selectedYear)
+                            {
+                                <option value="@y" selected>@y</option>
+                            }
+                            else
+                            {
+                                <option value="@y">@y</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <!-- Current Status Card -->
+            <div class="row mb-4">
+                <!-- Left Side - Calendar -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body p-3">
+                            <h6 class="card-title mb-3">
+                                <span id="calendarMonthYear">@selectedDate.ToString("MMMM yyyy")</span>
+                            </h6>
+
+                            <!-- Simple calendar grid -->
+                            <div class="simple-calendar">
+                                <div class="calendar-header">
+                                    <div class="text-muted">S</div>
+                                    <div class="text-muted">M</div>
+                                    <div class="text-muted">T</div>
+                                    <div class="text-muted">W</div>
+                                    <div class="text-muted">T</div>
+                                    <div class="text-muted">F</div>
+                                    <div class="text-muted">S</div>
+                                </div>
+                                <div class="calendar-grid">
+                                    @{
+                                        var firstDay = new DateTime(selectedYear, selectedMonth, 1);
+                                        var daysInMonth = DateTime.DaysInMonth(selectedYear, selectedMonth);
+                                        var startDay = (int)firstDay.DayOfWeek;
+                                    }
+
+                                    @for (int i = 0; i < startDay; i++)
+                                    {
+                                        <div class="calendar-day empty"></div>
+                                    }
+
+                                    @for (int day = 1; day <= daysInMonth; day++)
+                                    {
+                                        var dayDate = new DateTime(selectedYear, selectedMonth, day);
+                                        var isToday = dayDate.Date == DateTime.Today;
+                                        var dayClass = "calendar-day";
+
+                                        if (isToday)
+                                        {
+                                            dayClass += " today";
+                                        }
+
+                                        <div class="@dayClass">
+                                            @day
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side - Clock & Break Management -->
+                <div class="col-md-8">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <div class="row h-100">
+                                <!-- Left column: Analog clock (40%) -->
+                                <div class="col-md-4 border-end">
+                                    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                                        <!-- Analog Clock Container -->
+                                        <div class="text-center mb-4">
+                                            <div class="analog-clock-container">
+                                                <svg id="analog-clock">
+                                                    <!-- Clock face - Light blue theme -->
+                                                    <circle cx="100" cy="100" r="95" fill="#f8fafc" stroke="#7dd3fc" stroke-width="4" />
+                                                    <!-- Hour marks will be added by JavaScript -->
+                                                    <g id="hour-marks"></g>
+                                                    <!-- Hour numbers will be added by JavaScript -->
+                                                    <g id="hour-numbers" font-family="Arial" font-size="16" fill="#475569" text-anchor="middle" alignment-baseline="middle"></g>
+                                                    <!-- Clock hands - Light blue theme -->
+                                                    <line id="hour-hand" x1="100" y1="100" x2="100" y2="60" stroke="#64748b" stroke-width="6" stroke-linecap="round" />
+                                                    <line id="minute-hand" x1="100" y1="100" x2="100" y2="40" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" />
+                                                    <line id="second-hand" x1="100" y1="100" x2="100" y2="30" stroke="#f87171" stroke-width="2" stroke-linecap="round" />
+                                                    <!-- Clock center dot -->
+                                                    <circle cx="100" cy="100" r="6" fill="#38bdf8" />
+                                                </svg>
+                                            </div>
+
+                                            <!-- Digital time display below clock -->
+                                            <div class="digital-time-display">
+                                                <span id="digital-time">@DateTime.Now.ToString("hh:mm:ss")</span>
+                                                <span id="am-pm">@DateTime.Now.ToString("tt").ToUpper()</span>
+                                            </div>
+
+                                            <!-- Date display -->
+                                            <div class="date-display">
+                                                <span id="liveDateShort">@DateTime.Now.ToString("dddd, MMMM dd")</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right column: Hours Summary & Check buttons (60%) -->
+                                <div class="col-md-8">
+                                    <div class="d-flex flex-column justify-content-center h-100">
+                                        <!-- Hours Summary (Vertical format) -->
+                                        <div class="summary-section">
+                                            <div class="text-center">
+                                                <div class="d-grid gap-3">
+                                                    <!-- Working Hours -->
+                                                    <div class="summary-box">
+                                                        <div class="summary-title">Working Hours</div>
+                                                        <div class="summary-time" id="workingTime">
+                                                            <span id="workingHours">0</span> Hr
+                                                            <span id="workingMinutes">00</span> Mins
+                                                            <span id="workingSeconds">00</span> Secs
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Break Hours -->
+                                                    <div class="summary-box">
+                                                        <div class="summary-title">Break Hours</div>
+                                                        <div class="summary-time" id="breakTime">
+                                                            <span id="breakHours">0</span> Hr
+                                                            <span id="breakMinutes">00</span> Mins
+                                                            <span id="breakSeconds">00</span> Secs
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Dynamic Button Section -->
+                                        <div class="mt-4" id="buttonSection">
+                                            @if (todayAttendance?.ClockInTime == null)
+                                            {
+                                                <!-- Check In Button -->
+                                                <form asp-action="ClockIn" method="post" id="clockInForm">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="latitude" id="clockInLat" />
+                                                    <input type="hidden" name="longitude" id="clockInLng" />
+                                                    <button type="submit" class="btn btn-success btn-lg w-100 py-3" id="clockInBtn">
+                                                        <h4 class="mb-1">Check In</h4>
+                                                        <small class="text-white-50">Start your workday</small>
+                                                    </button>
+                                                </form>
+                                            }
+                                            else if (todayAttendance?.ClockOutTime == null)
+                                            {
+                                                @if (!(todayAttendance?.IsOnBreak ?? false) && !(todayAttendance?.HasTakenBreak ?? false))
+                                                {
+                                                    <!-- Checked in, not on break, hasn't taken break: Show Start Break and Check Out -->
+                                                    <form asp-action="StartBreak" method="post" id="startBreakForm" class="mb-3">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="btn btn-outline-primary btn-lg w-100 py-3" id="startBreakBtn">
+                                                            <h4 class="mb-1">Start Break</h4>
+                                                            <small class="text-muted">Take a break from work</small>
+                                                        </button>
+                                                    </form>
+
+                                                    <form asp-action="ClockOut" method="post" id="clockOutForm">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="latitude" id="clockOutLat" />
+                                                        <input type="hidden" name="longitude" id="clockOutLng" />
+                                                        <button type="submit" class="btn btn-danger btn-lg w-100 py-3" id="clockOutBtn">
+                                                            <h4 class="mb-1">Check Out</h4>
+                                                            <small class="text-white-50">End your workday</small>
+                                                        </button>
+                                                    </form>
+                                                    <div class="mt-2 text-center">
+                                                        <small class="text-muted">
+                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime.Value)
+                                                        </small>
+                                                    </div>
+                                                }
+                                                else if (todayAttendance?.IsOnBreak ?? false)
+                                                {
+                                                    <!-- On break: Show ONLY End Break -->
+                                                    <form asp-action="EndBreak" method="post" id="endBreakForm">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="btn btn-danger btn-lg w-100 py-3" id="endBreakBtn">
+                                                            <h4 class="mb-1">End Break</h4>
+                                                            <small class="text-white-50">Resume work</small>
+                                                        </button>
+                                                    </form>
+
+                                                    <div class="alert alert-warning mt-3" id="breakStatusAlert">
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                            <div>
+                                                                <strong>On Break</strong>
+                                                                <div class="small">
+                                                                    Break started at:
+                                                                    <span id="breakStartTime">
+                                                                        @if (todayAttendance?.BreakStartTime != null)
+                                                                        {
+                                                                            @TimeSpanToString(todayAttendance.BreakStartTime.Value.TimeOfDay)
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <!-- After ending break (HasTakenBreak = true): Show ONLY Check Out -->
+                                                    <form asp-action="ClockOut" method="post" id="clockOutForm">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="latitude" id="clockOutLat" />
+                                                        <input type="hidden" name="longitude" id="clockOutLng" />
+                                                        <button type="submit" class="btn btn-danger btn-lg w-100 py-3" id="clockOutBtn">
+                                                            <h4 class="mb-1">Check Out</h4>
+                                                            <small class="text-white-50">End your workday</small>
+                                                        </button>
+                                                    </form>
+                                                    <div class="mt-2 text-center">
+                                                        <small class="text-muted">
+                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime.Value)<br>
+                                                            Break taken for today
+                                                        </small>
+                                                    </div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <!-- Day Completed -->
+                                                <div class="alert alert-success">
+                                                    <h5>Day Completed!</h5>
+                                                    <p class="mb-0">
+                                                        Checked in: @TimeSpanToString(todayAttendance.ClockInTime.Value)<br>
+                                                        Checked out: @TimeSpanToString(todayAttendance.ClockOutTime.Value)<br>
+                                                        @if (todayAttendance.TotalBreakTime > TimeSpan.Zero)
+                                                        {
+                                                            <span>Break time: @todayAttendance.TotalBreakTime.Value.ToString(@"hh\:mm")</span>
+                                                        }
+                                                    </p>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Recent Attendance</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Time In</th>
+                                            <th>Time Out</th>
+                                            <th>Break Hours</th>
+                                            <th>Working Hours</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (recentAttendance != null && recentAttendance.Any())
+                                        {
+                                            @foreach (var record in recentAttendance)
+                                            {
+                                                <tr>
+                                                    <td>@record.Date.ToString("MMM dd, yyyy")</td>
+                                                    <td>
+                                                        @if (record.ClockInTime != null)
+                                                        {
+                                                            <span>@TimeSpanToString(record.ClockInTime.Value)</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">-</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (record.ClockOutTime != null)
+                                                        {
+                                                            <span>@TimeSpanToString(record.ClockOutTime.Value)</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">-</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (record.TotalBreakTime != null && record.TotalBreakTime > TimeSpan.Zero)
+                                                        {
+                                                            <span>@record.TotalBreakTime.Value.ToString(@"hh\:mm")</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>0:00</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (record.ClockInTime != null && record.ClockOutTime != null)
+                                                        {
+                                                            var totalHours = (record.ClockOutTime.Value - record.ClockInTime.Value).TotalHours;
+                                                            var breakHours = record.TotalBreakTime?.TotalHours ?? 0;
+                                                            var workingHours = totalHours - breakHours;
+                                                            <span>@workingHours.ToString("F2")</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">-</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    No attendance records found
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Global variables for timers
+        let workingTimer = null;
+        let breakTimer = null;
+        let workingSeconds = 0;
+        let breakSeconds = 0;
+        let breakStartTime = null;
+        let isOnBreak = @((todayAttendance?.IsOnBreak ?? false) ? "true" : "false");
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize clock face
+            initializeClockFace();
+
+            // Start analog clock
+            updateAnalogClock();
+            setInterval(updateAnalogClock, 50);
+
+            // Live clock update for check-in time
+            function updateTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-US', {
+                    hour12: true,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                if (document.getElementById('checkInTime')) {
+                    document.getElementById('checkInTime').textContent = timeString;
+                }
+            }
+            setInterval(updateTime, 1000);
+            updateTime();
+
+            // Initialize time displays
+            initializeTimeDisplays();
+
+            // Get dropdown elements
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
+
+            // Set initial values from selected month/year
+            if (monthSelect && yearSelect) {
+                monthSelect.value = @selectedMonth;
+                yearSelect.value = @selectedYear;
+            }
+
+            // Auto-apply when either dropdown changes
+            function applyMonthYear() {
+                const newYear = yearSelect.value;
+                const newMonth = monthSelect.value;
+
+                // Update the calendar header text
+                const monthYearElement = document.getElementById('calendarMonthYear');
+                if (monthYearElement) {
+                    const date = new Date(newYear, newMonth - 1);
+                    monthYearElement.textContent =
+                        date.toLocaleString('default', {
+                            month: 'long',
+                            year: 'numeric'
+                        });
+                }
+
+                // Reload the page with new parameters
+                window.location.href = `?month=${newMonth}&year=${newYear}`;
+            }
+
+            // Add event listeners
+            if (monthSelect) {
+                monthSelect.addEventListener('change', applyMonthYear);
+            }
+
+            if (yearSelect) {
+                yearSelect.addEventListener('change', applyMonthYear);
+            }
+
+            // Prevent double submission for clock in/out
+            const clockInBtn = document.getElementById('clockInBtn');
+            const clockOutBtn = document.getElementById('clockOutBtn');
+            const startBreakBtn = document.getElementById('startBreakBtn');
+            const endBreakBtn = document.getElementById('endBreakBtn');
+
+            if (clockInBtn) {
+                clockInBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Clocking in...';
+
+                    // Get current location for clock in
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(function(position) {
+                            document.getElementById('clockInLat').value = position.coords.latitude;
+                            document.getElementById('clockInLng').value = position.coords.longitude;
+                            document.getElementById('clockInForm').submit();
+                        }, function(error) {
+                            alert('Please enable location services to clock in.');
+                            clockInBtn.disabled = false;
+                            clockInBtn.innerHTML = '<h4 class="mb-1">Check In</h4><small class="text-white-50">Start your workday</small>';
+                        });
+                    } else {
+                        alert('Geolocation is not supported by this browser.');
+                        clockInBtn.disabled = false;
+                        clockInBtn.innerHTML = '<h4 class="mb-1">Check In</h4><small class="text-white-50">Start your workday</small>';
+                    }
+                });
+            }
+
+            if (clockOutBtn) {
+                clockOutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Clocking out...';
+
+                    // Get current location for clock out
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(function(position) {
+                            document.getElementById('clockOutLat').value = position.coords.latitude;
+                            document.getElementById('clockOutLng').value = position.coords.longitude;
+
+                            // Stop all timers when clocking out
+                            stopWorkingTimer();
+                            stopBreakTimer();
+
+                            document.getElementById('clockOutForm').submit();
+                        }, function(error) {
+                            alert('Please enable location services to clock out.');
+                            clockOutBtn.disabled = false;
+                            clockOutBtn.innerHTML = '<h4 class="mb-1">Check Out</h4><small class="text-white-50">End your workday</small>';
+                        });
+                    } else {
+                        alert('Geolocation is not supported by this browser.');
+                        clockOutBtn.disabled = false;
+                        clockOutBtn.innerHTML = '<h4 class="mb-1">Check Out</h4><small class="text-white-50">End your workday</small>';
+                    }
+                });
+            }
+
+            if (startBreakBtn) {
+                startBreakBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Starting break...';
+
+                    // Show temporary break state while form submits
+                    startBreakTimerUI();
+
+                    // Submit the form
+                    document.getElementById('startBreakForm').submit();
+                });
+            }
+
+            if (endBreakBtn) {
+                endBreakBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Ending break...';
+
+                    // Stop timer UI while form submits
+                    stopBreakTimerUI();
+
+                    // Submit the form
+                    document.getElementById('endBreakForm').submit();
+                });
+            }
+        });
+
+        // ========== CLOCK FACE FUNCTIONS ==========
+        function initializeClockFace() {
+            const svg = document.getElementById('analog-clock');
+            if (!svg) return;
+
+            // Set proper viewBox for the SVG
+            svg.setAttribute('viewBox', '0 0 200 200');
+
+            // Clear existing content except the base elements
+            const existingElements = svg.querySelectorAll('#hour-marks, #hour-numbers');
+            existingElements.forEach(el => el.remove());
+
+            // Create groups
+            const hourMarks = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            hourMarks.setAttribute('id', 'hour-marks');
+            svg.insertBefore(hourMarks, svg.children[2]);
+
+            const hourNumbers = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            hourNumbers.setAttribute('id', 'hour-numbers');
+            hourNumbers.setAttribute('font-family', 'Poppins');
+            hourNumbers.setAttribute('font-size', '16');
+            hourNumbers.setAttribute('fill', '#475569');
+            hourNumbers.setAttribute('text-anchor', 'middle');
+            hourNumbers.setAttribute('alignment-baseline', 'middle');
+            svg.insertBefore(hourNumbers, svg.children[3]);
+
+            // Create hour marks (lines at 12 positions)
+            for (let i = 0; i < 12; i++) {
+                const angle = i * 30;
+                const rad = (angle - 90) * Math.PI / 180;
+
+                // Position for the line
+                const x1 = 100 + 90 * Math.cos(rad);
+                const y1 = 100 + 90 * Math.sin(rad);
+                const x2 = 100 + 85 * Math.cos(rad);
+                const y2 = 100 + 85 * Math.sin(rad);
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', '#FFFFFF');
+                line.setAttribute('stroke-width', '2');
+                hourMarks.appendChild(line);
+            }
+
+            // Create 12-3-6-9 markers (thicker lines)
+            [0, 3, 6, 9].forEach(i => {
+                const angle = i * 30;
+                const rad = (angle - 90) * Math.PI / 180;
+
+                const x1 = 100 + 94 * Math.cos(rad);
+                const y1 = 100 + 94 * Math.sin(rad);
+                const x2 = 100 + 85 * Math.cos(rad);
+                const y2 = 100 + 85 * Math.sin(rad);
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', '#FFFFFF');
+                line.setAttribute('stroke-width', '4');
+                hourMarks.appendChild(line);
+            });
+        }
+
+        function updateAnalogClock() {
+            const now = new Date();
+            const hours = now.getHours() % 12;
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+
+            // Calculate angles
+            const secondAngle = (seconds + milliseconds / 1000) * 6;
+            const minuteAngle = (minutes + seconds / 60) * 6;
+            const hourAngle = (hours + minutes / 60) * 30;
+
+            // Apply rotation
+            const hourHand = document.getElementById('hour-hand');
+            const minuteHand = document.getElementById('minute-hand');
+            const secondHand = document.getElementById('second-hand');
+
+            if (hourHand) hourHand.setAttribute('transform', `rotate(${hourAngle}, 100, 100)`);
+            if (minuteHand) minuteHand.setAttribute('transform', `rotate(${minuteAngle}, 100, 100)`);
+            if (secondHand) secondHand.setAttribute('transform', `rotate(${secondAngle}, 100, 100)`);
+
+            // Update digital display
+            const digitalTime = document.getElementById('digital-time');
+            const amPm = document.getElementById('am-pm');
+            const dateElement = document.getElementById('liveDateShort');
+
+            if (digitalTime) {
+                const timeString = now.toLocaleTimeString('en-US', {
+                    hour12: true,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                digitalTime.textContent = timeString.replace(/ AM| PM/, '');
+            }
+
+            if (amPm) {
+                amPm.textContent = now.getHours() >= 12 ? 'PM' : 'AM';
+            }
+
+            if (dateElement) {
+                const dateString = now.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                dateElement.textContent = dateString;
+            }
+        }
+
+        // ========== TIMER FUNCTIONS ==========
+        function startWorkingTimer() {
+            if (workingTimer) return;
+
+            workingTimer = setInterval(function() {
+                workingSeconds++;
+                updateWorkingTimeDisplay();
+            }, 1000);
+        }
+
+        function stopWorkingTimer() {
+            if (workingTimer) {
+                clearInterval(workingTimer);
+                workingTimer = null;
+            }
+        }
+
+        // UI function to show break started state (doesn't actually start timer)
+        function startBreakTimerUI() {
+            // Pause working timer when break starts
+            stopWorkingTimer();
+
+            breakStartTime = new Date();
+
+            // Update UI to show break started time
+            const breakStartTimeElement = document.getElementById('breakStartTime');
+            if (breakStartTimeElement) {
+                breakStartTimeElement.textContent = breakStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        }
+
+        // UI function to show break ended state (doesn't actually stop timer)
+        function stopBreakTimerUI() {
+            // Resume working timer when break ends
+            const clockInBtn = document.getElementById('clockInBtn');
+            const clockOutBtn = document.getElementById('clockOutBtn');
+
+            if (!workingTimer && !clockInBtn && clockOutBtn) {
+                startWorkingTimer();
+            }
+        }
+
+        // Actual timer functions for when break is active
+        function startBreakTimer() {
+            if (breakTimer) return;
+
+            breakTimer = setInterval(function() {
+                breakSeconds++;
+                updateBreakTimeDisplay();
+            }, 1000);
+        }
+
+        function stopBreakTimer() {
+            if (breakTimer) {
+                clearInterval(breakTimer);
+                breakTimer = null;
+            }
+        }
+
+        function updateWorkingTimeDisplay() {
+            const hours = Math.floor(workingSeconds / 3600);
+            const minutes = Math.floor((workingSeconds % 3600) / 60);
+            const seconds = workingSeconds % 60;
+
+            const workingHoursEl = document.getElementById('workingHours');
+            const workingMinutesEl = document.getElementById('workingMinutes');
+            const workingSecondsEl = document.getElementById('workingSeconds');
+
+            if (workingHoursEl) workingHoursEl.textContent = hours;
+            if (workingMinutesEl) workingMinutesEl.textContent = minutes.toString().padStart(2, '0');
+            if (workingSecondsEl) workingSecondsEl.textContent = seconds.toString().padStart(2, '0');
+        }
+
+        function updateBreakTimeDisplay() {
+            const hours = Math.floor(breakSeconds / 3600);
+            const minutes = Math.floor((breakSeconds % 3600) / 60);
+            const seconds = breakSeconds % 60;
+
+            const breakHoursEl = document.getElementById('breakHours');
+            const breakMinutesEl = document.getElementById('breakMinutes');
+            const breakSecondsEl = document.getElementById('breakSeconds');
+
+            if (breakHoursEl) breakHoursEl.textContent = hours;
+            if (breakMinutesEl) breakMinutesEl.textContent = minutes.toString().padStart(2, '0');
+            if (breakSecondsEl) breakSecondsEl.textContent = seconds.toString().padStart(2, '0');
+        }
+
+        function initializeTimeDisplays() {
+            // If user is already clocked in today, calculate elapsed time
+            @if (todayAttendance?.ClockInTime != null && todayAttendance?.ClockOutTime == null)
+            {
+                        <text>
+                        try {
+                            const now = new Date();
+                            const todayStr = now.toISOString().split('T')[0];
+                            // Fix: Access the TimeSpan value and format it
+                            const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                            const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+
+                            if (!isNaN(clockInDateTime.getTime())) {
+                                const elapsedSeconds = Math.floor((now - clockInDateTime) / 1000);
+                                workingSeconds = Math.max(0, elapsedSeconds);
+
+                                // If user is on break, calculate break time
+                                @if (todayAttendance?.IsOnBreak == true && todayAttendance?.BreakStartTime != null)
+                                {
+                                            <text>
+                                            const breakStartStr = '@todayAttendance.BreakStartTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")';
+                                            const breakStartDateTime = new Date(breakStartStr);
+
+                                            if (!isNaN(breakStartDateTime.getTime())) {
+                                                const breakElapsedSeconds = Math.floor((now - breakStartDateTime) / 1000);
+                                                breakSeconds = Math.max(0, breakElapsedSeconds);
+                                                startBreakTimer(); // Start the actual timer
+                                            } else {
+                                                startWorkingTimer();
+                                            }
+                                            </text>
+                                }
+                                else
+                                {
+                                            <text>
+                                            startWorkingTimer();
+                                            </text>
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error calculating elapsed time:', e);
+                        }
+                        </text>
+            }
+            else if (todayAttendance?.ClockOutTime != null)
+            {
+                        <text>
+                        try {
+                            const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
+                            // Fix: Access the TimeSpan values
+                            const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                            const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
+
+                            const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+                            const clockOutDateTime = new Date(todayStr + 'T' + clockOutTimeStr);
+
+                            if (!isNaN(clockInDateTime.getTime()) && !isNaN(clockOutDateTime.getTime())) {
+                                const totalSeconds = Math.floor((clockOutDateTime - clockInDateTime) / 1000);
+                                workingSeconds = Math.max(0, totalSeconds);
+                                updateWorkingTimeDisplay();
+                            }
+
+                            // Calculate break time if any
+                            @if (todayAttendance?.TotalBreakTime != null)
+                            {
+                                        <text>
+                                        // Fix: Format the TimeSpan properly
+                                        const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                        const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                        const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                        breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                        updateBreakTimeDisplay();
+                                        </text>
+                            }
+                        } catch (e) {
+                            console.error('Error calculating completed time:', e);
+                        }
+                        </text>
+            }
+
+            updateWorkingTimeDisplay();
+            updateBreakTimeDisplay();
+        }
+    </script>
+}
+
+@functions {
+    // Helper function to format TimeSpan
+    public string TimeSpanToString(TimeSpan time)
+    {
+        var dateTime = DateTime.Today.Add(time);
+        return dateTime.ToString("hh:mm tt");
+    }
+
+    // Optional: Overload for nullable TimeSpan
+    public string TimeSpanToString(TimeSpan? time)
+    {
+        if (time.HasValue)
+        {
+            var dateTime = DateTime.Today.Add(time.Value);
+            return dateTime.ToString("hh:mm tt");
+        }
+        return "-";
+    }
+
+    // Helper function for status badge classes
+    public string GetStatusBadgeClass(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "present" => "bg-success",
+            "late" => "bg-warning",
+            "absent" => "bg-danger",
+            "half day" => "bg-info",
+            "on leave" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    // Make this a regular function that accepts parameters
+    public int GetWorkingDaysInMonth(int year, int month)
+    {
+        int workingDays = 0;
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            var currentDate = new DateTime(year, month, day);
+            if (currentDate.DayOfWeek != DayOfWeek.Saturday && currentDate.DayOfWeek != DayOfWeek.Sunday)
+            {
+                workingDays++;
+            }
+        }
+
+        return workingDays;
+    }
+}
