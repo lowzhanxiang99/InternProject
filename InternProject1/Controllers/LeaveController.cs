@@ -48,10 +48,8 @@ public class LeaveController : Controller
         var employee = await _context.Employees.FindAsync(userId);
         if (employee == null) return View("Error");
 
-        // Logic: Calculate requested days (Inclusive)
         int requestedDays = (leave.End_Date - leave.Start_Date).Days + 1;
 
-        // Logic: Get current balance for the selected leave type
         int currentBalance = leave.LeaveType switch
         {
             "Annual" => employee.AnnualLeaveDays,
@@ -60,7 +58,6 @@ public class LeaveController : Controller
             _ => employee.OtherLeaveDays
         };
 
-        // Logic: If balance is insufficient, tag the reason for Admin/HR awareness
         if (currentBalance <= 0 || requestedDays > currentBalance)
         {
             leave.Reasons = "[SALARY DEDUCTION ADVISORY] " + leave.Reasons;
@@ -154,11 +151,38 @@ public class LeaveController : Controller
         {
             int totalDays = (request.End_Date - request.Start_Date).Days + 1;
 
-            // Subtract from balance (Balance can go negative for salary deduction tracking)
+            // 1. Subtract from balance 
             if (request.LeaveType == "Annual") request.Employee.AnnualLeaveDays -= totalDays;
             else if (request.LeaveType == "MC") request.Employee.MCDays -= totalDays;
             else if (request.LeaveType == "Emergency") request.Employee.EmergencyLeaveDays -= totalDays;
             else if (request.LeaveType == "Other") request.Employee.OtherLeaveDays -= totalDays;
+
+            // 2. NEW LOGIC: Generate Attendance records for the approved dates
+            // This makes the leave "visible" in the Attendance Report/Details
+            for (DateTime date = request.Start_Date.Date; date <= request.End_Date.Date; date = date.AddDays(1))
+            {
+                // Check if a record already exists for this day to avoid duplicates
+                var existingRecord = await _context.Attendances
+                    .FirstOrDefaultAsync(a => a.Employee_ID == request.Employee_ID && a.Date.Date == date);
+
+                if (existingRecord == null)
+                {
+                    var leaveAttendance = new Attendance
+                    {
+                        Employee_ID = request.Employee_ID,
+                        Date = date,
+                        Status = "Leave", // Matches your logic in the View
+                        ClockInTime = TimeSpan.Zero,
+                        ClockOutTime = null
+                    };
+                    _context.Attendances.Add(leaveAttendance);
+                }
+                else
+                {
+                    // If a record (like 'Absent') existed, change it to 'Leave'
+                    existingRecord.Status = "Leave";
+                }
+            }
         }
 
         if (request != null)
@@ -232,7 +256,6 @@ public class LeaveController : Controller
         {
             var worksheet = workbook.Worksheets.Add("Leave Records");
 
-            // Define Headers
             worksheet.Cell(1, 1).Value = "Request ID";
             worksheet.Cell(1, 2).Value = "Status";
             worksheet.Cell(1, 3).Value = "Leave Type";
@@ -242,7 +265,6 @@ public class LeaveController : Controller
             worksheet.Cell(1, 7).Value = "Reason";
             worksheet.Cell(1, 8).Value = "Submitted On";
 
-            // Header Styling
             var headerRow = worksheet.Row(1);
             headerRow.Style.Font.Bold = true;
             headerRow.Style.Fill.BackgroundColor = XLColor.LightGray;
@@ -259,13 +281,11 @@ public class LeaveController : Controller
                 worksheet.Cell(row, 7).Value = item.Reasons;
                 worksheet.Cell(row, 8).Value = item.Request_Date?.ToString("dd-MM-yyyy HH:mm");
 
-                // Highlight Row if Salary Deduction is flagged
                 if (item.Reasons != null && item.Reasons.Contains("[SALARY DEDUCTION ADVISORY]"))
                 {
-                    worksheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F8D7DA"); // Light Red
+                    worksheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F8D7DA");
                     worksheet.Cell(row, 7).Style.Font.FontColor = XLColor.DarkRed;
                 }
-
                 row++;
             }
 

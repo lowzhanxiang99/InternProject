@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using ClosedXML.Excel;
 using System.IO;
-using SelectPdf; // Added SelectPdf for easier PDF generation
+using SelectPdf;
 
 public class AttendanceReportController : Controller
 {
@@ -16,13 +16,11 @@ public class AttendanceReportController : Controller
         _context = context;
     }
 
-    // 1. Show the Admin Login Page first
     public IActionResult AdminLogin()
     {
         return View();
     }
 
-    // 2. Validate admin credentials
     [HttpPost]
     public IActionResult VerifyAdmin(string email, string password)
     {
@@ -36,7 +34,6 @@ public class AttendanceReportController : Controller
         return View("AdminLogin");
     }
 
-    // 3. GET: AttendanceReport/Index
     public async Task<IActionResult> Index()
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
@@ -48,12 +45,34 @@ public class AttendanceReportController : Controller
         return View(reportData);
     }
 
-    // Helper method to fetch and calculate report statistics for all registered employees
+    // NEW: Action to show all records for a specific employee
+    public async Task<IActionResult> EmployeeDetails(int id)
+    {
+        if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
+        {
+            return RedirectToAction("AdminLogin");
+        }
+
+        var employee = await _context.Employees.FindAsync(id);
+        if (employee == null) return NotFound();
+
+        // Fetching all attendance records for this specific staff
+        var attendance = await _context.Attendances
+            .Where(a => a.Employee_ID == id)
+            .OrderByDescending(a => a.Date)
+            .ToListAsync();
+
+        ViewBag.EmployeeName = employee.First_Name + " " + employee.Last_Name;
+        return View(attendance);
+    }
+
+    // Helper method: Updated to include EmployeeId for the View links
     private async Task<List<StaffSummaryViewModel>> GetReportData()
     {
         return await _context.Employees
             .Select(e => new StaffSummaryViewModel
             {
+                Employee_ID = e.Employee_ID, // Added this so Index.cshtml can link to Details
                 Name = e.First_Name + " " + e.Last_Name,
                 AttendanceCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && (a.Status == "Present" || a.Status == "Late")),
                 LateCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && a.Status == "Late"),
@@ -63,7 +82,6 @@ public class AttendanceReportController : Controller
             }).ToListAsync();
     }
 
-    // 4. Export to Excel
     public async Task<IActionResult> ExportToExcel()
     {
         var data = await GetReportData();
@@ -91,6 +109,8 @@ public class AttendanceReportController : Controller
                 worksheet.Cell(currentRow, 6).Value = item.OvertimeCount;
             }
 
+            worksheet.Columns().AdjustToContents();
+
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
@@ -99,12 +119,10 @@ public class AttendanceReportController : Controller
         }
     }
 
-    // 5. Export to PDF (Self-contained, no extra DLLs needed)
     public async Task<IActionResult> ExportToPdf()
     {
         var data = await GetReportData();
 
-        // Build HTML string for the PDF
         var htmlContent = $@"
             <html>
             <head>
@@ -150,7 +168,6 @@ public class AttendanceReportController : Controller
 
         htmlContent += "</tbody></table></body></html>";
 
-        // Convert HTML string to PDF using SelectPdf
         HtmlToPdf converter = new HtmlToPdf();
         converter.Options.PdfPageSize = PdfPageSize.A4;
         converter.Options.PdfPageOrientation = PdfPageOrientation.Portrait;
@@ -162,7 +179,6 @@ public class AttendanceReportController : Controller
         return File(pdfFile, "application/pdf", "Attendance_Report_Jan2026.pdf");
     }
 
-    // 6. Admin Logout
     public IActionResult Logout()
     {
         HttpContext.Session.Remove("IsAdminAuthenticated");
