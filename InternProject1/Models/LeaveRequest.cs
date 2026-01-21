@@ -28,6 +28,8 @@ namespace InternProject1.Models
 
         public int? Leave_Balance { get; set; } // Included from ERD to prevent submission fails
 
+        public string? LeaveType { get; set; } // "Annual", "MC", "Emergency", "Other"
+
         // Navigation property to link to the Employee table
         [ForeignKey("Employee_ID")]
         public virtual Employee? Employee { get; set; }

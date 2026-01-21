@@ -1,12 +1,55 @@
 ﻿@model IEnumerable<InternProject1.Models.LeaveRequest>
 
 <div class="container-fluid py-4">
+    <div class="card border-0 shadow-sm p-4 rounded-4 bg-white mb-4">
+        <h5 class="fw-bold text-primary mb-3"><i class="bi bi-person-gear me-2"></i> Set Employee Leave Entitlements</h5>
+        <p class="text-muted small">Update total allowed leave days for each employee here.</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle table-hover">
+                <thead class="bg-light small">
+                    <tr>
+                        <th>Employee Name</th>
+                        <th style="width: 100px;">Annual</th>
+                        <th style="width: 100px;">MC</th>
+                        <th style="width: 100px;">Emergency</th>
+                        <th style="width: 100px;">Other</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (ViewBag.EmployeeList != null)
+                    {
+                        @foreach (var emp in ViewBag.EmployeeList as IEnumerable<InternProject1.Models.Employee>)
+                        {
+                            <tr>
+                                <td class="small fw-bold">@emp.First_Name @emp.Last_Name</td>
+                                <form asp-action="SetEntitlements" method="post">
+                                    <input type="hidden" name="employeeId" value="@emp.Employee_ID" />
+                                <td><input type="number" name="annual" value="@emp.AnnualLeaveDays" class="form-control form-control-sm border-primary-subtle"></td>
+                                <td><input type="number" name="mc" value="@emp.MCDays" class="form-control form-control-sm border-primary-subtle"></td>
+                                <td><input type="number" name="emergency" value="@emp.EmergencyLeaveDays" class="form-control form-control-sm border-primary-subtle"></td>
+                                <td><input type="number" name="other" value="@emp.OtherLeaveDays" class="form-control form-control-sm border-primary-subtle"></td>
+                                <td>
+                                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+                                        Save
+                                    </button>
+                                </td>
+                                </form>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm p-4 rounded-4 bg-white">
         <form method="get" asp-action="Approval" id="filterForm">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold m-0">Leave Approval</h5>
+                <h5 class="fw-bold m-0">Leave Approval History</h5>
                 <div class="d-flex gap-2 align-items-center">
-                    <span class="small text-muted">Show Entries</span>
+                    <span class="small text-muted">Filter By Date:</span>
                     <div class="d-flex gap-1 align-items-center bg-light p-1 rounded">
                         <span class="small px-2">
                             From:
@@ -19,7 +62,7 @@
                                    class="border-0 bg-transparent small" onchange="this.form.submit()" />
                         </span>
                     </div>
-                    <button type="button" onclick="exportData()" class="btn btn-primary btn-sm px-3 rounded-3 shadow-sm">
+                    <button type="button" onclick="exportData()" class="btn btn-outline-primary btn-sm px-3 rounded-3">
                         <i class="bi bi-download me-1"></i> Export
                     </button>
                 </div>
@@ -27,7 +70,7 @@
 
             <div class="input-group mb-4 w-25 shadow-sm rounded-3">
                 <input type="text" name="searchString" value="@Context.Request.Query["searchString"]"
-                       class="form-control border-0 py-2" placeholder="Search..." />
+                       class="form-control border-0 py-2" placeholder="Search by name or ID..." />
                 <button type="submit" class="input-group-text bg-white border-0">
                     <i class="bi bi-search text-primary"></i>
                 </button>
@@ -39,8 +82,8 @@
                 <thead class="text-secondary small border-bottom">
                     <tr>
                         <th>
-                            <a asp-action="Approval" asp-route-sortOrder="@ViewData["DateSortParm"]" class="text-decoration-none text-secondary">
-                                Request <i class="bi bi-arrow-down-up ms-1"></i>
+                            <a asp-action="Approval" asp-route-sortOrder="@ViewData["IdSortParm"]" class="text-decoration-none text-secondary">
+                                Request ID <i class="bi bi-arrow-down-up ms-1"></i>
                             </a>
                         </th>
                         <th>
@@ -48,11 +91,11 @@
                                 Status <i class="bi bi-arrow-down-up ms-1"></i>
                             </a>
                         </th>
-                        <th>Start Date <i class="bi bi-arrow-down-up ms-1"></i></th>
-                        <th>End Date <i class="bi bi-arrow-down-up ms-1"></i></th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
                         <th colspan="2">
                             <a asp-action="Approval" asp-route-sortOrder="@ViewData["NameSortParm"]" class="text-decoration-none text-secondary">
-                                Name <i class="bi bi-arrow-down-up ms-1"></i>
+                                Employee Name <i class="bi bi-arrow-down-up ms-1"></i>
                             </a>
                         </th>
                     </tr>
@@ -61,7 +104,7 @@
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td class="small text-muted">@item.Request_Date?.ToString("dd-MM-yyyy")</td>
+                            <td class="fw-bold text-primary">REQ-@item.Leave_ID</td>
                             <td>
                                 @if (item.Status == "Approve")
                                 {
@@ -89,23 +132,6 @@
                 </tbody>
             </table>
         </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-4">
-            <div class="d-flex gap-3 small fw-bold">
-                <span class="text-success">● Approve</span>
-                <span class="text-warning">● Pending</span>
-                <span class="text-danger">● Reject</span>
-            </div>
-            <nav>
-                <ul class="pagination pagination-sm m-0">
-                    <li class="page-item"><a class="page-link border-0 text-muted" href="#">Per Page 10</a></li>
-                    <li class="page-item"><a class="page-link border-0" href="#"><i class="bi bi-chevron-left"></i></a></li>
-                    <li class="page-item active"><a class="page-link border-0" href="#">1</a></li>
-                    <li class="page-item"><a class="page-link border-0" href="#">2</a></li>
-                    <li class="page-item"><a class="page-link border-0" href="#"><i class="bi bi-chevron-right"></i></a></li>
-                </ul>
-            </nav>
-        </div>
     </div>
 </div>
 
@@ -118,17 +144,19 @@
     thead th a:hover {
         color: #0d6efd !important;
     }
+
+    .form-control-sm:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, .1);
+    }
 </style>
 
 @section Scripts {
     <script>
         function exportData() {
-            // Extract current filters from the DOM
             const search = document.querySelector('input[name="searchString"]').value;
             const from = document.querySelector('input[name="fromDate"]').value;
             const to = document.querySelector('input[name="toDate"]').value;
-
-            // Redirect to the controller action with query parameters
             window.location.href = `/Leave/ExportToExcel?searchString=${encodeURIComponent(search)}&fromDate=${from}&toDate=${to}`;
         }
     </script>

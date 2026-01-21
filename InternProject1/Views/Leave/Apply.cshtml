@@ -1,7 +1,7 @@
-﻿@{
+﻿@model InternProject1.Models.LeaveRequest
+@{
     ViewData["Title"] = "Leave Application";
     Layout = "_Layout";
-    // Get today's date in yyyy-MM-dd format for the HTML min attribute
     string today = DateTime.Now.ToString("yyyy-MM-dd");
 }
 
@@ -9,21 +9,47 @@
     <div class="card border-0 shadow-sm p-5 mx-auto" style="max-width: 800px; background-color: #f8fbff;">
         <h4 class="mb-5 text-dark" style="text-decoration: underline;">Leave Application</h4>
 
+        <div id="salaryWarning" class="alert alert-warning border-0 shadow-sm mb-4 d-none" style="background-color: #FFF3CD; color: #856404; border-radius: 12px;">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                <div>
+                    <strong>Salary Deduction Advisory:</strong>
+                    You have insufficient balance for this leave type. Proceeding with this application may result in a <strong>salary deduction</strong> for the over-limit days.
+                </div>
+            </div>
+        </div>
+
         <form asp-action="Apply" method="post">
+
             <div class="row mb-4 align-items-center">
-                <label class="col-md-4 fw-semibold">Enter Your Name:</label>
+                <label class="col-md-4 fw-semibold">Select Leave Type:</label>
+                <div class="col-md-8">
+                    <select asp-for="LeaveType" id="leaveType" class="form-select border-0 shadow-sm py-2 px-3 rounded-3"
+                            style="background-color: #DDE7F2;" required>
+                        <option value="" disabled selected>-- Select Type --</option>
+                        <option value="Annual">Annual Leave (Balance: @ViewBag.AnnualBalance Days)</option>
+                        <option value="MC">Medical Leave / MC (Balance: @ViewBag.MCBalance Days)</option>
+                        <option value="Emergency">Emergency Leave (Balance: @ViewBag.EmergencyBalance Days)</option>
+                        <option value="Other">Other (Balance: @ViewBag.OtherBalance Days)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-4 align-items-center">
+                <label class="col-md-4 fw-semibold">Your Name:</label>
                 <div class="col-md-8">
                     <input type="text" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
-                           style="background-color: #DDE7F2;" placeholder="Enter Name"
+                           style="background-color: #DDE7F2;"
                            value="@Context.Session.GetString("UserName")" readonly />
                 </div>
             </div>
 
             <div class="row mb-4 align-items-center">
-                <label class="col-md-4 fw-semibold">Enter Your ID:</label>
+                <label class="col-md-4 fw-semibold">Employee ID:</label>
                 <div class="col-md-8">
-                    <input type="text" name="Employee_ID" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
-                           style="background-color: #DDE7F2;" placeholder="Enter ID"
+                    <input type="hidden" asp-for="Employee_ID" value="@Context.Session.GetInt32("UserID")" />
+                    <input type="text" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
+                           style="background-color: #DDE7F2;"
                            value="@Context.Session.GetInt32("UserID")" readonly />
                 </div>
             </div>
@@ -31,7 +57,7 @@
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fw-semibold">Enter Start Date:</label>
                 <div class="col-md-8">
-                    <input type="date" name="Start_Date" id="startDate"
+                    <input type="date" asp-for="Start_Date" id="startDate"
                            class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
                            style="background-color: #DDE7F2;" min="@today" required />
                 </div>
@@ -40,7 +66,7 @@
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fw-semibold">Enter End Date:</label>
                 <div class="col-md-8">
-                    <input type="date" name="End_Date" id="endDate"
+                    <input type="date" asp-for="End_Date" id="endDate"
                            class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
                            style="background-color: #DDE7F2;" min="@today" required />
                 </div>
@@ -49,7 +75,7 @@
             <div class="row mb-5 align-items-start">
                 <label class="col-md-4 fw-semibold mt-2">Enter Reasons:</label>
                 <div class="col-md-8">
-                    <textarea name="Reasons" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
+                    <textarea asp-for="Reasons" class="form-control border-0 shadow-sm py-2 px-3 rounded-3"
                               style="background-color: #DDE7F2;" rows="4"
                               placeholder="Describe why you are taking leave..." required></textarea>
                 </div>
@@ -69,14 +95,50 @@
 
 @section Scripts {
     <script>
-        // Logic to prevent End Date from being before Start Date
-        document.getElementById('startDate').addEventListener('change', function() {
-            var startDate = this.value;
-            var endDateInput = document.getElementById('endDate');
-            endDateInput.min = startDate;
-            if (endDateInput.value && endDateInput.value < startDate) {
-                endDateInput.value = startDate;
+        // Store balances in a JS object for real-time checking
+        const leaveBalances = {
+            "Annual": @(ViewBag.AnnualBalance ?? 0),
+            "MC": @(ViewBag.MCBalance ?? 0),
+            "Emergency": @(ViewBag.EmergencyBalance ?? 0),
+            "Other": @(ViewBag.OtherBalance ?? 0)
+        };
+
+        function calculateAndCheck() {
+            const startInput = document.getElementById('startDate');
+            const endInput = document.getElementById('endDate');
+            const typeInput = document.getElementById('leaveType');
+            const warning = document.getElementById('salaryWarning');
+
+            // 1. Ensure end date is not before start date
+            if (startInput.value) {
+                endInput.min = startInput.value;
+                if (endInput.value && endInput.value < startInput.value) {
+                    endInput.value = startInput.value;
+                }
             }
-        });
+
+            // 2. Check Balance Logic
+            if (startInput.value && endInput.value && typeInput.value) {
+                const start = new Date(startInput.value);
+                const end = new Date(endInput.value);
+                const selectedType = typeInput.value;
+
+                // Calculate total days (Inclusive)
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                // If requested days > balance, show warning
+                if (diffDays > leaveBalances[selectedType] || leaveBalances[selectedType] <= 0) {
+                    warning.classList.remove('d-none');
+                } else {
+                    warning.classList.add('d-none');
+                }
+            }
+        }
+
+        // Add event listeners
+        document.getElementById('startDate').addEventListener('change', calculateAndCheck);
+        document.getElementById('endDate').addEventListener('change', calculateAndCheck);
+        document.getElementById('leaveType').addEventListener('change', calculateAndCheck);
     </script>
 }
