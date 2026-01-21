@@ -32,5 +32,11 @@ public class Employee
     public int? Shift_ID { get; set; }
     [ForeignKey("Shift_ID")]
     public virtual Shift? Shift { get; set; }
-    public string Employee_Name { get; internal set; }
+    public string? Employee_Name { get; internal set; }
+
+    // New Database
+    public int AnnualLeaveDays { get; set; } = 0;
+    public int MCDays { get; set; } = 0;
+    public int EmergencyLeaveDays { get; set; } = 0;
+    public int OtherLeaveDays { get; set; } = 0;
 }

@@ -13,7 +13,7 @@
             <table class="table align-middle">
                 <thead class="text-secondary small border-bottom" style="background-color: #f8f9fa;">
                     <tr>
-                        <th class="py-3">Request Date</th>
+                        <th class="py-3">Request ID</th>
                         <th class="py-3">Status</th>
                         <th class="py-3">Period</th>
                         <th class="py-3">Reason</th>
@@ -31,8 +31,8 @@
                         @foreach (var item in Model)
                         {
                             <tr>
-                                <td class="small text-muted py-3">
-                                    @item.Request_Date?.ToString("dd-MM-yyyy")
+                                <td class="py-3">
+                                    <span class="fw-bold text-primary">REQ-@item.Leave_ID</span>
                                 </td>
                                 <td>
                                     @if (item.Status == "Approve")
@@ -69,7 +69,6 @@
             </table>
         </div>
 
-        @* UPDATED: The button is now a link that triggers the Excel download *@
         <div class="d-flex justify-content-end mt-4 gap-2">
             <a asp-controller="Leave" asp-action="ExportMyStatusExcel"
                class="btn btn-sm px-4 shadow-sm d-flex align-items-center"

@@ -1,23 +1,134 @@
 ﻿@model InternProject1.Models.LeaveRequest
 
 <div class="container py-5">
-    <div class="card shadow border-0 mx-auto" style="max-width: 600px;">
-        <div class="card-header bg-primary text-white py-3">
-            <h5 class="mb-0">Review Leave Request - @Model.Employee?.Last_Name</h5>
+    <div class="card shadow-sm border-0 mx-auto rounded-4" style="max-width: 700px; background-color: #f8fbff;">
+
+        @* SALARY DEDUCTION WARNING BOX *@
+        @if (Model.Reasons != null && Model.Reasons.Contains("[SALARY DEDUCTION ADVISORY]"))
+        {
+            <div class="alert alert-danger border-0 rounded-0 rounded-top-4 mb-0 py-3 text-center shadow-sm">
+                <i class="bi bi-cash-stack me-2 fs-5"></i>
+                <strong>Action Required:</strong> This request exceeds the employee's balance.
+                Approval will result in a <strong>salary deduction</strong>.
+            </div>
+        }
+
+        <div class="card-header bg-white border-0 py-4 text-center">
+            <h4 class="fw-bold text-dark mb-1">Review Leave Request</h4>
+            <span class="text-primary fw-bold">ID: REQ-@Model.Leave_ID</span>
         </div>
-        <div class="card-body p-4">
-            <p><strong>Employee:</strong> @Model.Employee?.First_Name @Model.Employee?.Last_Name</p>
-            <p><strong>Date Range:</strong> @Model.Start_Date.ToShortDateString() to @Model.End_Date.ToShortDateString()</p>
-            <p><strong>Reason:</strong> @Model.Reasons</p>
-            <hr />
-            <div class="text-center mt-4">
-                <form asp-action="UpdateStatus" method="post" class="d-inline">
-                    <input type="hidden" name="id" value="@Model.Leave_ID" />
-                    <button type="submit" name="status" value="Approve" class="btn btn-success px-4 me-2">Approve</button>
-                    <button type="submit" name="status" value="Reject" class="btn btn-danger px-4">Reject</button>
-                </form>
-                <a asp-action="Approval" class="btn btn-secondary px-4 ms-2">Back</a>
+
+        <div class="card-body p-4 pt-0">
+            <div class="bg-white p-4 rounded-3 shadow-sm border border-light">
+
+                @* Status Row *@
+                <div class="row mb-3">
+                    <div class="col-sm-4 fw-semibold text-muted small uppercase">Current Status</div>
+                    <div class="col-sm-8">
+                        @if (Model.Status == "Approve")
+                        {
+                            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
+                                <i class="bi bi-check-circle-fill me-1"></i> Approved
+                            </span>
+                        }
+                        else if (Model.Status == "Reject")
+                        {
+                            <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill">
+                                <i class="bi bi-x-circle-fill me-1"></i> Rejected
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning-subtle text-warning px-3 py-2 rounded-pill">
+                                <i class="bi bi-clock-fill me-1"></i> Pending Review
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                <hr class="opacity-10" />
+
+                @* Employee Info *@
+                <div class="row mb-3 mt-3">
+                    <div class="col-sm-4 fw-semibold text-muted">Employee Name</div>
+                    <div class="col-sm-8 text-dark">@Model.Employee?.First_Name @Model.Employee?.Last_Name</div>
+                </div>
+
+                @* Leave Type *@
+                <div class="row mb-3">
+                    <div class="col-sm-4 fw-semibold text-muted">Leave Type</div>
+                    <div class="col-sm-8 text-dark fw-bold">
+                        <span class="py-1 px-2 rounded bg-light border">@Model.LeaveType</span>
+                    </div>
+                </div>
+
+                @* Duration *@
+                <div class="row mb-3">
+                    <div class="col-sm-4 fw-semibold text-muted">Duration</div>
+                    <div class="col-sm-8 text-dark">
+                        <i class="bi bi-calendar-event me-2 text-primary"></i>
+                        @Model.Start_Date.ToString("dd MMM yyyy")
+                        <span class="text-muted mx-2">to</span>
+                        @Model.End_Date.ToString("dd MMM yyyy")
+                    </div>
+                </div>
+
+                @* Reason *@
+                <div class="row mb-3">
+                    <div class="col-sm-4 fw-semibold text-muted">Reason</div>
+                    <div class="col-sm-8 text-dark italic">
+                        @{
+                            // Clean the display so the [TAG] doesn't look messy in the reason box
+                            var displayReason = Model.Reasons?.Replace("[SALARY DEDUCTION ADVISORY]", "").Trim();
+                        }
+                        "@displayReason"
+                    </div>
+                </div>
+
+                @* Submission Date *@
+                <div class="row mb-3">
+                    <div class="col-sm-4 fw-semibold text-muted small">Submitted On</div>
+                    <div class="col-sm-8 text-muted small">
+                        @Model.Request_Date?.ToString("dd-MM-yyyy HH:mm")
+                    </div>
+                </div>
+            </div>
+
+            @* Action Buttons *@
+            <div class="text-center mt-5">
+                @if (Model.Status == "Pending")
+                {
+                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                        <input type="hidden" name="id" value="@Model.Leave_ID" />
+                        <button type="submit" name="status" value="Approve" class="btn btn-success px-5 py-2 me-3 rounded-pill shadow-sm" style="background-color: #A5D6A7; border: none; color: #1B5E20;">
+                            <i class="bi bi-check2 me-1"></i> Approve
+                        </button>
+                        <button type="submit" name="status" value="Reject" class="btn btn-danger px-5 py-2 me-3 rounded-pill shadow-sm" style="background-color: #EF9A9A; border: none; color: #B71C1C;">
+                            <i class="bi bi-x me-1"></i> Reject
+                        </button>
+                    </form>
+                }
+
+                <a asp-action="Approval" class="btn btn-light px-4 py-2 rounded-pill border shadow-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to History
+                </a>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .uppercase {
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .italic {
+        font-style: italic;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+</style>

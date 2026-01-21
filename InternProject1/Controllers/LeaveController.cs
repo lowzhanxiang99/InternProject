@@ -15,10 +15,21 @@ public class LeaveController : Controller
     public IActionResult Index() => View();
 
     // GET: Leave/Apply
-    public IActionResult Apply()
+    public async Task<IActionResult> Apply()
     {
-        if (HttpContext.Session.GetInt32("UserID") == null)
+        var userId = HttpContext.Session.GetInt32("UserID");
+        if (userId == null)
             return RedirectToAction("Login", "Account");
+
+        var employee = await _context.Employees.FindAsync(userId);
+        if (employee != null)
+        {
+            ViewBag.AnnualBalance = employee.AnnualLeaveDays;
+            ViewBag.MCBalance = employee.MCDays;
+            ViewBag.EmergencyBalance = employee.EmergencyLeaveDays;
+            ViewBag.OtherBalance = employee.OtherLeaveDays;
+        }
+
         return View();
     }
 
@@ -32,6 +43,27 @@ public class LeaveController : Controller
         if (leave.Start_Date.Date < DateTime.Today || leave.End_Date.Date < DateTime.Today)
         {
             return View("Error");
+        }
+
+        var employee = await _context.Employees.FindAsync(userId);
+        if (employee == null) return View("Error");
+
+        // Logic: Calculate requested days (Inclusive)
+        int requestedDays = (leave.End_Date - leave.Start_Date).Days + 1;
+
+        // Logic: Get current balance for the selected leave type
+        int currentBalance = leave.LeaveType switch
+        {
+            "Annual" => employee.AnnualLeaveDays,
+            "MC" => employee.MCDays,
+            "Emergency" => employee.EmergencyLeaveDays,
+            _ => employee.OtherLeaveDays
+        };
+
+        // Logic: If balance is insufficient, tag the reason for Admin/HR awareness
+        if (currentBalance <= 0 || requestedDays > currentBalance)
+        {
+            leave.Reasons = "[SALARY DEDUCTION ADVISORY] " + leave.Reasons;
         }
 
         try
@@ -72,8 +104,10 @@ public class LeaveController : Controller
             return RedirectToAction("ApprovalLogin");
 
         ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
-        ViewData["DateSortParm"] = sortOrder == "Date" ? "date_desc" : "Date";
+        ViewData["IdSortParm"] = sortOrder == "id_asc" ? "id_desc" : "id_asc";
         ViewData["StatusSortParm"] = sortOrder == "Status" ? "status_desc" : "Status";
+
+        ViewBag.EmployeeList = await _context.Employees.ToListAsync();
 
         var requests = _context.LeaveRequests.Include(l => l.Employee).AsQueryable();
         requests = ApplyFilters(requests, searchString, fromDate, toDate);
@@ -81,14 +115,59 @@ public class LeaveController : Controller
         requests = sortOrder switch
         {
             "name_desc" => requests.OrderByDescending(s => s.Employee.Last_Name),
-            "Date" => requests.OrderBy(s => s.Start_Date),
-            "date_desc" => requests.OrderByDescending(s => s.Start_Date),
+            "id_asc" => requests.OrderBy(s => s.Leave_ID),
+            "id_desc" => requests.OrderByDescending(s => s.Leave_ID),
             "Status" => requests.OrderBy(s => s.Status),
             "status_desc" => requests.OrderByDescending(s => s.Status),
-            _ => requests.OrderBy(s => s.Employee.Last_Name),
+            _ => requests.OrderByDescending(s => s.Leave_ID),
         };
 
         return View(await requests.ToListAsync());
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SetEntitlements(int employeeId, int annual, int mc, int emergency, int other)
+    {
+        if (HttpContext.Session.GetString("IsManager") != "true")
+            return RedirectToAction("ApprovalLogin");
+
+        var employee = await _context.Employees.FindAsync(employeeId);
+        if (employee != null)
+        {
+            employee.AnnualLeaveDays = annual;
+            employee.MCDays = mc;
+            employee.EmergencyLeaveDays = emergency;
+            employee.OtherLeaveDays = other;
+
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Entitlements updated for {employee.First_Name}.";
+        }
+        return RedirectToAction(nameof(Approval));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateStatus(int id, string status)
+    {
+        var request = await _context.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Leave_ID == id);
+
+        if (request != null && status == "Approve" && request.Status != "Approve")
+        {
+            int totalDays = (request.End_Date - request.Start_Date).Days + 1;
+
+            // Subtract from balance (Balance can go negative for salary deduction tracking)
+            if (request.LeaveType == "Annual") request.Employee.AnnualLeaveDays -= totalDays;
+            else if (request.LeaveType == "MC") request.Employee.MCDays -= totalDays;
+            else if (request.LeaveType == "Emergency") request.Employee.EmergencyLeaveDays -= totalDays;
+            else if (request.LeaveType == "Other") request.Employee.OtherLeaveDays -= totalDays;
+        }
+
+        if (request != null)
+        {
+            request.Status = status;
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToAction(nameof(Approval));
     }
 
     [HttpGet]
@@ -109,7 +188,7 @@ public class LeaveController : Controller
 
         var myRequests = await _context.LeaveRequests
                                        .Where(l => l.Employee_ID == userId)
-                                       .OrderByDescending(l => l.Request_Date)
+                                       .OrderByDescending(l => l.Leave_ID)
                                        .ToListAsync();
 
         return View(myRequests);
@@ -124,7 +203,7 @@ public class LeaveController : Controller
         var data = await _context.LeaveRequests
                                  .Include(l => l.Employee)
                                  .Where(l => l.Employee_ID == userId)
-                                 .OrderByDescending(l => l.Request_Date) // Added for consistency
+                                 .OrderByDescending(l => l.Leave_ID)
                                  .ToListAsync();
 
         return GenerateExcelFile(data, "My_Leave_History.xlsx");
@@ -135,7 +214,11 @@ public class LeaveController : Controller
     private IQueryable<LeaveRequest> ApplyFilters(IQueryable<LeaveRequest> query, string searchString, DateTime? fromDate, DateTime? toDate)
     {
         if (!String.IsNullOrEmpty(searchString))
-            query = query.Where(s => s.Employee.First_Name.Contains(searchString) || s.Employee.Last_Name.Contains(searchString));
+        {
+            query = query.Where(s => s.Employee.First_Name.Contains(searchString) ||
+                                     s.Employee.Last_Name.Contains(searchString) ||
+                                     s.Leave_ID.ToString() == searchString);
+        }
 
         if (fromDate.HasValue) query = query.Where(l => l.Start_Date >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(l => l.End_Date <= toDate.Value);
@@ -148,13 +231,18 @@ public class LeaveController : Controller
         using (var workbook = new XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Leave Records");
-            worksheet.Cell(1, 1).Value = "Request Date";
-            worksheet.Cell(1, 2).Value = "Status";
-            worksheet.Cell(1, 3).Value = "Start Date";
-            worksheet.Cell(1, 4).Value = "End Date";
-            worksheet.Cell(1, 5).Value = "Employee Name";
-            worksheet.Cell(1, 6).Value = "Reason"; // Added column
 
+            // Define Headers
+            worksheet.Cell(1, 1).Value = "Request ID";
+            worksheet.Cell(1, 2).Value = "Status";
+            worksheet.Cell(1, 3).Value = "Leave Type";
+            worksheet.Cell(1, 4).Value = "Start Date";
+            worksheet.Cell(1, 5).Value = "End Date";
+            worksheet.Cell(1, 6).Value = "Employee Name";
+            worksheet.Cell(1, 7).Value = "Reason";
+            worksheet.Cell(1, 8).Value = "Submitted On";
+
+            // Header Styling
             var headerRow = worksheet.Row(1);
             headerRow.Style.Font.Bold = true;
             headerRow.Style.Fill.BackgroundColor = XLColor.LightGray;
@@ -162,16 +250,27 @@ public class LeaveController : Controller
             int row = 2;
             foreach (var item in data)
             {
-                worksheet.Cell(row, 1).Value = item.Request_Date?.ToString("dd-MM-yyyy");
+                worksheet.Cell(row, 1).Value = "REQ-" + item.Leave_ID;
                 worksheet.Cell(row, 2).Value = item.Status;
-                worksheet.Cell(row, 3).Value = item.Start_Date.ToString("dd-MM-yyyy");
-                worksheet.Cell(row, 4).Value = item.End_Date.ToString("dd-MM-yyyy");
-                worksheet.Cell(row, 5).Value = $"{item.Employee?.First_Name} {item.Employee?.Last_Name}";
-                worksheet.Cell(row, 6).Value = item.Reasons; // Mapping the database 'Reasons' column
+                worksheet.Cell(row, 3).Value = item.LeaveType;
+                worksheet.Cell(row, 4).Value = item.Start_Date.ToString("dd-MM-yyyy");
+                worksheet.Cell(row, 5).Value = item.End_Date.ToString("dd-MM-yyyy");
+                worksheet.Cell(row, 6).Value = $"{item.Employee?.First_Name} {item.Employee?.Last_Name}";
+                worksheet.Cell(row, 7).Value = item.Reasons;
+                worksheet.Cell(row, 8).Value = item.Request_Date?.ToString("dd-MM-yyyy HH:mm");
+
+                // Highlight Row if Salary Deduction is flagged
+                if (item.Reasons != null && item.Reasons.Contains("[SALARY DEDUCTION ADVISORY]"))
+                {
+                    worksheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F8D7DA"); // Light Red
+                    worksheet.Cell(row, 7).Style.Font.FontColor = XLColor.DarkRed;
+                }
+
                 row++;
             }
 
             worksheet.Columns().AdjustToContents();
+
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
@@ -186,17 +285,5 @@ public class LeaveController : Controller
         var request = await _context.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(m => m.Leave_ID == id);
         if (request == null) return NotFound();
         return View(request);
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> UpdateStatus(int id, string status)
-    {
-        var request = await _context.LeaveRequests.FindAsync(id);
-        if (request != null)
-        {
-            request.Status = status;
-            await _context.SaveChangesAsync();
-        }
-        return RedirectToAction(nameof(Approval));
     }
 }
