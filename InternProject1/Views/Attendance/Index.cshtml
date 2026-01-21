@@ -780,7 +780,7 @@
                                                     </form>
                                                     <div class="mt-2 text-center">
                                                         <small class="text-muted">
-                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime.Value)
+                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime)
                                                         </small>
                                                     </div>
                                                 }
@@ -827,7 +827,7 @@
                                                     </form>
                                                     <div class="mt-2 text-center">
                                                         <small class="text-muted">
-                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime.Value)<br>
+                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime)<br>
                                                             Break taken for today
                                                         </small>
                                                     </div>
@@ -839,7 +839,7 @@
                                                 <div class="alert alert-success">
                                                     <h5>Day Completed!</h5>
                                                     <p class="mb-0">
-                                                        Checked in: @TimeSpanToString(todayAttendance.ClockInTime.Value)<br>
+                                                        Checked in: @TimeSpanToString(todayAttendance.ClockInTime)<br>
                                                         Checked out: @TimeSpanToString(todayAttendance.ClockOutTime.Value)<br>
                                                         @if (todayAttendance.TotalBreakTime > TimeSpan.Zero)
                                                         {
@@ -886,7 +886,7 @@
                                                     <td>
                                                         @if (record.ClockInTime != null)
                                                         {
-                                                            <span>@TimeSpanToString(record.ClockInTime.Value)</span>
+                                                            <span>@TimeSpanToString(record.ClockInTime)</span>
                                                         }
                                                         else
                                                         {
@@ -916,7 +916,7 @@
                                                     <td>
                                                         @if (record.ClockInTime != null && record.ClockOutTime != null)
                                                         {
-                                                            var totalHours = (record.ClockOutTime.Value - record.ClockInTime.Value).TotalHours;
+                                                            var totalHours = (record.ClockOutTime.Value - record.ClockInTime).TotalHours;
                                                             var breakHours = record.TotalBreakTime?.TotalHours ?? 0;
                                                             var workingHours = totalHours - breakHours;
                                                             <span>@workingHours.ToString("F2")</span>
@@ -1328,7 +1328,7 @@
                             const now = new Date();
                             const todayStr = now.toISOString().split('T')[0];
                             // Fix: Access the TimeSpan value and format it
-                            const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                            const clockInTimeStr = '@todayAttendance.ClockInTime.Hours.ToString("00"):@todayAttendance.ClockInTime.Minutes.ToString("00"):@todayAttendance.ClockInTime.Seconds.ToString("00")';
                             const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
 
                             if (!isNaN(clockInDateTime.getTime())) {
@@ -1369,7 +1369,7 @@
                         try {
                             const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
                             // Fix: Access the TimeSpan values
-                            const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                            const clockInTimeStr = '@todayAttendance.ClockInTime.Hours.ToString("00"):@todayAttendance.ClockInTime.Minutes.ToString("00"):@todayAttendance.ClockInTime.Seconds.ToString("00")';
                             const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
 
                             const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
