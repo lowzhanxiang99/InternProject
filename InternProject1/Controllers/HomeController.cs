@@ -21,47 +21,52 @@ public class HomeController : Controller
 
         ViewBag.UserName = HttpContext.Session.GetString("UserName");
 
-        // Fetch all Approved leave requests for this specific employee
+        var employee = await _context.Employees.FindAsync(userId);
+        if (employee == null) return RedirectToAction("Login", "Account");
+
         var userLeaves = await _context.LeaveRequests
             .Where(l => l.Employee_ID == userId && l.Status == "Approve")
             .ToListAsync();
 
-        // 1. Set Total Entitlements (Based on your Admin Set screen)
-        int totalAnnual = 7;
-        int totalMC = 5;
-        int totalCompassionate = 3;
-        int totalMaternity = 60; // Standard example
+        // 1. Get Entitlements from DB
+        int totalAnnual = employee.AnnualLeaveDays;
+        int totalMC = employee.MCDays;
+        int totalCompassionate = employee.EmergencyLeaveDays;
+        int totalMaternity = employee.MaternityLeaveDays;
+        int totalOther = employee.OtherLeaveDays;
 
-        // 2. Calculate USED count for each of your 6 types
-        // This checks both the short name (MC) and long name (Medical Leave)
-        int annualUsed = userLeaves.Count(l => l.LeaveType == "Annual" || l.LeaveType == "Annual Leave");
-        int mcUsed = userLeaves.Count(l => l.LeaveType == "MC" || l.LeaveType == "Medical Leave");
-        int compassionateUsed = userLeaves.Count(l => l.LeaveType == "Compassionate" || l.LeaveType == "Emergency");
-        int maternityUsed = userLeaves.Count(l => l.LeaveType == "Maternity Leave");
-        int unpaidUsed = userLeaves.Count(l => l.LeaveType == "Unpaid" || l.LeaveType == "Unpaid Leave");
-        int otherUsed = userLeaves.Count(l => l.LeaveType == "Other");
+        // 2. Calculate USED days
+        int annualUsed = userLeaves.Where(l => l.LeaveType == "Annual" || l.LeaveType == "Annual Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
+        int mcUsed = userLeaves.Where(l => l.LeaveType == "MC" || l.LeaveType == "Medical Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
+        int compassionateUsed = userLeaves.Where(l => l.LeaveType == "Compassionate" || l.LeaveType == "Emergency").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
+        int maternityUsed = userLeaves.Where(l => l.LeaveType == "Maternity" || l.LeaveType == "Maternity Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
+        int unpaidUsed = userLeaves.Where(l => l.LeaveType == "Unpaid" || l.LeaveType == "Unpaid Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
+        int otherUsed = userLeaves.Where(l => l.LeaveType == "Other").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
 
-        // 3. Pass Data to View
-        ViewBag.AnnualLeave = $"{(totalAnnual - annualUsed):D2}/{totalAnnual:D2}";
+        // 3. Set ViewBag for Leave Cards
+        ViewBag.AnnualLeave = $"{annualUsed:D2}/{totalAnnual:D2}";
         ViewBag.AnnualAvailable = totalAnnual - annualUsed;
         ViewBag.AnnualUsed = annualUsed;
 
-        ViewBag.MCLeave = $"{(totalMC - mcUsed):D2}/{totalMC:D2}";
+        ViewBag.MCLeave = $"{mcUsed:D2}/{totalMC:D2}";
         ViewBag.MCAvailable = totalMC - mcUsed;
         ViewBag.MCUsed = mcUsed;
 
-        ViewBag.CompassionateLeave = $"{(totalCompassionate - compassionateUsed):D2}/{totalCompassionate:D2}";
+        ViewBag.CompassionateLeave = $"{compassionateUsed:D2}/{totalCompassionate:D2}";
         ViewBag.CompassionateAvailable = totalCompassionate - compassionateUsed;
         ViewBag.CompassionateUsed = compassionateUsed;
 
-        ViewBag.MaternityLeave = $"{(totalMaternity - maternityUsed):D2}/{totalMaternity:D2}";
+        ViewBag.MaternityLeave = $"{maternityUsed:D2}/{totalMaternity:D2}";
         ViewBag.MaternityAvailable = totalMaternity - maternityUsed;
         ViewBag.MaternityUsed = maternityUsed;
 
-        ViewBag.UnpaidUsed = unpaidUsed;
+        ViewBag.OtherLeave = $"{otherUsed:D2}/{totalOther:D2}";
+        ViewBag.OtherAvailable = totalOther - otherUsed;
         ViewBag.OtherUsed = otherUsed;
 
-        // Attendance Insights (Kept Hardcoded as requested)
+        ViewBag.UnpaidUsed = unpaidUsed;
+
+        // 4. RESTORED: Attendance Insights (Hardcoded for now)
         ViewBag.OnTimePercentage = 65;
         ViewBag.LatePercentage = 35;
         ViewBag.TotalBreakHours = "00 Hours 40 Minutes 55 Seconds";
