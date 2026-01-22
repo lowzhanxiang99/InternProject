@@ -23,6 +23,7 @@ public class Employee
     public string Role { get; set; } = "Staff"; // Admin or Staff
     public string Branch { get; set; } = string.Empty;
     public string? QR_Code_Data { get; set; }
+    public string? ProfilePicturePath { get; set; }
 
     // Relationships
     public int? Department_ID { get; set; }
@@ -33,4 +34,6 @@ public class Employee
     [ForeignKey("Shift_ID")]
     public virtual Shift? Shift { get; set; }
     public string Employee_Name { get; internal set; }
+    [NotMapped]
+    public string FullName => $"{First_Name} {Last_Name}";
 }

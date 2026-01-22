@@ -59,8 +59,31 @@
     string GetAttendanceClass(Attendance attendance)
     {
         if (attendance == null) return "no-attendance";
-        if (attendance.ClockInTime != null && attendance.ClockOutTime != null) return "completed";
-        if (attendance.ClockInTime != null) return "incomplete";
+
+        // Use the actual status from database
+        if (!string.IsNullOrEmpty(attendance.Status))
+        {
+            string status = attendance.Status.ToLower();
+
+            // Check if both clock in and clock out exist
+            bool isCompleted = attendance.ClockInTime != null && attendance.ClockOutTime != null;
+
+            if (status == "on time")
+            {
+                return isCompleted ? "completed-on-time" : "incomplete-on-time";
+            }
+            else if (status == "late")
+            {
+                return isCompleted ? "completed-late" : "incomplete-late";
+            }
+        }
+
+        // Fallback for "absent" or no status
+        if (attendance.ClockInTime != null && attendance.ClockOutTime != null)
+            return "completed";
+        if (attendance.ClockInTime != null)
+            return "incomplete";
+
         return "absent";
     }
 
@@ -325,7 +348,7 @@
         border: 1px solid #C6E6FB !important;
         box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
         border-radius: 12px !important;
-        padding: 14px 16px !important;
+        padding: 12px 14px !important;
         text-align: left !important;
         min-height: auto;
     }
@@ -395,8 +418,9 @@
         box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
         border-radius: 8px !important;
         color: #2C5B8C !important;
-        padding: 10px 20px !important;
-        height: 44px !important;
+        padding: 10px 10px !important;
+        height: 40px !important;
+		margin-top: 18px !important;
     }
 
         .btn-outline-primary.btn-lg.w-100.py-3 h4 {
@@ -413,7 +437,18 @@
     .btn-danger.btn-lg.w-100.py-3 {
         background: linear-gradient(180deg, #FF9C8E 0%, #F5533D 100%) !important;
         padding: 10px 20px !important;
-        height: 44px !important;
+        height: 40px !important;
+		margin-top: -8px !important;
+    }
+
+    /* End Break button - same as danger but with adjusted margin */
+    #endBreakForm {
+        margin-top: 20px !important;
+    }
+
+    /* Or if you want to target the button directly */
+    #endBreakBtn {
+        margin-top: 8px !important;
     }
 
     /* ===== ALERT ADJUSTMENTS ===== */
@@ -423,8 +458,8 @@
         box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
         border-radius: 8px !important;
         color: #122539 !important;
-        padding: 15px !important;
-        margin-top: 20px !important;
+        padding: 12px !important;
+        margin-top: 8px !important;
     }
 
         .alert-warning h5, .alert-success h5 {
@@ -558,6 +593,88 @@
     .table tbody tr:first-child td:nth-child(2)::before {
         display: none !important;
     }
+
+    /* ===== AJAX LOADING STYLES ===== */
+    .table-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        border-radius: 4px;
+    }
+
+        .table-loading-overlay .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            border-width: 3px;
+        }
+
+    /* Fade animation for table updates */
+    #attendanceTableBody {
+        transition: opacity 0.3s ease;
+    }
+
+        #attendanceTableBody.loading {
+            opacity: 0.6;
+        }
+
+    /* Smooth transition for pagination */
+    .pagination-container {
+        transition: opacity 0.3s ease;
+    }
+
+        .pagination-container.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+    /* ===== TABLE SORTING INDICATORS ===== */
+    .table thead th.sortable {
+        cursor: pointer;
+        position: relative;
+        padding-right: 30px !important;
+        transition: all 0.2s ease;
+    }
+
+        .table thead th.sortable:hover {
+            background-color: #F3F8FB;
+        }
+
+        .table thead th.sortable::after {
+            content: '↕';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #2C5B8C;
+            opacity: 2;
+        }
+
+        .table thead th.sortable.asc::after {
+            content: '↑';
+            color: #2C5B8C;
+            opacity: 2;
+            font-weight: bold;
+        }
+
+        .table thead th.sortable.desc::after {
+            content: '↓';
+            color: #2C5B8C;
+            opacity: 2;
+            font-weight: bold;
+        }
+
+@@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
 
     /* ===== PAGINATION STYLES ===== */
     .pagination-container {
@@ -811,50 +928,79 @@
             font-size: 14px;
         }
 
-    /* ===== CALENDAR ATTENDANCE STATUS ===== */
-    .calendar-day.completed {
-        background: linear-gradient(135deg, #94D145 0%, #52B623 100%) !important;
-        color: #FFFFFF !important;
-    }
+/* ===== CALENDAR ATTENDANCE STATUS ===== */
+/* ON TIME - Green for completed on time */
+.calendar-day.completed-on-time {
+    background: linear-gradient(135deg, #94D145 0%, #52B623 100%) !important;
+    color: #FFFFFF !important;
+}
 
-    .calendar-day.incomplete {
-        background: linear-gradient(135deg, #FF9C8E 0%, #FF6B5B 100%) !important;
-        color: #FFFFFF !important;
-    }
+/* LATE - Red for late arrival */
+.calendar-day.completed-late {
+    background: linear-gradient(135deg, #FF9C8E 0%, #F5533D 100%) !important;
+    color: #FFFFFF !important;
+}
 
-    .calendar-day.no-attendance {
-        background: #F3F8FB !important;
-        color: #AAD9F9 !important;
-    }
+/* INCOMPLETE ON TIME - Partial green for incomplete but on time */
+.calendar-day.incomplete-on-time {
+    background: linear-gradient(135deg, #94D14566 0%, #52B62366 100%) !important;
+    color: #FFFFFF !important;
+    border: 2px solid #52B623 !important;
+}
 
-    .calendar-day:not(.empty) {
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
-    }
+/* INCOMPLETE LATE - Partial red for incomplete and late */
+.calendar-day.incomplete-late {
+    background: linear-gradient(135deg, #FF9C8E66 0%, #F5533D66 100%) !important;
+    color: #FFFFFF !important;
+    border: 2px solid #F5533D !important;
+}
 
-        .calendar-day:not(.empty):hover {
-            transform: scale(1.05);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            z-index: 1;
-        }
+/* ABSENT - Grey for absent or no record */
+.calendar-day.absent {
+    background: #F3F8FB !important;
+    color: #AAD9F9 !important;
+    border: 1px solid #D6E3F2 !important;
+}
 
-    /* Attendance indicator */
-    .attendance-indicator {
-        position: absolute;
-        bottom: 2px;
-        right: 2px;
-        font-size: 10px;
-        opacity: 0.8;
-    }
+/* COMPLETED (fallback) - Blue for general completion */
+.calendar-day.completed {
+    background: linear-gradient(135deg, #5A91CB 0%, #2C5B8C 100%) !important;
+    color: #FFFFFF !important;
+}
 
-    .calendar-day.completed .attendance-indicator {
-        color: #FFFFFF;
-    }
+/* INCOMPLETE (fallback) - Orange for general incomplete */
+.calendar-day.incomplete {
+    background: linear-gradient(135deg, #FFB347 0%, #FF8C00 100%) !important;
+    color: #FFFFFF !important;
+}
 
-    .calendar-day.incomplete .attendance-indicator {
-        color: #FFFFFF;
-    }
+/* NO ATTENDANCE - Light background */
+.calendar-day.no-attendance {
+    background: #F8F9FA !important;
+    color: #6C757D !important;
+}
+
+/* TODAY highlight */
+.calendar-day.today {
+    position: relative;
+    background: #5A91CB !important;
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+}
+
+/* When today also has attendance status */
+.calendar-day.today.completed-on-time {
+    background: linear-gradient(135deg, #52B623 0%, #94D145 100%) !important;
+}
+
+.calendar-day.today.completed-late {
+    background: linear-gradient(135deg, #F5533D 0%, #FF9C8E 100%) !important;
+}
+
+.calendar-day.today.absent {
+    background: #5A91CB !important;
+    color: #FFFFFF !important;
+}
 
     /* ===== PAGINATION STATUS INDICATORS ===== */
     .pagination-status-indicators {
@@ -1367,17 +1513,17 @@
                         </div>
                         <div class="card-body" style="padding: 0;">
                             <div class="table-responsive">
-                                <table class="table table-hover">
+                                <table class="table table-hover" id="attendanceTable">
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
-                                            <th>Time In</th>
-                                            <th>Time Out</th>
-                                            <th>Break Hours</th>
-                                            <th>Working Hours</th>
+                                            <th class="sortable" data-sort="date" data-order="desc">Date</th>
+                                            <th class="sortable" data-sort="timeIn" data-order="desc">Time In</th>
+                                            <th class="sortable" data-sort="timeOut" data-order="desc">Time Out</th>
+                                            <th class="sortable" data-sort="breakHours" data-order="desc">Break Hours</th>
+                                            <th class="sortable" data-sort="workingHours" data-order="desc">Working Hours</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="attendanceTableBody">
                                         @if (recentAttendance != null && recentAttendance.Any())
                                         {
                                             @foreach (var record in recentAttendance)
@@ -1409,7 +1555,11 @@
                                                     statusText = "No Clock In";
                                                 }
 
-                                                <tr>
+                                                <tr data-date="@record.Date.ToString("yyyy-MM-dd")"
+                                                    data-time-in="@(record.ClockInTime?.ToString(@"hh\:mm\:ss") ?? "")"
+                                                    data-time-out="@(record.ClockOutTime?.ToString(@"hh\:mm\:ss") ?? "")"
+                                                    data-break-hours="@(record.TotalBreakTime?.TotalSeconds ?? 0)"
+                                                    data-working-hours="@((record.ClockInTime.HasValue && record.ClockOutTime.HasValue ? (record.ClockOutTime.Value - record.ClockInTime.Value - (record.TotalBreakTime ?? TimeSpan.Zero)).TotalSeconds : 0))">
                                                     <td>@record.Date.ToString("MMM dd, yyyy")</td>
                                                     <td>
                                                         @if (record.ClockInTime != null)
@@ -1489,13 +1639,13 @@
                             <!-- Pagination -->
                             @if (totalRecords > 0)
                             {
-                                <div class="pagination-container">
+                                <div class="pagination-container" id="paginationContainer">
                                     <!-- Left side: Status indicators and info -->
                                     <div class="d-flex align-items-center gap-4">
-										<!-- Pagination Info -->
-										<div class="pagination-info">
-											Showing @(((currentPage - 1) * pageSize) + 1)-@Math.Min(currentPage * pageSize, totalRecords) of @totalRecords records
-										</div>
+                                        <!-- Pagination Info -->
+                                        <div class="pagination-info">
+                                            Showing @(((currentPage - 1) * pageSize) + 1)-@Math.Min(currentPage * pageSize, totalRecords) of @totalRecords records
+                                        </div>
 
                                         <div class="pagination-status-indicators">
                                             <div class="status-indicator-item">
@@ -1510,34 +1660,26 @@
 
                                         <!-- Vertical separator -->
                                         <div class="vr" style="height: 20px; background-color: #D6E3F2;"></div>
-                                        
                                     </div>
 
-                                    <!-- Right side: Pagination Navigation -->
+                                    <!-- Right side: Pagination Navigation - FIXED -->
                                     <nav aria-label="Attendance pagination">
-                                        <ul class="pagination mb-0">
-                                            <!-- Previous Page Link -->
+                                        <ul class="pagination mb-0" id="paginationNav">
+                                            <!-- Previous button -->
                                             <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                                                @if (currentPage > 1)
-                                                {
-                                                    <a class="page-link"
-                                                       href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage - 1)"
-                                                       aria-label="Previous">
-                                                        <span aria-hidden="true">&laquo;</span>
-                                                    </a>
-                                                }
-                                                else
-                                                {
-                                                    <span class="page-link" aria-hidden="true">&laquo;</span>
-                                                }
+                                                <a class="page-link"
+                                                   href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage - 1)"
+                                                   onclick="changePage(@(currentPage - 1)); return false;"
+                                                   aria-label="Previous">
+                                                    <span aria-hidden="true">&laquo;</span>
+                                                </a>
                                             </li>
 
-                                            <!-- Page Numbers -->
+                                            <!-- Page numbers -->
                                             @{
                                                 int startPage = Math.Max(1, currentPage - 2);
                                                 int endPage = Math.Min(totalPages, startPage + 4);
 
-                                                // Adjust start page if we're near the end
                                                 if (endPage - startPage < 4)
                                                 {
                                                     startPage = Math.Max(1, endPage - 4);
@@ -1548,24 +1690,21 @@
                                             {
                                                 <li class="page-item @(i == currentPage ? "active" : "")">
                                                     <a class="page-link"
-                                                       href="?month=@selectedMonth&year=@selectedYear&page=@i">@i</a>
+                                                       href="?month=@selectedMonth&year=@selectedYear&page=@i"
+                                                       onclick="changePage(@i); return false;">
+                                                        @i
+                                                    </a>
                                                 </li>
                                             }
 
-                                            <!-- Next Page Link -->
+                                            <!-- Next button -->
                                             <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                                                @if (currentPage < totalPages)
-                                                {
-                                                    <a class="page-link"
-                                                       href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage + 1)"
-                                                       aria-label="Next">
-                                                        <span aria-hidden="true">&raquo;</span>
-                                                    </a>
-                                                }
-                                                else
-                                                {
-                                                    <span class="page-link" aria-hidden="true">&raquo;</span>
-                                                }
+                                                <a class="page-link"
+                                                   href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage + 1)"
+                                                   onclick="changePage(@(currentPage + 1)); return false;"
+                                                   aria-label="Next">
+                                                    <span aria-hidden="true">&raquo;</span>
+                                                </a>
                                             </li>
                                         </ul>
                                     </nav>
@@ -1915,7 +2054,360 @@
                     showAttendanceDetails(calendarDay);
                 }
             });
+            initializeAjaxSorting();
         });
+        // ===== AJAX TABLE SORTING =====
+        let currentSort = {
+            column: 'date',
+            order: 'desc',
+            currentPage: 1,
+            totalPages: 1
+        };
+
+        // Initialize table sorting with AJAX
+        function initializeAjaxSorting() {
+            const tableHeaders = document.querySelectorAll('#attendanceTable th.sortable');
+
+            tableHeaders.forEach(header => {
+                header.addEventListener('click', async function() {
+                    const column = this.dataset.sort;
+                    const currentOrder = this.dataset.order;
+                    const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+
+                    // Update UI immediately
+                    tableHeaders.forEach(h => {
+                        h.classList.remove('asc', 'desc');
+                        h.dataset.order = 'desc';
+                    });
+
+                    this.classList.add(newOrder);
+                    this.dataset.order = newOrder;
+
+                    // Update current sort
+                    currentSort.column = column;
+                    currentSort.order = newOrder;
+
+                    // Show loading state
+                    showTableLoading(true);
+
+                    try {
+                        // Fetch sorted data via AJAX
+                        await loadSortedData(column, newOrder, 1); // Reset to page 1 when sorting
+                    } catch (error) {
+                        console.error('Sorting error:', error);
+                        showToast('Error sorting data. Please try again.', 'error');
+                    } finally {
+                        showTableLoading(false);
+                    }
+                });
+            });
+
+            // Initialize pagination event listeners
+            initializePagination();
+        }
+
+        // Function to load sorted data via AJAX
+        async function loadSortedData(sortColumn, sortOrder, page) {
+            try {
+                const response = await fetch(`/Attendance/GetSortedAttendance?page=${page}&sort=${sortColumn}&order=${sortOrder}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update table with new data
+                    updateTableWithData(result.data);
+
+                    // Update pagination with AJAX flag
+                    updatePagination(result.page, result.totalPages, result.totalRecords, true);
+
+                    // Update current sort state
+                    currentSort = {
+                        column: result.sort,
+                        order: result.order,
+                        currentPage: result.page,
+                        totalPages: result.totalPages
+                    };
+                } else {
+                    throw new Error(result.message || 'Failed to load data');
+                }
+            } catch (error) {
+                console.error('Error loading sorted data:', error);
+                throw error;
+            }
+        }
+
+        // Function to update table with new data
+                // Function to update table with new data
+        function updateTableWithData(data) {
+            const tbody = document.getElementById('attendanceTableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            No attendance records found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Build new rows
+            let rowsHtml = '';
+
+            data.forEach(record => {
+                // Determine status
+                let statusClass = "";
+                let statusText = "";
+
+                if (record.clockInTime && record.clockInTime !== '-') {
+                    // Parse the time string (e.g., "09:15 AM")
+                    const timeMatch = record.clockInTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const minutes = parseInt(timeMatch[2]);
+                        const ampm = timeMatch[3].toUpperCase();
+
+                        // Convert to 24-hour format for comparison
+                        if (ampm === 'PM' && hours < 12) hours += 12;
+                        if (ampm === 'AM' && hours === 12) hours = 0;
+
+                        // Compare with 9:00 AM
+                        if (hours < 9 || (hours === 9 && minutes === 0)) {
+                            statusClass = "status-on-time";
+                            statusText = "On Time";
+                        } else {
+                            statusClass = "status-late";
+                            statusText = "Late";
+                        }
+                    }
+                } else {
+                    statusText = "No Clock In";
+                }
+
+                // Build row using pre-formatted values from server
+                rowsHtml += `
+                    <tr>
+                        <td>${record.date}</td>
+                        <td>
+                            ${record.clockInTime !== '-' ? `
+                                <div class="d-flex align-items-center">
+                                    ${statusClass ? `<span class="status-indicator ${statusClass} me-2" title="${statusText}"></span>` : ''}
+                                    <span>${record.clockInTime}</span>
+                                </div>
+                            ` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td>
+                            ${record.clockOutTime !== '-' ? `<span>${record.clockOutTime}</span>` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td>${record.breakTime}</td>
+                        <td>${record.workingTime}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rowsHtml;
+        }
+
+        // Function to update pagination (for both initial and AJAX)
+        function updatePagination(currentPage, totalPages, totalRecords, isAjax = false) {
+            const paginationContainer = document.querySelector('.pagination-container');
+            if (!paginationContainer) return;
+
+            // Update pagination info
+            const startRecord = ((currentPage - 1) * 10) + 1;
+            const endRecord = Math.min(currentPage * 10, totalRecords);
+
+            const paginationInfo = paginationContainer.querySelector('.pagination-info');
+            if (paginationInfo) {
+                paginationInfo.textContent = `Showing ${startRecord}-${endRecord} of ${totalRecords} records`;
+            }
+
+            // Get current month and year for non-AJAX links
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
+            const currentMonth = monthSelect ? monthSelect.value : @selectedMonth;
+            const currentYear = yearSelect ? yearSelect.value : @selectedYear;
+
+            // Update pagination navigation
+            const paginationNav = paginationContainer.querySelector('.pagination');
+            if (paginationNav) {
+                let paginationHtml = '';
+
+                // Previous button
+                paginationHtml += `
+                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link"
+                           href="${isAjax ? '#' : `?month=${currentMonth}&year=${currentYear}&page=${currentPage - 1}`}"
+                           onclick="changePage(${currentPage - 1}, ${isAjax}); return false;"
+                           aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                `;
+
+                // Page numbers
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, startPage + 4);
+
+                if (endPage - startPage < 4) {
+                    startPage = Math.max(1, endPage - 4);
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationHtml += `
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link"
+                               href="${isAjax ? '#' : `?month=${currentMonth}&year=${currentYear}&page=${i}`}"
+                               onclick="changePage(${i}, ${isAjax}); return false;">
+                                ${i}
+                            </a>
+                        </li>
+                    `;
+                }
+
+                // Next button
+                paginationHtml += `
+                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link"
+                           href="${isAjax ? '#' : `?month=${currentMonth}&year=${currentYear}&page=${currentPage + 1}`}"
+                           onclick="changePage(${currentPage + 1}, ${isAjax}); return false;"
+                           aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                `;
+
+                paginationNav.innerHTML = paginationHtml;
+            }
+
+            // Store current state
+            currentSort.currentPage = currentPage;
+            currentSort.totalPages = totalPages;
+        }
+
+        // Modified changePage function
+        async function changePage(page, isAjax = false) {
+            if (page < 1 || page > currentSort.totalPages) return;
+
+            if (isAjax) {
+                // AJAX pagination (when sorting is active)
+                showTableLoading(true);
+                try {
+                    await loadSortedData(currentSort.column, currentSort.order, page);
+                } catch (error) {
+                    console.error('Page change error:', error);
+                    showToast('Error loading page. Please try again.', 'error');
+                } finally {
+                    showTableLoading(false);
+                }
+            } else {
+                // Regular pagination (non-AJAX)
+                const monthSelect = document.getElementById('monthSelect');
+                const yearSelect = document.getElementById('yearSelect');
+                const currentMonth = monthSelect ? monthSelect.value : @selectedMonth;
+                const currentYear = yearSelect ? yearSelect.value : @selectedYear;
+
+                // Navigate to the page with month/year parameters
+                window.location.href = `?month=${currentMonth}&year=${currentYear}&page=${page}`;
+            }
+        }
+
+        // Function to change page
+        async function changePage(page) {
+            if (page < 1 || page > currentSort.totalPages) return;
+
+            showTableLoading(true);
+
+            try {
+                await loadSortedData(currentSort.column, currentSort.order, page);
+            } catch (error) {
+                console.error('Page change error:', error);
+                showToast('Error loading page. Please try again.', 'error');
+            } finally {
+                showTableLoading(false);
+            }
+        }
+
+        // Function to show/hide table loading
+        function showTableLoading(show) {
+            const tableBody = document.getElementById('attendanceTableBody');
+            const tableHeader = document.querySelector('#attendanceTable thead');
+
+            if (show) {
+                // Add loading overlay to table
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.id = 'tableLoadingOverlay';
+                loadingOverlay.className = 'table-loading-overlay';
+                loadingOverlay.innerHTML = `
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                `;
+
+                // Position it over the table body
+                if (tableBody) {
+                    tableBody.style.position = 'relative';
+                    tableBody.appendChild(loadingOverlay);
+                }
+
+                // Disable sort headers
+                const sortHeaders = document.querySelectorAll('th.sortable');
+                sortHeaders.forEach(header => {
+                    header.style.pointerEvents = 'none';
+                    header.style.opacity = '0.6';
+                });
+            } else {
+                // Remove loading overlay
+                const existingOverlay = document.getElementById('tableLoadingOverlay');
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                }
+
+                // Re-enable sort headers
+                const sortHeaders = document.querySelectorAll('th.sortable');
+                sortHeaders.forEach(header => {
+                    header.style.pointerEvents = '';
+                    header.style.opacity = '';
+                });
+            }
+        }
+
+        // Initialize pagination event listeners
+        function initializePagination() {
+            // Event delegation for pagination links
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('.page-link') || e.target.closest('.page-link')) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Helper function to format time from database
+        function formatTimeFromDatabase(timeStr) {
+            if (!timeStr) return 'N/A';
+
+            try {
+                const [hours, minutes, seconds] = timeStr.split(':');
+                const hourNum = parseInt(hours, 10);
+                const minuteNum = parseInt(minutes, 10);
+
+                const date = new Date();
+                date.setHours(hourNum, minuteNum, 0);
+
+                return date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            } catch (e) {
+                return timeStr;
+            }
+        }
 
         // ========== BUTTON HANDLERS ==========
         function initializeButtonHandlers() {
@@ -2287,82 +2779,91 @@
             // If user is already clocked in today, calculate elapsed time
             @if (todayAttendance?.ClockInTime != null && todayAttendance?.ClockOutTime == null)
             {
-                                <text>
-                                try {
-                                    const now = new Date();
-                                    const todayStr = now.toISOString().split('T')[0];
-                                    // Fix: Access the TimeSpan value and format it
-                                    const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
-                                    const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+                    <text>
+                    try {
+                        const now = new Date();
+                        const todayStr = now.toISOString().split('T')[0];
+                        const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                        const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
 
-                                    if (!isNaN(clockInDateTime.getTime())) {
-                                        const elapsedSeconds = Math.floor((now - clockInDateTime) / 1000);
-                                        workingSeconds = Math.max(0, elapsedSeconds);
+                        if (!isNaN(clockInDateTime.getTime())) {
+                            const elapsedSeconds = Math.floor((now - clockInDateTime) / 1000);
+                            workingSeconds = Math.max(0, elapsedSeconds);
 
-                                        // If user is on break, calculate break time
-                                        @if (todayAttendance?.IsOnBreak == true && todayAttendance?.BreakStartTime != null)
-                                        {
-                                                            <text>
-                                                            const breakStartStr = '@todayAttendance.BreakStartTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")';
-                                                            const breakStartDateTime = new Date(breakStartStr);
+                            // If user is on break, calculate break time
+                            @if (todayAttendance?.IsOnBreak == true && todayAttendance?.BreakStartTime != null)
+                            {
+                                    <text>
+                                    const breakStartStr = '@todayAttendance.BreakStartTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")';
+                                    const breakStartDateTime = new Date(breakStartStr);
 
-                                                            if (!isNaN(breakStartDateTime.getTime())) {
-                                                                const breakElapsedSeconds = Math.floor((now - breakStartDateTime) / 1000);
-                                                                breakSeconds = Math.max(0, breakElapsedSeconds);
-                                                                startBreakTimer(); // Start the actual timer
-                                                            } else {
-                                                                startWorkingTimer();
-                                                            }
-                                                            </text>
-                                        }
-                                        else
-                                        {
-                                                            <text>
-                                                            startWorkingTimer();
-                                                            </text>
-                                        }
+                                    if (!isNaN(breakStartDateTime.getTime())) {
+                                        const breakElapsedSeconds = Math.floor((now - breakStartDateTime) / 1000);
+                                        breakSeconds = Math.max(0, breakElapsedSeconds);
+                                        startBreakTimer(); // Start the actual timer
+                                    } else {
+                                        startWorkingTimer();
                                     }
-                                } catch (e) {
-                                    console.error('Error calculating elapsed time:', e);
-                                    showToast('Error calculating elapsed time. Please refresh the page.', 'error');
-                                }
-                                </text>
+                                    </text>
+                            }
+                            // NEW: If user has taken break and ended it, show total break time
+                            else if (todayAttendance?.HasTakenBreak == true && todayAttendance?.TotalBreakTime != null)
+                            {
+                                    <text>
+                                    const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                    const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                    const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                    breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                    updateBreakTimeDisplay();
+                                    startWorkingTimer();
+                                    </text>
+                            }
+                            else
+                            {
+                                    <text>
+                                    startWorkingTimer();
+                                    </text>
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error calculating elapsed time:', e);
+                        showToast('Error calculating elapsed time. Please refresh the page.', 'error');
+                    }
+                    </text>
             }
             else if (todayAttendance?.ClockOutTime != null)
             {
+                    <text>
+                    try {
+                        const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
+                        const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                        const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
+
+                        const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+                        const clockOutDateTime = new Date(todayStr + 'T' + clockOutTimeStr);
+
+                        if (!isNaN(clockInDateTime.getTime()) && !isNaN(clockOutDateTime.getTime())) {
+                            const totalSeconds = Math.floor((clockOutDateTime - clockInDateTime) / 1000);
+                            workingSeconds = Math.max(0, totalSeconds);
+                            updateWorkingTimeDisplay();
+                        }
+
+                        // Calculate break time if any
+                        @if (todayAttendance?.TotalBreakTime != null)
+                        {
                                 <text>
-                                try {
-                                    const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
-                                    // Fix: Access the TimeSpan values
-                                    const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
-                                    const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
-
-                                    const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
-                                    const clockOutDateTime = new Date(todayStr + 'T' + clockOutTimeStr);
-
-                                    if (!isNaN(clockInDateTime.getTime()) && !isNaN(clockOutDateTime.getTime())) {
-                                        const totalSeconds = Math.floor((clockOutDateTime - clockInDateTime) / 1000);
-                                        workingSeconds = Math.max(0, totalSeconds);
-                                        updateWorkingTimeDisplay();
-                                    }
-
-                                    // Calculate break time if any
-                                    @if (todayAttendance?.TotalBreakTime != null)
-                                    {
-                                                        <text>
-                                                        // Fix: Format the TimeSpan properly
-                                                        const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
-                                                        const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
-                                                        const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
-                                                        breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
-                                                        updateBreakTimeDisplay();
-                                                        </text>
-                                    }
-                                } catch (e) {
-                                    console.error('Error calculating completed time:', e);
-                                    showToast('Error calculating completed time. Please refresh the page.', 'error');
-                                }
+                                const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                updateBreakTimeDisplay();
                                 </text>
+                        }
+                    } catch (e) {
+                        console.error('Error calculating completed time:', e);
+                        showToast('Error calculating completed time. Please refresh the page.', 'error');
+                    }
+                    </text>
             }
 
             updateWorkingTimeDisplay();
@@ -2492,7 +2993,7 @@
             }
         });
 
-                async function loadAttendanceDetails(date, attendanceId, calendarDayElement) {
+        async function loadAttendanceDetails(date, attendanceId, calendarDayElement) {
             try {
                 // Show loading state
                 const detailsContainer = document.querySelector('.attendance-details-container');
@@ -2521,8 +3022,8 @@
                 }
 
                 if (!result.hasAttendance) {
-                    // No attendance record
-                    const html = generateAttendanceDetailsHTML(date, null, null, null, null, null, null);
+                    // No attendance record at all for this date
+                    const html = generateNoAttendanceHTML(date);
                     detailsContainer.innerHTML = html;
                     return;
                 }
@@ -2532,16 +3033,9 @@
                 const clockOutTime = attendance.clockOutTime;
                 const breakTime = attendance.totalBreakTime;
                 const workingHours = attendance.workingHours;
+                const status = attendance.status; // Get actual status from database
 
-                // Determine status
-                let status = 'No Record';
-                if (clockInTime && clockOutTime) {
-                    status = 'Completed';
-                } else if (clockInTime) {
-                    status = 'Clocked In Only';
-                }
-
-                // Generate HTML with the fetched data
+                // Generate HTML with the fetched data (pass the actual status)
                 const html = generateAttendanceDetailsHTML(date, attendance.id, status, clockInTime, clockOutTime, breakTime, workingHours);
                 detailsContainer.innerHTML = html;
 
@@ -2549,6 +3043,39 @@
                 console.error('Error loading attendance details:', error);
                 showErrorState(date, error.message);
             }
+        }
+
+                function generateNoAttendanceHTML(date) {
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                weekday: 'long'
+            });
+
+            return `
+                <div class="attendance-details show">
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${formattedDate}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="status-badge status-absent">
+                            <i class="bi bi-x-circle me-1"></i> No Record
+                        </span>
+                    </div>
+
+                    <div class="empty-state mt-4">
+                        <div class="icon">
+                            <i class="bi bi-calendar-x"></i>
+                        </div>
+                        <h6>No Attendance Record</h6>
+                        <p>No attendance was recorded for this date.</p>
+                    </div>
+                </div>
+            `;
         }
 
         function generateAttendanceDetailsHTML(date, attendanceId, status, clockInTime, clockOutTime, breakTime, workingHours) {
@@ -2560,23 +3087,65 @@
                 weekday: 'long'
             });
 
-            // Determine status badge
+            // Determine status badge based on ACTUAL database status
             let statusClass = 'status-absent';
             let statusIcon = 'bi-x-circle';
             let statusText = 'No Record';
 
-            if (status === 'Completed') {
-                statusClass = 'status-present';
-                statusIcon = 'bi-check-circle';
-                statusText = 'Completed';
-            } else if (status === 'Clocked In Only') {
-                statusClass = 'status-incomplete';
-                statusIcon = 'bi-clock';
-                statusText = 'Incomplete';
+            if (status) {
+                // Use the actual status from database
+                statusText = status;
+
+                switch(status.toLowerCase()) {
+                    case 'present':
+                    case 'on time':
+                        statusClass = 'status-present';
+                        statusIcon = 'bi-check-circle';
+                        statusText = 'On Time';
+                        break;
+                    case 'late':
+                        statusClass = 'status-late';
+                        statusIcon = 'bi-clock-history';
+                        statusText = 'Late';
+                        break;
+                    case 'absent':
+                        statusClass = 'status-absent';
+                        statusIcon = 'bi-x-circle';
+                        statusText = 'Absent';
+                        break;
+                    case 'completed':
+                        statusClass = 'status-present';
+                        statusIcon = 'bi-check-circle';
+                        statusText = 'Completed';
+                        break;
+                    default:
+                        // Fallback logic if status is not recognized
+                        statusText = status; // Keep the original status text
+                        break;
+                }
             } else {
-                statusClass = 'status-absent';
-                statusIcon = 'bi-x-circle';
-                statusText = 'No Record';
+                // No status in database, but we have attendance record
+                // Check if it's a valid attendance (has clock in or clock out)
+                if (clockInTime || clockOutTime) {
+                    if (clockInTime && clockOutTime) {
+                        statusClass = 'status-present';
+                        statusIcon = 'bi-check-circle';
+                        statusText = 'On Time';
+                    } else if (clockInTime) {
+                        statusClass = 'status-incomplete';
+                        statusIcon = 'bi-clock';
+                        statusText = 'In Progress';
+                    } else if (clockOutTime) {
+                        statusClass = 'status-incomplete';
+                        statusIcon = 'bi-clock';
+                        statusText = 'Clock Out Only';
+                    }
+                } else {
+                    // No clock in or clock out - treat as no record
+                    statusClass = 'status-absent';
+                    statusIcon = 'bi-x-circle';
+                    statusText = 'No Record';
+                }
             }
 
             // Format break time
@@ -2590,6 +3159,9 @@
             if (workingHours) {
                 workingHoursDisplay = `${workingHours.hours} Hr ${workingHours.minutes.toString().padStart(2, '0')} Mins ${workingHours.seconds.toString().padStart(2, '0')} Secs`;
             }
+
+            // Check if we should show the "No Record" empty state
+            const shouldShowEmptyState = !clockInTime && !clockOutTime && (!status || status.toLowerCase() === 'absent');
 
             return `
                 <div class="attendance-details show">
@@ -2618,10 +3190,12 @@
                         </div>
                     ` : ''}
 
-                    <div class="detail-row">
-                        <span class="detail-label">Break Time:</span>
-                        <span class="detail-value">${breakTimeDisplay}</span>
-                    </div>
+                    ${clockInTime || clockOutTime ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Break Time:</span>
+                            <span class="detail-value">${breakTimeDisplay}</span>
+                        </div>
+                    ` : ''}
 
                     ${workingHoursDisplay !== '-' ? `
                         <div class="detail-row">
@@ -2630,13 +3204,13 @@
                         </div>
                     ` : ''}
 
-                    ${!clockInTime && !clockOutTime ? `
+                    ${shouldShowEmptyState ? `
                         <div class="empty-state mt-4">
                             <div class="icon">
                                 <i class="bi bi-calendar-x"></i>
                             </div>
                             <h6>No Attendance Record</h6>
-                            <p>No attendance was recorded for this date</p>
+                            <p>No attendance was recorded for this date.</p>
                         </div>
                     ` : ''}
                 </div>
