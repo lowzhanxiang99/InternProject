@@ -26,8 +26,11 @@ public class LeaveController : Controller
         {
             ViewBag.AnnualBalance = employee.AnnualLeaveDays;
             ViewBag.MCBalance = employee.MCDays;
-            ViewBag.EmergencyBalance = employee.EmergencyLeaveDays;
+            ViewBag.CompassionateBalance = employee.EmergencyLeaveDays;
             ViewBag.OtherBalance = employee.OtherLeaveDays;
+
+            // FIXED: Now pulls from the new database column you created
+            ViewBag.MaternityBalance = employee.MaternityLeaveDays;
         }
 
         return View();
@@ -49,16 +52,32 @@ public class LeaveController : Controller
         if (employee == null) return View("Error");
 
         int requestedDays = (leave.End_Date - leave.Start_Date).Days + 1;
+        bool hasInsufficientBalance = false;
 
-        int currentBalance = leave.LeaveType switch
+        if (leave.LeaveType == "Unpaid")
         {
-            "Annual" => employee.AnnualLeaveDays,
-            "MC" => employee.MCDays,
-            "Emergency" => employee.EmergencyLeaveDays,
-            _ => employee.OtherLeaveDays
-        };
+            hasInsufficientBalance = true;
+        }
+        else
+        {
+            int currentBalance = leave.LeaveType switch
+            {
+                "Annual" => employee.AnnualLeaveDays,
+                "MC" => employee.MCDays,
+                "Compassionate" => employee.EmergencyLeaveDays,
+                "Other" => employee.OtherLeaveDays,
+                // FIXED: Use the actual DB value for validation
+                "Maternity Leave" => employee.MaternityLeaveDays,
+                _ => 100
+            };
 
-        if (currentBalance <= 0 || requestedDays > currentBalance)
+            if (currentBalance <= 0 || requestedDays > currentBalance)
+            {
+                hasInsufficientBalance = true;
+            }
+        }
+
+        if (hasInsufficientBalance)
         {
             leave.Reasons = "[SALARY DEDUCTION ADVISORY] " + leave.Reasons;
         }
@@ -79,7 +98,7 @@ public class LeaveController : Controller
         }
     }
 
-    // --- ADMIN/MANAGER SECTION ---
+    // --- ADMIN SECTION ---
 
     public IActionResult ApprovalLogin() => View();
 
@@ -123,7 +142,7 @@ public class LeaveController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> SetEntitlements(int employeeId, int annual, int mc, int emergency, int other)
+    public async Task<IActionResult> SetEntitlements(int employeeId, string leaveCategory, int newValue)
     {
         if (HttpContext.Session.GetString("IsManager") != "true")
             return RedirectToAction("ApprovalLogin");
@@ -131,13 +150,18 @@ public class LeaveController : Controller
         var employee = await _context.Employees.FindAsync(employeeId);
         if (employee != null)
         {
-            employee.AnnualLeaveDays = annual;
-            employee.MCDays = mc;
-            employee.EmergencyLeaveDays = emergency;
-            employee.OtherLeaveDays = other;
+            switch (leaveCategory)
+            {
+                case "Annual": employee.AnnualLeaveDays = newValue; break;
+                case "MC": employee.MCDays = newValue; break;
+                case "Compassionate": employee.EmergencyLeaveDays = newValue; break;
+                case "Other": employee.OtherLeaveDays = newValue; break;
+                // FIXED: Added Maternity update logic for Admin
+                case "Maternity": employee.MaternityLeaveDays = newValue; break;
+            }
 
             await _context.SaveChangesAsync();
-            TempData["SuccessMessage"] = $"Entitlements updated for {employee.First_Name}.";
+            TempData["SuccessMessage"] = $"Updated {leaveCategory} for {employee.First_Name}.";
         }
         return RedirectToAction(nameof(Approval));
     }
@@ -151,35 +175,31 @@ public class LeaveController : Controller
         {
             int totalDays = (request.End_Date - request.Start_Date).Days + 1;
 
-            // 1. Subtract from balance 
             if (request.LeaveType == "Annual") request.Employee.AnnualLeaveDays -= totalDays;
             else if (request.LeaveType == "MC") request.Employee.MCDays -= totalDays;
-            else if (request.LeaveType == "Emergency") request.Employee.EmergencyLeaveDays -= totalDays;
+            else if (request.LeaveType == "Compassionate") request.Employee.EmergencyLeaveDays -= totalDays;
             else if (request.LeaveType == "Other") request.Employee.OtherLeaveDays -= totalDays;
+            // FIXED: Automatically deduct from Maternity balance column upon approval
+            else if (request.LeaveType == "Maternity Leave") request.Employee.MaternityLeaveDays -= totalDays;
 
-            // 2. NEW LOGIC: Generate Attendance records for the approved dates
-            // This makes the leave "visible" in the Attendance Report/Details
+            // Generate Attendance
             for (DateTime date = request.Start_Date.Date; date <= request.End_Date.Date; date = date.AddDays(1))
             {
-                // Check if a record already exists for this day to avoid duplicates
                 var existingRecord = await _context.Attendances
                     .FirstOrDefaultAsync(a => a.Employee_ID == request.Employee_ID && a.Date.Date == date);
 
                 if (existingRecord == null)
                 {
-                    var leaveAttendance = new Attendance
+                    _context.Attendances.Add(new Attendance
                     {
                         Employee_ID = request.Employee_ID,
                         Date = date,
-                        Status = "Leave", // Matches your logic in the View
-                        ClockInTime = TimeSpan.Zero,
-                        ClockOutTime = null
-                    };
-                    _context.Attendances.Add(leaveAttendance);
+                        Status = "Leave",
+                        ClockInTime = TimeSpan.Zero
+                    });
                 }
                 else
                 {
-                    // If a record (like 'Absent') existed, change it to 'Leave'
                     existingRecord.Status = "Leave";
                 }
             }
@@ -203,50 +223,21 @@ public class LeaveController : Controller
         return GenerateExcelFile(data, "All_Leave_Requests.xlsx");
     }
 
-    // --- PERSONAL USER SECTION ---
-
     public async Task<IActionResult> MyStatus()
     {
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
-
-        var myRequests = await _context.LeaveRequests
-                                       .Where(l => l.Employee_ID == userId)
-                                       .OrderByDescending(l => l.Leave_ID)
-                                       .ToListAsync();
-
-        return View(myRequests);
+        return View(await _context.LeaveRequests.Where(l => l.Employee_ID == userId).OrderByDescending(l => l.Leave_ID).ToListAsync());
     }
-
-    [HttpGet]
-    public async Task<IActionResult> ExportMyStatusExcel()
-    {
-        var userId = HttpContext.Session.GetInt32("UserID");
-        if (userId == null) return RedirectToAction("Login", "Account");
-
-        var data = await _context.LeaveRequests
-                                 .Include(l => l.Employee)
-                                 .Where(l => l.Employee_ID == userId)
-                                 .OrderByDescending(l => l.Leave_ID)
-                                 .ToListAsync();
-
-        return GenerateExcelFile(data, "My_Leave_History.xlsx");
-    }
-
-    // --- SHARED UTILITIES ---
 
     private IQueryable<LeaveRequest> ApplyFilters(IQueryable<LeaveRequest> query, string searchString, DateTime? fromDate, DateTime? toDate)
     {
         if (!String.IsNullOrEmpty(searchString))
         {
-            query = query.Where(s => s.Employee.First_Name.Contains(searchString) ||
-                                     s.Employee.Last_Name.Contains(searchString) ||
-                                     s.Leave_ID.ToString() == searchString);
+            query = query.Where(s => s.Employee.First_Name.Contains(searchString) || s.Employee.Last_Name.Contains(searchString) || s.Leave_ID.ToString() == searchString);
         }
-
         if (fromDate.HasValue) query = query.Where(l => l.Start_Date >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(l => l.End_Date <= toDate.Value);
-
         return query;
     }
 
@@ -255,19 +246,12 @@ public class LeaveController : Controller
         using (var workbook = new XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Leave Records");
-
-            worksheet.Cell(1, 1).Value = "Request ID";
+            worksheet.Cell(1, 1).Value = "ID";
             worksheet.Cell(1, 2).Value = "Status";
-            worksheet.Cell(1, 3).Value = "Leave Type";
-            worksheet.Cell(1, 4).Value = "Start Date";
-            worksheet.Cell(1, 5).Value = "End Date";
-            worksheet.Cell(1, 6).Value = "Employee Name";
-            worksheet.Cell(1, 7).Value = "Reason";
-            worksheet.Cell(1, 8).Value = "Submitted On";
-
-            var headerRow = worksheet.Row(1);
-            headerRow.Style.Font.Bold = true;
-            headerRow.Style.Fill.BackgroundColor = XLColor.LightGray;
+            worksheet.Cell(1, 3).Value = "Type";
+            worksheet.Cell(1, 4).Value = "Start";
+            worksheet.Cell(1, 5).Value = "End";
+            worksheet.Cell(1, 6).Value = "Employee";
 
             int row = 2;
             foreach (var item in data)
@@ -278,19 +262,8 @@ public class LeaveController : Controller
                 worksheet.Cell(row, 4).Value = item.Start_Date.ToString("dd-MM-yyyy");
                 worksheet.Cell(row, 5).Value = item.End_Date.ToString("dd-MM-yyyy");
                 worksheet.Cell(row, 6).Value = $"{item.Employee?.First_Name} {item.Employee?.Last_Name}";
-                worksheet.Cell(row, 7).Value = item.Reasons;
-                worksheet.Cell(row, 8).Value = item.Request_Date?.ToString("dd-MM-yyyy HH:mm");
-
-                if (item.Reasons != null && item.Reasons.Contains("[SALARY DEDUCTION ADVISORY]"))
-                {
-                    worksheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F8D7DA");
-                    worksheet.Cell(row, 7).Style.Font.FontColor = XLColor.DarkRed;
-                }
                 row++;
             }
-
-            worksheet.Columns().AdjustToContents();
-
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
@@ -303,7 +276,6 @@ public class LeaveController : Controller
     {
         if (id == null) return NotFound();
         var request = await _context.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(m => m.Leave_ID == id);
-        if (request == null) return NotFound();
-        return View(request);
+        return request == null ? NotFound() : View(request);
     }
 }

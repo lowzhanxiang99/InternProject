@@ -39,4 +39,6 @@ public class Employee
     public int MCDays { get; set; } = 0;
     public int EmergencyLeaveDays { get; set; } = 0;
     public int OtherLeaveDays { get; set; } = 0;
+
+    public int MaternityLeaveDays { get; set; } = 90;
 }

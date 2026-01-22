@@ -29,7 +29,11 @@
                         <option value="" disabled selected>-- Select Type --</option>
                         <option value="Annual">Annual Leave (Balance: @ViewBag.AnnualBalance Days)</option>
                         <option value="MC">Medical Leave / MC (Balance: @ViewBag.MCBalance Days)</option>
-                        <option value="Emergency">Emergency Leave (Balance: @ViewBag.EmergencyBalance Days)</option>
+                        <option value="Compassionate">Compassionate Leave (Balance: @ViewBag.CompassionateBalance Days)</option>
+
+                        <option value="Maternity Leave">Maternity Leave (Balance: @ViewBag.MaternityBalance Days)</option>
+
+                        <option value="Unpaid">Unpaid Leave</option>
                         <option value="Other">Other (Balance: @ViewBag.OtherBalance Days)</option>
                     </select>
                 </div>
@@ -86,7 +90,7 @@
                         style="background-color: #A5D6A7; border: none; color: #1B5E20;">
                     Submit
                 </button>
-                <a asp-action="Index" class="btn btn-danger px-5 py-2 rounded-3 shadow-sm"
+                <a asp-controller="Home" asp-action="Index" class="btn btn-danger px-5 py-2 rounded-3 shadow-sm"
                    style="background-color: #EF9A9A; border: none; color: #B71C1C;">Cancel</a>
             </div>
         </form>
@@ -95,12 +99,14 @@
 
 @section Scripts {
     <script>
-        // Store balances in a JS object for real-time checking
+        // Maps the dropdown values to the balances passed from the Controller
         const leaveBalances = {
             "Annual": @(ViewBag.AnnualBalance ?? 0),
             "MC": @(ViewBag.MCBalance ?? 0),
-            "Emergency": @(ViewBag.EmergencyBalance ?? 0),
-            "Other": @(ViewBag.OtherBalance ?? 0)
+            "Compassionate": @(ViewBag.CompassionateBalance ?? 0),
+            "Maternity Leave": @(ViewBag.MaternityBalance ?? 0), // Pulled from your new DB column
+            "Other": @(ViewBag.OtherBalance ?? 0),
+            "Unpaid": 0
         };
 
         function calculateAndCheck() {
@@ -109,7 +115,7 @@
             const typeInput = document.getElementById('leaveType');
             const warning = document.getElementById('salaryWarning');
 
-            // 1. Ensure end date is not before start date
+            // Prevent End Date from being before Start Date
             if (startInput.value) {
                 endInput.min = startInput.value;
                 if (endInput.value && endInput.value < startInput.value) {
@@ -117,18 +123,21 @@
                 }
             }
 
-            // 2. Check Balance Logic
+            // Calculate requested days and compare with balance
             if (startInput.value && endInput.value && typeInput.value) {
                 const start = new Date(startInput.value);
                 const end = new Date(endInput.value);
                 const selectedType = typeInput.value;
 
-                // Calculate total days (Inclusive)
+                // Simple day difference calculation
                 const diffTime = Math.abs(end - start);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-                // If requested days > balance, show warning
-                if (diffDays > leaveBalances[selectedType] || leaveBalances[selectedType] <= 0) {
+                // Logic for showing the warning alert
+                if (selectedType === "Unpaid") {
+                    warning.classList.remove('d-none');
+                }
+                else if (diffDays > (leaveBalances[selectedType] || 0)) {
                     warning.classList.remove('d-none');
                 } else {
                     warning.classList.add('d-none');
@@ -136,7 +145,7 @@
             }
         }
 
-        // Add event listeners
+        // Add event listeners for real-time validation
         document.getElementById('startDate').addEventListener('change', calculateAndCheck);
         document.getElementById('endDate').addEventListener('change', calculateAndCheck);
         document.getElementById('leaveType').addEventListener('change', calculateAndCheck);

@@ -5,67 +5,86 @@
 
 <div class="container-fluid py-4 px-4">
     <div class="mb-4">
-        <h4 class="fw-bold">Welcome Back, @(ViewBag.UserName ?? "Jane")!</h4>
+        <h4 class="fw-bold">Welcome Back, @(ViewBag.UserName ?? "User")!</h4>
     </div>
 
-    <p class="text-secondary fw-bold mb-3">Leave Balance</p>
-    <div class="row g-3 mb-5">
-        <div class="col">
-            <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Annual Leave</small>
-                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-primary border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.AnnualLeave ?? "05/07")</span>
+
+        <p class="text-secondary fw-bold mb-3">Leave Balance</p>
+        <div class="row row-cols-1 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+            @* Annual *@
+            <div class="col">
+                <div class="card border-0 shadow-sm p-3 text-center h-100">
+                    <small class="text-muted mb-3 d-block">Annual</small>
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-primary border-4" style="width: 75px; height: 75px;">
+                        <span class="fw-bold">@(ViewBag.AnnualLeave ?? "00/00")</span>
+                    </div>
+                    <small class="text-muted d-block small">Available - @(ViewBag.AnnualAvailable ?? "00")</small>
+                    <small class="text-secondary small">Used - @(ViewBag.AnnualUsed ?? "00")</small>
                 </div>
-                <small class="text-muted d-block small">Available - 05</small>
-                <small class="text-secondary small">Used - 02</small>
+            </div>
+
+            @* MC *@
+            <div class="col">
+                <div class="card border-0 shadow-sm p-3 text-center h-100">
+                    <small class="text-muted mb-3 d-block">MC</small>
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-info border-4" style="width: 75px; height: 75px;">
+                        <span class="fw-bold">@(ViewBag.MCLeave ?? "00/00")</span>
+                    </div>
+                    <small class="text-muted d-block small">Available - @(ViewBag.MCAvailable ?? "00")</small>
+                    <small class="text-secondary small">Used - @(ViewBag.MCUsed ?? "00")</small>
+                </div>
+            </div>
+
+            @* Compassionate *@
+            <div class="col">
+                <div class="card border-0 shadow-sm p-3 text-center h-100">
+                    <small class="text-muted mb-3 d-block">Compassionate</small>
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-success border-4" style="width: 75px; height: 75px;">
+                        <span class="fw-bold">@(ViewBag.CompassionateLeave ?? "00/00")</span>
+                    </div>
+                    <small class="text-muted d-block small">Available - @(ViewBag.CompassionateAvailable ?? "00")</small>
+                    <small class="text-secondary small">Used - @(ViewBag.CompassionateUsed ?? "00")</small>
+                </div>
+            </div>
+
+            @* Maternity *@
+            <div class="col">
+                <div class="card border-0 shadow-sm p-3 text-center h-100">
+                    <small class="text-muted mb-3 d-block">Maternity</small>
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-purple border-4" style="width: 75px; height: 75px; border-color: #6f42c1 !important;">
+                        <span class="fw-bold">@(ViewBag.MaternityLeave ?? "00/00")</span>
+                    </div>
+                    <small class="text-muted d-block small">Available - @(ViewBag.MaternityAvailable ?? "00")</small>
+                    <small class="text-secondary small">Used - @(ViewBag.MaternityUsed ?? "00")</small>
+                </div>
+            </div>
+
+            @* Unpaid *@
+            <div class="col">
+                <div class="card border-0 shadow-sm p-3 text-center h-100">
+                    <small class="text-muted mb-3 d-block">Unpaid</small>
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-danger border-4" style="width: 75px; height: 75px;">
+                        <span class="fw-bold">@(ViewBag.UnpaidUsed ?? "00")</span>
+                    </div>
+                    <small class="text-muted d-block small">-</small>
+                    <small class="text-secondary small">Used Days</small>
+                </div>
+            </div>
+
+            @* Other *@
+            <div class="col">
+                <div class="card border-0 shadow-sm p-3 text-center h-100">
+                    <small class="text-muted mb-3 d-block">Other</small>
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-warning border-4" style="width: 75px; height: 75px;">
+                        <span class="fw-bold">@(ViewBag.OtherUsed ?? "00")</span>
+                    </div>
+                    <small class="text-muted d-block small">-</small>
+                    <small class="text-secondary small">Used Days</small>
+                </div>
             </div>
         </div>
 
-        <div class="col">
-            <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Medical Leave</small>
-                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-info border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.MedicalLeave ?? "05/05")</span>
-                </div>
-                <small class="text-muted d-block small">Available - 05</small>
-                <small class="text-secondary small">Used - 00</small>
-            </div>
-        </div>
-
-        <div class="col">
-            <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Compassionate</small>
-                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-success border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.CompassionateLeave ?? "03/03")</span>
-                </div>
-                <small class="text-muted d-block small">Available - 03</small>
-                <small class="text-secondary small">Used - 00</small>
-            </div>
-        </div>
-
-        <div class="col">
-            <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Unpaid Leave</small>
-                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-danger border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.UnpaidLeave ?? "00/00")</span>
-                </div>
-                <small class="text-muted d-block small">Available - 00</small>
-                <small class="text-secondary small">Used - 00</small>
-            </div>
-        </div>
-
-        <div class="col">
-            <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Half Day Leave</small>
-                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-warning border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.HalfDayLeave ?? "00/00")</span>
-                </div>
-                <small class="text-muted d-block small">Available - 00</small>
-                <small class="text-secondary small">Used - 00</small>
-            </div>
-        </div>
-    </div>
-
+    @* ATTENDANCE INSIGHTS SECTION - NO CHANGES MADE HERE *@
     <p class="text-secondary fw-bold mb-3">Attendance Insights</p>
     <div class="row g-4">
         <div class="col-md-3">
