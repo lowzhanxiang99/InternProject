@@ -349,6 +349,7 @@ namespace InternProject1.Controllers
             todayAttendance.IsOnBreak = false;
             todayAttendance.TotalBreakTime = (todayAttendance.TotalBreakTime ?? TimeSpan.Zero) + breakDuration;
             todayAttendance.HasTakenBreak = true;
+            todayAttendance.BreakStartTime = null; // Clear break start time
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Break ended successfully!";
