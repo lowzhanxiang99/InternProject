@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InternProject1.Models
 {
@@ -11,12 +12,15 @@ namespace InternProject1.Models
         [Required]
         public int Employee_ID { get; set; }
 
+        [ForeignKey("Employee_ID")]
+        public Employee? Employee { get; set; }
+
         [Required]
         [DataType(DataType.Date)]
         public DateTime Date { get; set; }
 
         [DataType(DataType.Time)]
-        public TimeSpan? ClockInTime { get; set; }
+        public TimeSpan ClockInTime { get; set; }
 
         [DataType(DataType.Time)]
         public TimeSpan? ClockOutTime { get; set; }

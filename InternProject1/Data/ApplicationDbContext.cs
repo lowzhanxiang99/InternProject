@@ -10,7 +10,8 @@ public class ApplicationDbContext : DbContext
     {
     }
 
-    // These represent your tables in the database
+    // Each DbSet represents one table in your database. 
+    // I have removed the duplicates so each one is listed only once.
     public DbSet<Manager> Managers { get; set; }
     public DbSet<Department> Departments { get; set; }
     public DbSet<Shift> Shifts { get; set; }

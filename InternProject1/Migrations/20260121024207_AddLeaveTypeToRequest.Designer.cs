@@ -4,6 +4,7 @@ using InternProject1.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260121024207_AddLeaveTypeToRequest")]
+    partial class AddLeaveTypeToRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,9 +33,6 @@ namespace InternProject1.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Attendance_ID"));
 
-                    b.Property<DateTime?>("BreakStartTime")
-                        .HasColumnType("datetime2");
-
                     b.Property<TimeSpan>("ClockInTime")
                         .HasColumnType("time");
 
@@ -45,22 +45,11 @@ namespace InternProject1.Migrations
                     b.Property<int>("Employee_ID")
                         .HasColumnType("int");
 
-                    b.Property<bool>("HasTakenBreak")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsOnBreak")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Location_Lat_Long")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<TimeSpan?>("TotalBreakTime")
-                        .HasColumnType("time");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Attendance_ID");
 
@@ -119,6 +108,7 @@ namespace InternProject1.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Employee_Name")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Employee_Phone")
@@ -140,17 +130,11 @@ namespace InternProject1.Migrations
                     b.Property<int>("MCDays")
                         .HasColumnType("int");
 
-                    b.Property<int>("MaternityLeaveDays")
-                        .HasColumnType("int");
-
                     b.Property<int>("OtherLeaveDays")
                         .HasColumnType("int");
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ProfilePicturePath")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("QR_Code_Data")
@@ -187,6 +171,7 @@ namespace InternProject1.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("LeaveType")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("Leave_Balance")

@@ -1,7 +1,7 @@
 ﻿@model IEnumerable<InternProject1.Models.StaffSummaryViewModel>
 
 @{
-    // Dynamically calculate totals for the summary cards
+    // Dynamically calculate company-wide totals for the summary cards and the chart
     var totalAttendance = Model?.Sum(s => s.AttendanceCount) ?? 0;
     var totalLate = Model?.Sum(s => s.LateCount) ?? 0;
     var totalLeave = Model?.Sum(s => s.LeaveCount) ?? 0;
@@ -16,37 +16,55 @@
     </div>
 
     <div class="px-4">
-        @* Summary Statistics Cards - Now Auto-Calculated *@
-        <div class="row g-3 mb-5 justify-content-center text-center">
+        @* Summary Statistics Cards *@
+        <div class="row g-3 mb-4 justify-content-center text-center">
             <div class="col-md-2">
-                <div class="p-3 rounded-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px !important;">
+                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
                     <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Attendance</p>
                     <h2 class="fw-bold m-0">@totalAttendance</h2>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="p-3 rounded-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px !important;">
+                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
                     <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Days Late</p>
                     <h2 class="fw-bold m-0">@totalLate</h2>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="p-3 rounded-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px !important;">
+                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
                     <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Days Of Leave</p>
                     <h2 class="fw-bold m-0">@totalLeave</h2>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="p-3 rounded-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px !important;">
+                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
                     <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Absences</p>
                     <h2 class="fw-bold m-0">@totalAbsent</h2>
                 </div>
             </div>
         </div>
 
+        @* Search Section *@
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white border-0"><i class="bi bi-search"></i></span>
+                    <input type="text" id="employeeSearch" class="form-control border-0" placeholder="Search employee name..." style="font-size: 0.9rem;">
+                </div>
+            </div>
+        </div>
+
+        @* Combined Bar Chart Visualization - Summed for all People *@
+        <div class="card border-0 shadow-sm mb-4 p-4" style="border-radius: 12px;">
+            <h6 class="fw-bold text-muted mb-3"><i class="bi bi-bar-chart-fill me-2"></i>Company Overall Attendance Summary</h6>
+            <div style="height: 300px;">
+                <canvas id="attendanceBarChart"></canvas>
+            </div>
+        </div>
+
         @* Employee Data Table *@
         <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 8px;">
-            <table class="table align-middle text-center mb-0">
+            <table class="table align-middle text-center mb-0" id="attendanceTable">
                 <thead style="background-color: #4A77A5; color: white;">
                     <tr class="small fw-bold">
                         <th class="py-3 text-start ps-4">Employee Name</th>
@@ -63,7 +81,11 @@
                         @foreach (var staff in Model)
                         {
                             <tr class="border-bottom">
-                                <td class="py-3 fw-semibold text-start ps-4" style="color: #4A77A5;">@staff.Name</td>
+                                <td class="py-3 fw-semibold text-start ps-4">
+                                    <a asp-action="EmployeeDetails" asp-route-id="@staff.Employee_ID" class="text-decoration-none" style="color: #4A77A5;">
+                                        @staff.Name <i class="bi bi-arrow-right-short ms-1"></i>
+                                    </a>
+                                </td>
                                 <td class="text-secondary">@staff.AttendanceCount</td>
                                 <td class="text-secondary">@staff.LateCount</td>
                                 <td class="text-secondary">@staff.LeaveCount</td>
@@ -75,7 +97,7 @@
                     else
                     {
                         <tr>
-                            <td colspan="6" class="py-5 text-muted">No attendance records found for this period.</td>
+                            <td colspan="6" class="py-5 text-muted">No attendance records found.</td>
                         </tr>
                     }
                 </tbody>
@@ -83,15 +105,76 @@
         </div>
 
         @* Export Actions *@
-        <div class="text-end mt-4 d-flex flex-column align-items-end gap-2">
-            <a asp-controller="AttendanceReport" asp-action="ExportToExcel" class="btn btn-sm px-4 shadow-sm"
+        <div class="text-end mt-4 d-flex flex-column align-items-end gap-2 mb-5">
+            <a asp-action="ExportToExcel" class="btn btn-sm px-4 shadow-sm"
                style="background-color: #DDE7F2; border-radius: 10px; font-weight: 500; font-size: 0.85rem; border: none; color: black; text-decoration: none;">
                 Convert To Excel
             </a>
-            <a asp-controller="AttendanceReport" asp-action="ExportToPdf" class="btn btn-sm px-4 shadow-sm"
+            <a asp-action="ExportToPdf" class="btn btn-sm px-4 shadow-sm"
                style="background-color: #DDE7F2; border-radius: 10px; font-weight: 500; font-size: 0.85rem; border: none; color: black; text-decoration: none;">
                 Convert To PDF
             </a>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <script>
+        // 1. Instant Search Functionality
+        document.getElementById('employeeSearch').addEventListener('keyup', function() {
+            let filter = this.value.toLowerCase();
+            let rows = document.querySelectorAll('#attendanceTable tbody tr');
+            rows.forEach(row => {
+                let nameCell = row.cells[0].textContent.toLowerCase();
+                row.style.display = nameCell.includes(filter) ? "" : "none";
+            });
+        });
+
+        // 2. Summary Bar Chart (Combined Totals)
+        const ctx = document.getElementById('attendanceBarChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Attendance', 'Late', 'Leave', 'Absent'],
+                datasets: [{
+                    label: 'Total Count',
+                    data: [
+                        @totalAttendance,
+                        @totalLate,
+                        @totalLeave,
+                        @totalAbsent
+                    ],
+                    backgroundColor: [
+                        '#4A77A5', // Blue
+                        '#FFCC00', // Yellow
+                        '#99CCFF', // Light Blue
+                        '#FF6666'  // Red
+                    ],
+                    borderRadius: 8,
+                    barThickness: 50
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }, // Hiding legend as labels are on X-axis
+                    tooltip: { enabled: true }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    </script>
+}
