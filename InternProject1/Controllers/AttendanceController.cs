@@ -199,6 +199,13 @@ namespace InternProject1.Controllers
 
             int employeeId = userId.Value;
 
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
+
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
 
@@ -224,6 +231,7 @@ namespace InternProject1.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Successfully clocked in!";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -231,6 +239,13 @@ namespace InternProject1.Controllers
         public async Task<IActionResult> ClockOut(double latitude, double longitude)
         {
             var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             if (!userId.HasValue)
             {
@@ -257,7 +272,8 @@ namespace InternProject1.Controllers
             todayAttendance.ClockOutTime = DateTime.Now.TimeOfDay;
             todayAttendance.Location_Lat_Long += $";{latitude},{longitude}";
 
-            if (todayAttendance.IsOnBreak && todayAttendance.BreakStartTime.HasValue)
+            // If user was on break when checking out, end the break
+            if (todayAttendance.IsOnBreak)
             {
                 var breakDuration = DateTime.Now - todayAttendance.BreakStartTime.Value;
                 todayAttendance.TotalBreakTime = (todayAttendance.TotalBreakTime ?? TimeSpan.Zero) + breakDuration;
@@ -266,6 +282,7 @@ namespace InternProject1.Controllers
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Successfully clocked out!";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -296,6 +313,7 @@ namespace InternProject1.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // Only allow starting break if not already on break
             if (todayAttendance.IsOnBreak)
             {
                 TempData["Error"] = "You are already on break!";
@@ -307,6 +325,7 @@ namespace InternProject1.Controllers
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Break started successfully!";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -331,14 +350,16 @@ namespace InternProject1.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            if (!todayAttendance.IsOnBreak || !todayAttendance.BreakStartTime.HasValue)
+            if (!todayAttendance.IsOnBreak)
             {
                 TempData["Error"] = "You are not currently on break!";
                 return RedirectToAction(nameof(Index));
             }
 
+            // Calculate break duration
             var breakDuration = DateTime.Now - todayAttendance.BreakStartTime.Value;
 
+            // Update attendance record
             todayAttendance.IsOnBreak = false;
             todayAttendance.TotalBreakTime = (todayAttendance.TotalBreakTime ?? TimeSpan.Zero) + breakDuration;
             todayAttendance.HasTakenBreak = true;
@@ -346,6 +367,7 @@ namespace InternProject1.Controllers
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Break ended successfully!";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -363,20 +385,25 @@ namespace InternProject1.Controllers
 
                 int employeeId = userId.Value;
 
+                // Find attendance for the specific date and user
                 var attendance = await _context.Attendances
                     .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == date.Date);
 
                 if (attendance == null)
                 {
-                    return Json(new { success = true, hasAttendance = false, message = "No record found" });
+                    return Json(new
+                    {
+                        success = true,
+                        hasAttendance = false,
+                        message = "No attendance record found"
+                    });
                 }
 
+                // Calculate working hours if both clock in and out exist
                 TimeSpan? workingHours = null;
-                // FIX: ClockInTime is not nullable, so we don't use .HasValue
-                if (attendance.ClockOutTime.HasValue)
+                if (attendance.ClockInTime.HasValue && attendance.ClockOutTime.HasValue)
                 {
-                    // FIX: Remove .Value from ClockInTime
-                    var totalDuration = attendance.ClockOutTime.Value - attendance.ClockInTime;
+                    var totalDuration = attendance.ClockOutTime.Value - attendance.ClockInTime.Value;
                     var breakTime = attendance.TotalBreakTime ?? TimeSpan.Zero;
                     workingHours = totalDuration - breakTime;
                 }
@@ -388,8 +415,7 @@ namespace InternProject1.Controllers
                     attendance = new
                     {
                         id = attendance.Attendance_ID,
-                        // FIX: Remove '?' because ClockInTime is regular TimeSpan
-                        clockInTime = attendance.ClockInTime.ToString(@"hh\:mm\:ss"),
+                        clockInTime = attendance.ClockInTime?.ToString(@"hh\:mm\:ss"),
                         clockOutTime = attendance.ClockOutTime?.ToString(@"hh\:mm\:ss"),
                         totalBreakTime = attendance.TotalBreakTime.HasValue ? new
                         {
