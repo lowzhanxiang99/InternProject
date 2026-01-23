@@ -199,13 +199,6 @@ namespace InternProject1.Controllers
 
             int employeeId = userId.Value;
 
-            if (!userId.HasValue)
-            {
-                return RedirectToAction("Login", "Account");
-            }
-
-            int employeeId = userId.Value;
-
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
 
@@ -239,13 +232,6 @@ namespace InternProject1.Controllers
         public async Task<IActionResult> ClockOut(double latitude, double longitude)
         {
             var userId = GetCurrentUserId();
-
-            if (!userId.HasValue)
-            {
-                return RedirectToAction("Login", "Account");
-            }
-
-            int employeeId = userId.Value;
 
             if (!userId.HasValue)
             {
