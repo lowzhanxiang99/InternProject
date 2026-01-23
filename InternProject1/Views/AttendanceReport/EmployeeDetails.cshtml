@@ -2,8 +2,8 @@
 
 @{
     ViewData["Title"] = "Employee Record";
-    var totalDays = Model.Count();
-    var lateDays = Model.Count(m => m.Status == "Late");
+    var totalDays = Model?.Count() ?? 0;
+    var lateDays = Model?.Count(m => m.Status == "Late") ?? 0;
 }
 
 <div class="container-fluid p-0" style="background-color: #f8f9fa; min-height: 100vh;">
@@ -54,41 +54,43 @@
                         <th>Work Duration</th>
                     </tr>
                 </thead>
+
                 <tbody class="bg-white">
                     @if (Model != null && Model.Any())
                     {
                         @foreach (var log in Model)
                         {
-                            // Logic to determine row styling or special remarks
                             var isLate = log.Status == "Late";
                             var isLeave = log.Status == "Leave";
                             var isAbsent = log.Status == "Absent";
 
                             // Simple Duration Calculation
                             string duration = "--";
-                            if (log.ClockOutTime.HasValue)
+                            if (log.ClockOutTime.HasValue && log.ClockInTime.HasValue)
                             {
-                                var diff = log.ClockOutTime.Value - log.ClockInTime;
+                                var diff = log.ClockOutTime.Value - log.ClockInTime.Value;
                                 duration = $"{(int)diff.TotalHours}h {diff.Minutes}m";
                             }
 
                             <tr class="border-bottom">
                                 <td class="py-3 fw-semibold">@log.Date.ToString("dd MMM yyyy")</td>
 
-                                @* Show Clock-In Time or Status if Absent/Leave *@
                                 <td>
-                                    @if (isAbsent || isLeave)
+                                    @if (isAbsent || isLeave || !log.ClockInTime.HasValue)
                                     {
                                         <span class="text-muted">N/A</span>
                                     }
                                     else
                                     {
-
-                                        <span class="@(isLate ? "text-danger fw-bold" : "")">@log.ClockInTime.ToString(@"hh\:mm")</span>
+                                        <span class="@(isLate ? "text-danger fw-bold" : "")">
+                                            @DateTime.Today.Add(log.ClockInTime.Value).ToString("hh:mm tt")
+                                        </span>
                                     }
                                 </td>
 
-                                <td>@(log.ClockOutTime.HasValue? log.ClockOutTime.Value.ToString(@"hh\:mm") : "N/A")</td>
+                                <td>
+                                    @(log.ClockOutTime.HasValue? DateTime.Today.Add(log.ClockOutTime.Value).ToString("hh:mm tt") : "N/A")
+                                </td>
 
                                 <td>
                                     @if (isLate)
@@ -105,13 +107,12 @@
                                     }
                                     else
                                     {
-                                        <span class="badge" style="background-color: #4A77A5;">Present</span>
+                                        <span class="badge" style="background-color: #4A77A5; color: white;">Present</span>
                                     }
 
-                                    @* Check for Overtime (e.g., if duration > 9 hours) *@
-                                    @if (log.ClockOutTime.HasValue && (log.ClockOutTime.Value - log.ClockInTime).TotalHours > 9)
+                                    @if (log.ClockOutTime.HasValue && log.ClockInTime.HasValue && (log.ClockOutTime.Value - log.ClockInTime.Value).TotalHours > 9)
                                     {
-                                        <div class="small text-success mt-1"><i class="bi bi-plus-circle-fill"></i> Overtime Date</div>
+                                        <div class="small text-success mt-1"><i class="bi bi-plus-circle-fill"></i> Overtime</div>
                                     }
                                 </td>
 
@@ -133,7 +134,6 @@
 
 @section Scripts {
     <script>
-        // Real-time filtering for the detailed table
         document.getElementById('historySearch').addEventListener('keyup', function() {
             let filter = this.value.toLowerCase();
             let rows = document.querySelectorAll('#historyTable tbody tr');
