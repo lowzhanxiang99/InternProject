@@ -8,5 +8,6 @@
         public int LeaveCount { get; set; }
         public int AbsentCount { get; set; }
         public int OvertimeCount { get; set; }
+        public int Employee_ID { get; internal set; }
     }
 }

@@ -53,7 +53,7 @@
                         </div>
                     }
 
-                    <form asp-action="Login" method="post">
+                    <form asp-controller="Account" asp-action="Login" method="post">
                         <div class="mb-3">
                             <label class="form-label">Email ID</label>
                             <input name="email" type="email" class="form-control shadow-sm" placeholder="Enter Email ID" required />
@@ -67,11 +67,12 @@
                                 <input type="checkbox" id="remember" />
                                 <label for="remember" class="small">Remember me</label>
                             </div>
-                            <a href="#" class="text-decoration-none small">Forgot Password?</a>
+                            @* UPDATED: Points to ForgotPassword action in AccountController *@
+                            <a asp-controller="Account" asp-action="ForgotPassword" class="text-decoration-none small">Forgot Password?</a>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">LOGIN</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">LOGIN</button>
                         <p class="mt-4 text-center small">
-                            Don't you have account? <a asp-action="Register" class="fw-bold">Register here</a>
+                            Don't you have account? <a asp-controller="Account" asp-action="Register" class="fw-bold text-decoration-none">Register here</a>
                         </p>
                     </form>
                 </div>

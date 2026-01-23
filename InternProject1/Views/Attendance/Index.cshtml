@@ -20,18 +20,9 @@
 
     // Get today's attendance if exists
     var todayAttendance = Model?.FirstOrDefault(a => a.Date.Date == DateTime.Today);
-
-    // Pagination settings for recent attendance
-    int pageSize = 10; // Number of records per page
-    int currentPage = 1;
-    if (Context.Request.Query.ContainsKey("page") && int.TryParse(Context.Request.Query["page"], out int page))
-    {
-        currentPage = page;
-    }
-
-    // Get all past attendance records
-    var allPastAttendance = Model?.Where(a => a.Date.Date < DateTime.Today)
+    var recentAttendance = Model?.Where(a => a.Date.Date < DateTime.Today)
                                  .OrderByDescending(a => a.Date)
+                                 .Take(5)
                                  .ToList();
 
     // Apply pagination
@@ -102,12 +93,10 @@
     }
 }
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<!-- Add Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <style>
     /* ===== MAIN CONTAINER ===== */
     .container-fluid {
-        background: #f8f9fa !important;
+        background: #F3F8FB !important;
         min-height: 100vh;
         padding: 0;
     }
@@ -159,7 +148,7 @@
     }
 
         .card.shadow-sm.border-0.h-100 {
-            height: 340px !important;
+            height: 350px !important;
         }
 
     .card-body {
@@ -186,7 +175,7 @@
         font-weight: 500;
         color: #5A91CB !important;
         margin-bottom: 5px;
-        margin-top: 20px;
+		margin-top: 30px;
         padding: 0 2px;
         font-family: 'Poppins', sans-serif;
         font-size: 14px;
@@ -234,7 +223,7 @@
         text-align: center;
         color: #2C5B8C;
         margin-bottom: 10px !important;
-        margin-top: 8px !important;
+		margin-top: 20px !important;
     }
 
     /* ===== CLOCK SECTION - 40% LEFT SIDE ===== */
@@ -331,7 +320,7 @@
         justify-content: space-between !important;
         height: 100%;
         padding-left: 20px;
-        padding-right: 20px;
+		padding-right: 20px;
     }
 
     /* ===== SUMMARY BOXES - IMPROVED LAYOUT ===== */
@@ -360,7 +349,7 @@
         font-size: 16px !important;
         line-height: 24px;
         color: #1F4062 !important;
-        margin-bottom: 5px !important;
+        margin-bottom: 2px !important;
         text-transform: none !important;
         letter-spacing: 0 !important;
     }
@@ -496,7 +485,7 @@
         }
 
     .table-responsive {
-        padding: 0 32px 20px 32px;
+        padding: 0 32px 32px 32px;
     }
 
     .table {
@@ -1177,29 +1166,6 @@
                 font-size: 11px !important;
                 line-height: 16px;
             }
-        /* Responsive pagination */
-        .pagination-container {
-            flex-direction: column;
-            gap: 15px;
-            padding: 15px 20px;
-        }
-
-        .pagination-info {
-            margin-left: 0;
-            order: -1;
-        }
-
-        .pagination .page-item .page-link {
-            padding: 6px 12px;
-            margin: 0 2px;
-            min-width: 36px;
-            font-size: 13px;
-        }
-
-        .page-arrow {
-            width: 32px;
-            height: 32px;
-        }
     }
 </style>
 
@@ -1230,7 +1196,7 @@
 
                     <!-- Year Dropdown -->
                     <select class="form-select form-select-sm" id="yearSelect" style="min-width: 100px;">
-                        @for (int y = DateTime.Now.Year - 5; y <= DateTime.Now.Year; y++)
+                        @for (int y = DateTime.Now.Year - 5; y <= DateTime.Now.Year + 1; y++)
                         {
                             if (y == selectedYear)
                             {
@@ -1266,7 +1232,6 @@
                                     <div class="text-muted">F</div>
                                     <div class="text-muted">S</div>
                                 </div>
-                                <!-- Calendar Grid -->
                                 <div class="calendar-grid">
                                     @{
                                         var firstDay = new DateTime(selectedYear, selectedMonth, 1);
@@ -1283,36 +1248,15 @@
                                     {
                                         var dayDate = new DateTime(selectedYear, selectedMonth, day);
                                         var isToday = dayDate.Date == DateTime.Today;
-                                        var attendance = GetAttendanceForDay(day);
-                                        var attendanceClass = GetAttendanceClass(attendance);
-                                        var tooltip = GetAttendanceTooltip(attendance, dayDate);
-
-                                        var dayClass = $"calendar-day {attendanceClass}";
+                                        var dayClass = "calendar-day";
 
                                         if (isToday)
                                         {
                                             dayClass += " today";
                                         }
 
-                                        <div class="@dayClass"
-                                             data-date="@dayDate.ToString("yyyy-MM-dd")"
-                                             data-attendance-id="@attendance?.Attendance_ID"
-                                             title="@tooltip"
-                                             onclick="showAttendanceDetails(this)">
+                                        <div class="@dayClass">
                                             @day
-                                            @if (attendance != null)
-                                            {
-                                                <div class="attendance-indicator">
-                                                    @if (attendance.ClockInTime != null && attendance.ClockOutTime != null)
-                                                    {
-                                                        <i class="bi bi-check-circle"></i>
-                                                    }
-                                                    else if (attendance.ClockInTime != null)
-                                                    {
-                                                        <i class="bi bi-clock"></i>
-                                                    }
-                                                </div>
-                                            }
                                         </div>
                                     }
                                 </div>
@@ -1431,7 +1375,7 @@
                                                     </form>
                                                     <div class="mt-2 text-center">
                                                         <small class="text-muted">
-                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime.Value)
+                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime)
                                                         </small>
                                                     </div>
                                                 }
@@ -1456,7 +1400,7 @@
                                                                     <span id="breakStartTime">
                                                                         @if (todayAttendance?.BreakStartTime != null)
                                                                         {
-                                                                            @DateTimeToTimeString(todayAttendance.BreakStartTime)
+                                                                            @TimeSpanToString(todayAttendance.BreakStartTime.Value.TimeOfDay)
                                                                         }
                                                                     </span>
                                                                 </div>
@@ -1478,7 +1422,7 @@
                                                     </form>
                                                     <div class="mt-2 text-center">
                                                         <small class="text-muted">
-                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime.Value)<br>
+                                                            Clocked in at: @TimeSpanToString(todayAttendance.ClockInTime)<br>
                                                             Break taken for today
                                                         </small>
                                                     </div>
@@ -1490,8 +1434,12 @@
                                                 <div class="alert alert-success">
                                                     <h5>Day Completed!</h5>
                                                     <p class="mb-0">
-                                                        Checked in: @TimeSpanToString(todayAttendance.ClockInTime.Value)<br>
+                                                        Checked in: @TimeSpanToString(todayAttendance.ClockInTime)<br>
                                                         Checked out: @TimeSpanToString(todayAttendance.ClockOutTime.Value)<br>
+                                                        @if (todayAttendance.TotalBreakTime > TimeSpan.Zero)
+                                                        {
+                                                            <span>Break time: @todayAttendance.TotalBreakTime.Value.ToString(@"hh\:mm")</span>
+                                                        }
                                                     </p>
                                                 </div>
                                             }
@@ -1511,7 +1459,7 @@
                         <div class="card-header bg-white">
                             <h5 class="mb-0">Recent Attendance</h5>
                         </div>
-                        <div class="card-body" style="padding: 0;">
+                        <div class="card-body">
                             <div class="table-responsive">
                                 <table class="table table-hover" id="attendanceTable">
                                     <thead>
@@ -1564,13 +1512,7 @@
                                                     <td>
                                                         @if (record.ClockInTime != null)
                                                         {
-                                                            <div class="d-flex align-items-center">
-                                                                @if (!string.IsNullOrEmpty(statusClass))
-                                                                {
-                                                                    <span class="status-indicator @statusClass me-2" title="@statusText"></span>
-                                                                }
-                                                                <span>@TimeSpanToString(record.ClockInTime.Value)</span>
-                                                            </div>
+                                                            <span>@TimeSpanToString(record.ClockInTime)</span>
                                                         }
                                                         else
                                                         {
@@ -1588,33 +1530,22 @@
                                                         }
                                                     </td>
                                                     <td>
-                                                        @if (record.TotalBreakTime.HasValue)
+                                                        @if (record.TotalBreakTime != null && record.TotalBreakTime > TimeSpan.Zero)
                                                         {
-                                                            var breakTime = record.TotalBreakTime.Value;
-                                                            <span>
-                                                                @breakTime.Hours Hr
-                                                                @breakTime.Minutes.ToString("00") Mins
-                                                                @breakTime.Seconds.ToString("00") Secs
-                                                            </span>
+                                                            <span>@record.TotalBreakTime.Value.ToString(@"hh\:mm")</span>
                                                         }
                                                         else
                                                         {
-                                                            <span>0 Hr 00 Mins 00 Secs</span>
+                                                            <span>0:00</span>
                                                         }
                                                     </td>
                                                     <td>
-                                                        @if (record.ClockInTime.HasValue && record.ClockOutTime.HasValue)
+                                                        @if (record.ClockInTime != null && record.ClockOutTime != null)
                                                         {
-                                                            // Calculate total working time
-                                                            var totalDuration = record.ClockOutTime.Value - record.ClockInTime.Value;
-                                                            var breakTime = record.TotalBreakTime ?? TimeSpan.Zero;
-                                                            var workingTime = totalDuration - breakTime;
-
-                                                            <span>
-                                                                @workingTime.Hours Hr
-                                                                @workingTime.Minutes.ToString("00") Mins
-                                                                @workingTime.Seconds.ToString("00") Secs
-                                                            </span>
+                                                            var totalHours = (record.ClockOutTime.Value - record.ClockInTime).TotalHours;
+                                                            var breakHours = record.TotalBreakTime?.TotalHours ?? 0;
+                                                            var workingHours = totalHours - breakHours;
+                                                            <span>@workingHours.ToString("F2")</span>
                                                         }
                                                         else
                                                         {
@@ -1737,7 +1668,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Content will be inserted here by JavaScript -->
                 </div>
             </div>
         </div>
@@ -1746,217 +1676,7 @@
 
 @section Scripts {
     <script>
-        // ========== OPTIMIZATION FUNCTIONS ==========
-        // Debounce function for better performance
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
-        // Cache DOM elements
-        let cachedElements = {};
-
-        function getElement(id) {
-            if (!cachedElements[id]) {
-                cachedElements[id] = document.getElementById(id);
-            }
-            return cachedElements[id];
-        }
-
-        // Toast notification system
-        function showToast(message, type = 'info') {
-            // Remove existing toasts
-            const existingToast = document.querySelector('.custom-toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
-
-            // Create toast
-            const toast = document.createElement('div');
-            toast.className = `custom-toast custom-toast-${type}`;
-            toast.innerHTML = `
-                <div class="toast-content">
-                    <div class="toast-icon"></div>
-                    <div class="toast-message">${message}</div>
-                    <button class="toast-close">&times;</button>
-                </div>
-            `;
-
-            // Add styles if not already added
-            if (!document.getElementById('toast-styles')) {
-                const style = document.createElement('style');
-                style.id = 'toast-styles';
-                style.textContent = `
-                    .custom-toast {
-                        position: fixed;
-                        top: 20px;
-                        right: 20px;
-                        z-index: 9999;
-                        min-width: 300px;
-                        max-width: 400px;
-                        background: #FFFFFF;
-                        border: 1px solid #C6E6FB;
-                        box-shadow: 0px 4px 12px rgba(88, 134, 166, 0.25);
-                        border-radius: 8px;
-                        padding: 16px;
-                        font-family: 'Poppins', sans-serif;
-                        animation: slideIn 0.3s ease-out;
-                    }
-
-                    .custom-toast-error {
-                        border-left: 4px solid #F5533D;
-                    }
-
-                    .custom-toast-success {
-                        border-left: 4px solid #52B623;
-                    }
-
-                    .custom-toast-warning {
-                        border-left: 4px solid #FF9C00;
-                    }
-
-                    .custom-toast-info {
-                        border-left: 4px solid #5A91CB;
-                    }
-
-                    .toast-content {
-                        display: flex;
-                        align-items: flex-start;
-                        gap: 12px;
-                    }
-
-                    .toast-icon {
-                        width: 24px;
-                        height: 24px;
-                        border-radius: 50%;
-                        flex-shrink: 0;
-                    }
-
-                    .custom-toast-error .toast-icon {
-                        background: #F5533D;
-                    }
-
-                    .custom-toast-success .toast-icon {
-                        background: #52B623;
-                    }
-
-                    .custom-toast-warning .toast-icon {
-                        background: #FF9C00;
-                    }
-
-                    .custom-toast-info .toast-icon {
-                        background: #5A91CB;
-                    }
-
-                    .toast-message {
-                        flex: 1;
-                        color: #122539;
-                        font-size: 14px;
-                        line-height: 1.4;
-                    }
-
-                    .toast-close {
-                        background: none;
-                        border: none;
-                        color: #5A91CB;
-                        font-size: 20px;
-                        cursor: pointer;
-                        padding: 0;
-                        line-height: 1;
-                        opacity: 0.7;
-                        transition: opacity 0.2s;
-                    }
-
-                    .toast-close:hover {
-                        opacity: 1;
-                    }
-
-                    @@keyframes slideIn {
-                        from {
-                            transform: translateX(100%);
-                            opacity: 0;
-                        }
-                        to {
-                            transform: translateX(0);
-                            opacity: 1;
-                        }
-                    }
-
-                    @@keyframes fadeOut {
-                        from {
-                            opacity: 1;
-                        }
-                        to {
-                            opacity: 0;
-                        }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            document.body.appendChild(toast);
-
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                toast.style.animation = 'fadeOut 0.3s ease-out';
-                setTimeout(() => toast.remove(), 300);
-            }, 5000);
-
-            // Close button functionality
-            toast.querySelector('.toast-close').addEventListener('click', () => {
-                toast.remove();
-            });
-        }
-
-        // Better error handling for geolocation
-        function handleGeolocationError(error, button, originalHTML) {
-            let message = 'Please enable location services to continue.';
-
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    message = 'Location permission was denied. Please enable location access in your browser settings.';
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    message = 'Location information is currently unavailable. Please check your connection.';
-                    break;
-                case error.TIMEOUT:
-                    message = 'The request to get your location timed out. Please try again.';
-                    break;
-                case error.UNKNOWN_ERROR:
-                    message = 'An unknown error occurred while getting your location.';
-                    break;
-            }
-
-            showToast(message, 'error');
-
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = originalHTML;
-            }
-        }
-
-        // Loading state manager
-        function setLoading(element, isLoading, loadingText = 'Processing...') {
-            const originalHTML = element.innerHTML;
-
-            if (isLoading) {
-                element.dataset.originalContent = originalHTML;
-                element.disabled = true;
-                element.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> ${loadingText}`;
-            } else {
-                element.disabled = false;
-                element.innerHTML = originalHTML;
-            }
-        }
-
-        // ========== GLOBAL VARIABLES ==========
+        // Global variables for timers
         let workingTimer = null;
         let breakTimer = null;
         let workingSeconds = 0;
@@ -1964,20 +1684,16 @@
         let breakStartTime = null;
         let isOnBreak = @((todayAttendance?.IsOnBreak ?? false) ? "true" : "false");
 
-        // Cache clock elements
-        let clockElements = {};
-        let lastSecond = -1;
-
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize all components
+            // Initialize clock face
             initializeClockFace();
 
-            // Start optimized clock updates
+            // Start analog clock
             updateAnalogClock();
             setInterval(updateAnalogClock, 50);
 
             // Live clock update for check-in time
-            const updateTime = debounce(function() {
+            function updateTime() {
                 const now = new Date();
                 const timeString = now.toLocaleTimeString('en-US', {
                     hour12: true,
@@ -1985,21 +1701,19 @@
                     minute: '2-digit',
                     second: '2-digit'
                 });
-                const checkInTimeElement = getElement('checkInTime');
-                if (checkInTimeElement) {
-                    checkInTimeElement.textContent = timeString;
+                if (document.getElementById('checkInTime')) {
+                    document.getElementById('checkInTime').textContent = timeString;
                 }
-            }, 100);
-
+            }
             setInterval(updateTime, 1000);
             updateTime();
 
             // Initialize time displays
             initializeTimeDisplays();
 
-            // Get and cache dropdown elements
-            const monthSelect = getElement('monthSelect');
-            const yearSelect = getElement('yearSelect');
+            // Get dropdown elements
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
 
             // Set initial values from selected month/year
             if (monthSelect && yearSelect) {
@@ -2008,12 +1722,12 @@
             }
 
             // Auto-apply when either dropdown changes
-            const applyMonthYear = debounce(function() {
+            function applyMonthYear() {
                 const newYear = yearSelect.value;
                 const newMonth = monthSelect.value;
 
                 // Update the calendar header text
-                const monthYearElement = getElement('calendarMonthYear');
+                const monthYearElement = document.getElementById('calendarMonthYear');
                 if (monthYearElement) {
                     const date = new Date(newYear, newMonth - 1);
                     monthYearElement.textContent =
@@ -2025,9 +1739,9 @@
 
                 // Reload the page with new parameters
                 window.location.href = `?month=${newMonth}&year=${newYear}`;
-            }, 300);
+            }
 
-            // Add event listeners with debouncing
+            // Add event listeners
             if (monthSelect) {
                 monthSelect.addEventListener('change', applyMonthYear);
             }
@@ -2419,47 +2133,24 @@
             if (clockInBtn) {
                 clockInBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const originalHTML = this.innerHTML;
-                    setLoading(this, true, 'Clocking in...');
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Clocking in...';
 
                     // Get current location for clock in
                     if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                            function(position) {
-                                // Validate coordinates
-                                if (isValidCoordinates(position.coords.latitude, position.coords.longitude)) {
-                                    const clockInLat = getElement('clockInLat');
-                                    const clockInLng = getElement('clockInLng');
-
-                                    if (clockInLat && clockInLng) {
-                                        clockInLat.value = position.coords.latitude;
-                                        clockInLng.value = position.coords.longitude;
-
-                                        // Submit form
-                                        const clockInForm = getElement('clockInForm');
-                                        if (clockInForm) {
-                                            clockInForm.submit();
-                                        }
-                                    }
-                                } else {
-                                    showToast('Invalid location coordinates detected.', 'error');
-                                    setLoading(clockInBtn, false);
-                                    clockInBtn.innerHTML = originalHTML;
-                                }
-                            },
-                            function(error) {
-                                handleGeolocationError(error, clockInBtn, originalHTML);
-                            },
-                            {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 0
-                            }
-                        );
+                        navigator.geolocation.getCurrentPosition(function(position) {
+                            document.getElementById('clockInLat').value = position.coords.latitude;
+                            document.getElementById('clockInLng').value = position.coords.longitude;
+                            document.getElementById('clockInForm').submit();
+                        }, function(error) {
+                            alert('Please enable location services to clock in.');
+                            clockInBtn.disabled = false;
+                            clockInBtn.innerHTML = '<h4 class="mb-1">Check In</h4><small class="text-white-50">Start your workday</small>';
+                        });
                     } else {
-                        showToast('Geolocation is not supported by your browser.', 'error');
-                        setLoading(clockInBtn, false);
-                        clockInBtn.innerHTML = originalHTML;
+                        alert('Geolocation is not supported by this browser.');
+                        clockInBtn.disabled = false;
+                        clockInBtn.innerHTML = '<h4 class="mb-1">Check In</h4><small class="text-white-50">Start your workday</small>';
                     }
                 });
             }
@@ -2467,51 +2158,29 @@
             if (clockOutBtn) {
                 clockOutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const originalHTML = this.innerHTML;
-                    setLoading(this, true, 'Clocking out...');
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Clocking out...';
 
                     // Get current location for clock out
                     if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                            function(position) {
-                                // Validate coordinates
-                                if (isValidCoordinates(position.coords.latitude, position.coords.longitude)) {
-                                    const clockOutLat = getElement('clockOutLat');
-                                    const clockOutLng = getElement('clockOutLng');
+                        navigator.geolocation.getCurrentPosition(function(position) {
+                            document.getElementById('clockOutLat').value = position.coords.latitude;
+                            document.getElementById('clockOutLng').value = position.coords.longitude;
 
-                                    if (clockOutLat && clockOutLng) {
-                                        clockOutLat.value = position.coords.latitude;
-                                        clockOutLng.value = position.coords.longitude;
+                            // Stop all timers when clocking out
+                            stopWorkingTimer();
+                            stopBreakTimer();
 
-                                        // Stop all timers when clocking out
-                                        stopWorkingTimer();
-                                        stopBreakTimer();
-
-                                        // Submit form
-                                        const clockOutForm = getElement('clockOutForm');
-                                        if (clockOutForm) {
-                                            clockOutForm.submit();
-                                        }
-                                    }
-                                } else {
-                                    showToast('Invalid location coordinates detected.', 'error');
-                                    setLoading(clockOutBtn, false);
-                                    clockOutBtn.innerHTML = originalHTML;
-                                }
-                            },
-                            function(error) {
-                                handleGeolocationError(error, clockOutBtn, originalHTML);
-                            },
-                            {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 0
-                            }
-                        );
+                            document.getElementById('clockOutForm').submit();
+                        }, function(error) {
+                            alert('Please enable location services to clock out.');
+                            clockOutBtn.disabled = false;
+                            clockOutBtn.innerHTML = '<h4 class="mb-1">Check Out</h4><small class="text-white-50">End your workday</small>';
+                        });
                     } else {
-                        showToast('Geolocation is not supported by your browser.', 'error');
-                        setLoading(clockOutBtn, false);
-                        clockOutBtn.innerHTML = originalHTML;
+                        alert('Geolocation is not supported by this browser.');
+                        clockOutBtn.disabled = false;
+                        clockOutBtn.innerHTML = '<h4 class="mb-1">Check Out</h4><small class="text-white-50">End your workday</small>';
                     }
                 });
             }
@@ -2519,55 +2188,35 @@
             if (startBreakBtn) {
                 startBreakBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const originalHTML = this.innerHTML;
-                    setLoading(this, true, 'Starting break...');
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Starting break...';
 
                     // Show temporary break state while form submits
                     startBreakTimerUI();
 
                     // Submit the form
-                    const startBreakForm = getElement('startBreakForm');
-                    if (startBreakForm) {
-                        startBreakForm.submit();
-                    }
+                    document.getElementById('startBreakForm').submit();
                 });
             }
 
             if (endBreakBtn) {
                 endBreakBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const originalHTML = this.innerHTML;
-                    setLoading(this, true, 'Ending break...');
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Ending break...';
 
                     // Stop timer UI while form submits
                     stopBreakTimerUI();
 
                     // Submit the form
-                    const endBreakForm = getElement('endBreakForm');
-                    if (endBreakForm) {
-                        endBreakForm.submit();
-                    }
+                    document.getElementById('endBreakForm').submit();
                 });
             }
-        }
+        });
 
-        // ========== UTILITY FUNCTIONS ==========
-        function isValidCoordinates(latitude, longitude) {
-            return (
-                typeof latitude === 'number' &&
-                typeof longitude === 'number' &&
-                !isNaN(latitude) &&
-                !isNaN(longitude) &&
-                latitude >= -90 &&
-                latitude <= 90 &&
-                longitude >= -180 &&
-                longitude <= 180
-            );
-        }
-
-        // ========== CLOCK FACE FUNCTIONS ==========
+        
         function initializeClockFace() {
-            const svg = getElement('analog-clock');
+            const svg = document.getElementById('analog-clock');
             if (!svg) return;
 
             // Set proper viewBox for the SVG
@@ -2635,14 +2284,9 @@
 
         function updateAnalogClock() {
             const now = new Date();
-            const seconds = now.getSeconds();
-
-            // Only update if second has changed (performance optimization)
-            if (seconds === lastSecond) return;
-            lastSecond = seconds;
-
             const hours = now.getHours() % 12;
             const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
             const milliseconds = now.getMilliseconds();
 
             // Calculate angles
@@ -2650,19 +2294,19 @@
             const minuteAngle = (minutes + seconds / 60) * 6;
             const hourAngle = (hours + minutes / 60) * 30;
 
-            // Apply rotation - cache elements
-            const hourHand = clockElements.hourHand || (clockElements.hourHand = getElement('hour-hand'));
-            const minuteHand = clockElements.minuteHand || (clockElements.minuteHand = getElement('minute-hand'));
-            const secondHand = clockElements.secondHand || (clockElements.secondHand = getElement('second-hand'));
+            // Apply rotation
+            const hourHand = document.getElementById('hour-hand');
+            const minuteHand = document.getElementById('minute-hand');
+            const secondHand = document.getElementById('second-hand');
 
             if (hourHand) hourHand.setAttribute('transform', `rotate(${hourAngle}, 100, 100)`);
             if (minuteHand) minuteHand.setAttribute('transform', `rotate(${minuteAngle}, 100, 100)`);
             if (secondHand) secondHand.setAttribute('transform', `rotate(${secondAngle}, 100, 100)`);
 
-            // Update digital display - cache elements
-            const digitalTime = clockElements.digitalTime || (clockElements.digitalTime = getElement('digital-time'));
-            const amPm = clockElements.amPm || (clockElements.amPm = getElement('am-pm'));
-            const dateElement = clockElements.dateElement || (clockElements.dateElement = getElement('liveDateShort'));
+            // Update digital display
+            const digitalTime = document.getElementById('digital-time');
+            const amPm = document.getElementById('am-pm');
+            const dateElement = document.getElementById('liveDateShort');
 
             if (digitalTime) {
                 const timeString = now.toLocaleTimeString('en-US', {
@@ -2688,7 +2332,7 @@
             }
         }
 
-        // ========== TIMER FUNCTIONS ==========
+        
         function startWorkingTimer() {
             if (workingTimer) return;
 
@@ -2705,7 +2349,7 @@
             }
         }
 
-        // UI function to show break started state
+        // UI function to show break started state (doesn't actually start timer)
         function startBreakTimerUI() {
             // Pause working timer when break starts
             stopWorkingTimer();
@@ -2713,17 +2357,17 @@
             breakStartTime = new Date();
 
             // Update UI to show break started time
-            const breakStartTimeElement = getElement('breakStartTime');
+            const breakStartTimeElement = document.getElementById('breakStartTime');
             if (breakStartTimeElement) {
                 breakStartTimeElement.textContent = breakStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             }
         }
 
-        // UI function to show break ended state
+        // UI function to show break ended state (doesn't actually stop timer)
         function stopBreakTimerUI() {
             // Resume working timer when break ends
-            const clockInBtn = getElement('clockInBtn');
-            const clockOutBtn = getElement('clockOutBtn');
+            const clockInBtn = document.getElementById('clockInBtn');
+            const clockOutBtn = document.getElementById('clockOutBtn');
 
             if (!workingTimer && !clockInBtn && clockOutBtn) {
                 startWorkingTimer();
@@ -2752,9 +2396,9 @@
             const minutes = Math.floor((workingSeconds % 3600) / 60);
             const seconds = workingSeconds % 60;
 
-            const workingHoursEl = clockElements.workingHours || (clockElements.workingHours = getElement('workingHours'));
-            const workingMinutesEl = clockElements.workingMinutes || (clockElements.workingMinutes = getElement('workingMinutes'));
-            const workingSecondsEl = clockElements.workingSeconds || (clockElements.workingSeconds = getElement('workingSeconds'));
+            const workingHoursEl = document.getElementById('workingHours');
+            const workingMinutesEl = document.getElementById('workingMinutes');
+            const workingSecondsEl = document.getElementById('workingSeconds');
 
             if (workingHoursEl) workingHoursEl.textContent = hours;
             if (workingMinutesEl) workingMinutesEl.textContent = minutes.toString().padStart(2, '0');
@@ -2766,9 +2410,9 @@
             const minutes = Math.floor((breakSeconds % 3600) / 60);
             const seconds = breakSeconds % 60;
 
-            const breakHoursEl = clockElements.breakHours || (clockElements.breakHours = getElement('breakHours'));
-            const breakMinutesEl = clockElements.breakMinutes || (clockElements.breakMinutes = getElement('breakMinutes'));
-            const breakSecondsEl = clockElements.breakSeconds || (clockElements.breakSeconds = getElement('breakSeconds'));
+            const breakHoursEl = document.getElementById('breakHours');
+            const breakMinutesEl = document.getElementById('breakMinutes');
+            const breakSecondsEl = document.getElementById('breakSeconds');
 
             if (breakHoursEl) breakHoursEl.textContent = hours;
             if (breakMinutesEl) breakMinutesEl.textContent = minutes.toString().padStart(2, '0');
@@ -3367,7 +3011,7 @@
         return dateTime.ToString("hh:mm tt");
     }
 
-    // Overload for nullable TimeSpan
+    // Optional: Overload for nullable TimeSpan
     public string TimeSpanToString(TimeSpan? time)
     {
         if (time.HasValue)
@@ -3378,14 +3022,35 @@
         return "-";
     }
 
-    // NEW: Overload for DateTime (for BreakStartTime)
-    public string DateTimeToTimeString(DateTime? dateTime)
+    // Helper function for status badge classes
+    public string GetStatusBadgeClass(string status)
     {
-        if (dateTime.HasValue)
+        return status?.ToLower() switch
         {
-            return dateTime.Value.ToString("hh:mm tt");
-        }
-        return "-";
+            "present" => "bg-success",
+            "late" => "bg-warning",
+            "absent" => "bg-danger",
+            "half day" => "bg-info",
+            "on leave" => "bg-secondary",
+            _ => "bg-secondary"
+        };
     }
 
+    // Make this a regular function that accepts parameters
+    public int GetWorkingDaysInMonth(int year, int month)
+    {
+        int workingDays = 0;
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            var currentDate = new DateTime(year, month, day);
+            if (currentDate.DayOfWeek != DayOfWeek.Saturday && currentDate.DayOfWeek != DayOfWeek.Sunday)
+            {
+                workingDays++;
+            }
+        }
+
+        return workingDays;
+    }
 }
