@@ -33,7 +33,7 @@ namespace InternProject1.Migrations
                     b.Property<DateTime?>("BreakStartTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<TimeSpan>("ClockInTime")
+                    b.Property<TimeSpan?>("ClockInTime")
                         .HasColumnType("time");
 
                     b.Property<TimeSpan?>("ClockOutTime")

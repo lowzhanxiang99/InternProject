@@ -22,21 +22,21 @@ namespace InternProject1.Controllers
         }
 
         // Helper method to get current user ID
-        private int GetCurrentUserId()
+        private int? GetCurrentUserId()
         {
-            var userIdClaim = HttpContext?.User?.FindFirst("UserId");
-            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
-            {
-                return userId;
-            }
-
-            // Default to user ID 1 for testing
-            return 1;
+            return HttpContext.Session.GetInt32("UserID");
         }
 
         public async Task<IActionResult> Index(int? month = null, int? year = null)
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             // If month/year not specified, use current
             month = month ?? DateTime.Now.Month;
@@ -63,7 +63,20 @@ namespace InternProject1.Controllers
         {
             try
             {
-                int employeeId = GetCurrentUserId();
+                var userId = GetCurrentUserId();
+
+                if (!userId.HasValue)
+                {
+                    // For AJAX calls, return JSON with redirect info instead of RedirectToAction
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Session expired. Please log in again.",
+                        redirect = "/Account/Login"
+                    });
+                }
+
+                int employeeId = userId.Value;
 
                 // Get all past attendance records for the employee
                 var allAttendance = await _context.Attendances
@@ -109,22 +122,22 @@ namespace InternProject1.Controllers
                 if (page > totalPages && totalPages > 0) page = totalPages;
 
                 var recentAttendance = allAttendance
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(a => new
-            {
-                id = a.Attendance_ID,
-                date = a.Date.ToString("MMM dd, yyyy"),
-                clockInTime = a.ClockInTime.HasValue ?
-                    FormatTime(a.ClockInTime.Value) : "-",
-                clockOutTime = a.ClockOutTime.HasValue ?
-                    FormatTime(a.ClockOutTime.Value) : "-",
-                breakTime = a.TotalBreakTime.HasValue ?
-                    FormatDuration(a.TotalBreakTime.Value) : "0 Hr 00 Mins 00 Secs",
-                workingTime = CalculateWorkingTime(a),
-                status = a.Status
-            })
-            .ToList();
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(a => new
+                    {
+                        id = a.Attendance_ID,
+                        date = a.Date.ToString("MMM dd, yyyy"),
+                        clockInTime = a.ClockInTime.HasValue ?
+                            FormatTime(a.ClockInTime.Value) : "-",
+                        clockOutTime = a.ClockOutTime.HasValue ?
+                            FormatTime(a.ClockOutTime.Value) : "-",
+                        breakTime = a.TotalBreakTime.HasValue ?
+                            FormatDuration(a.TotalBreakTime.Value) : "0 Hr 00 Mins 00 Secs",
+                        workingTime = CalculateWorkingTime(a),
+                        status = a.Status
+                    })
+                    .ToList();
 
                 return Json(new
                 {
@@ -177,7 +190,14 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> ClockIn(double latitude, double longitude)
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -204,13 +224,21 @@ namespace InternProject1.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Successfully clocked in!";
+
             return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
         public async Task<IActionResult> ClockOut(double latitude, double longitude)
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -230,7 +258,8 @@ namespace InternProject1.Controllers
             todayAttendance.ClockOutTime = DateTime.Now.TimeOfDay;
             todayAttendance.Location_Lat_Long += $";{latitude},{longitude}";
 
-            if (todayAttendance.IsOnBreak && todayAttendance.BreakStartTime.HasValue)
+            // If user was on break when checking out, end the break
+            if (todayAttendance.IsOnBreak)
             {
                 var breakDuration = DateTime.Now - todayAttendance.BreakStartTime.Value;
                 todayAttendance.TotalBreakTime = (todayAttendance.TotalBreakTime ?? TimeSpan.Zero) + breakDuration;
@@ -239,13 +268,21 @@ namespace InternProject1.Controllers
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Successfully clocked out!";
+
             return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
         public async Task<IActionResult> StartBreak()
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -262,6 +299,7 @@ namespace InternProject1.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // Only allow starting break if not already on break
             if (todayAttendance.IsOnBreak)
             {
                 TempData["Error"] = "You are already on break!";
@@ -273,13 +311,21 @@ namespace InternProject1.Controllers
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Break started successfully!";
+
             return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
         public async Task<IActionResult> EndBreak()
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -290,21 +336,23 @@ namespace InternProject1.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            if (!todayAttendance.IsOnBreak || !todayAttendance.BreakStartTime.HasValue)
+            if (!todayAttendance.IsOnBreak)
             {
                 TempData["Error"] = "You are not currently on break!";
                 return RedirectToAction(nameof(Index));
             }
 
+            // Calculate break duration
             var breakDuration = DateTime.Now - todayAttendance.BreakStartTime.Value;
 
+            // Update attendance record
             todayAttendance.IsOnBreak = false;
             todayAttendance.TotalBreakTime = (todayAttendance.TotalBreakTime ?? TimeSpan.Zero) + breakDuration;
             todayAttendance.HasTakenBreak = true;
-            todayAttendance.BreakStartTime = null;
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Break ended successfully!";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -313,22 +361,34 @@ namespace InternProject1.Controllers
         {
             try
             {
-                int userId = GetCurrentUserId();
+                var userId = GetCurrentUserId();
 
+                if (!userId.HasValue)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+
+                int employeeId = userId.Value;
+
+                // Find attendance for the specific date and user
                 var attendance = await _context.Attendances
-                    .FirstOrDefaultAsync(a => a.Employee_ID == userId && a.Date.Date == date.Date);
+                    .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == date.Date);
 
                 if (attendance == null)
                 {
-                    return Json(new { success = true, hasAttendance = false, message = "No record found" });
+                    return Json(new
+                    {
+                        success = true,
+                        hasAttendance = false,
+                        message = "No attendance record found"
+                    });
                 }
 
+                // Calculate working hours if both clock in and out exist
                 TimeSpan? workingHours = null;
-                // FIX: ClockInTime is not nullable, so we don't use .HasValue
-                if (attendance.ClockOutTime.HasValue)
+                if (attendance.ClockInTime.HasValue && attendance.ClockOutTime.HasValue)
                 {
-                    // FIX: Remove .Value from ClockInTime
-                    var totalDuration = attendance.ClockOutTime.Value - attendance.ClockInTime;
+                    var totalDuration = attendance.ClockOutTime.Value - attendance.ClockInTime.Value;
                     var breakTime = attendance.TotalBreakTime ?? TimeSpan.Zero;
                     workingHours = totalDuration - breakTime;
                 }
@@ -340,8 +400,7 @@ namespace InternProject1.Controllers
                     attendance = new
                     {
                         id = attendance.Attendance_ID,
-                        // FIX: Remove '?' because ClockInTime is regular TimeSpan
-                        clockInTime = attendance.ClockInTime.ToString(@"hh\:mm\:ss"),
+                        clockInTime = attendance.ClockInTime?.ToString(@"hh\:mm\:ss"),
                         clockOutTime = attendance.ClockOutTime?.ToString(@"hh\:mm\:ss"),
                         totalBreakTime = attendance.TotalBreakTime.HasValue ? new
                         {

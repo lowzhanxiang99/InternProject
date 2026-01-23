@@ -13,7 +13,7 @@ namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     [Migration("20260122024651_employee")]
-    partial class employee
+    partial class Employee
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

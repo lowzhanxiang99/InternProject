@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260121091555_test")]
-    partial class Test
+    [Migration("20260123031857_AttendanceNew")]
+    partial class AttendanceNew
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -67,6 +67,8 @@ namespace InternProject1.Migrations
 
                     b.HasKey("Attendance_ID");
 
+                    b.HasIndex("Employee_ID");
+
                     b.ToTable("Attendances");
                 });
 
@@ -99,6 +101,9 @@ namespace InternProject1.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Employee_ID"));
 
+                    b.Property<int>("AnnualLeaveDays")
+                        .HasColumnType("int");
+
                     b.Property<string>("Branch")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -109,12 +114,14 @@ namespace InternProject1.Migrations
                     b.Property<int?>("Department_ID")
                         .HasColumnType("int");
 
+                    b.Property<int>("EmergencyLeaveDays")
+                        .HasColumnType("int");
+
                     b.Property<string>("Employee_Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Employee_Name")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Employee_Phone")
@@ -133,8 +140,20 @@ namespace InternProject1.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("MCDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaternityLeaveDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OtherLeaveDays")
+                        .HasColumnType("int");
+
                     b.Property<string>("Password")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProfilePicturePath")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("QR_Code_Data")
@@ -169,6 +188,9 @@ namespace InternProject1.Migrations
 
                     b.Property<DateTime>("End_Date")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("LeaveType")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("Leave_Balance")
                         .HasColumnType("int");
@@ -261,6 +283,17 @@ namespace InternProject1.Migrations
                     b.HasKey("Shift_ID");
 
                     b.ToTable("Shifts");
+                });
+
+            modelBuilder.Entity("InternProject1.Models.Attendance", b =>
+                {
+                    b.HasOne("InternProject1.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("Employee_ID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("InternProject1.Models.Department", b =>

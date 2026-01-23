@@ -33,10 +33,9 @@ public class Employee
     public int? Shift_ID { get; set; }
     [ForeignKey("Shift_ID")]
     public virtual Shift? Shift { get; set; }
-    public string Employee_Name { get; internal set; }
+    public string? Employee_Name { get; internal set; }
     [NotMapped]
     public string FullName => $"{First_Name} {Last_Name}";
-    public string? Employee_Name { get; internal set; }
 
     // New Database
     public int AnnualLeaveDays { get; set; } = 0;

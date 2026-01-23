@@ -20,7 +20,7 @@ namespace InternProject1.Models
         public DateTime Date { get; set; }
 
         [DataType(DataType.Time)]
-        public TimeSpan ClockInTime { get; set; }
+        public TimeSpan? ClockInTime { get; set; }
 
         [DataType(DataType.Time)]
         public TimeSpan? ClockOutTime { get; set; }
