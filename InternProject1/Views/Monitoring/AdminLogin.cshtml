@@ -1,0 +1,162 @@
+﻿@model InternProject1.Models.Employee
+
+@{
+    ViewData["Title"] = "Admin Login";
+    Layout = "_Layout";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - TimeVIA</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .admin-login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-login-card {
+            width: 100%;
+            max-width: 450px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 40px;
+        }
+
+        .admin-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+            .admin-header h3 {
+                color: #2C5B8C;
+                font-weight: 600;
+                margin-bottom: 5px;
+            }
+
+            .admin-header p {
+                color: #5A91CB;
+                font-size: 14px;
+            }
+
+        .admin-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #5A91CB 0%, #2C5B8C 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+            .admin-icon i {
+                color: white;
+                font-size: 24px;
+            }
+
+        .form-label {
+            font-weight: 500;
+            color: #2C5B8C;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            border: 1px solid #C6E6FB;
+            border-radius: 8px;
+            padding: 10px 15px;
+            transition: all 0.3s;
+        }
+
+            .form-control:focus {
+                border-color: #5A91CB;
+                box-shadow: 0 0 0 0.2rem rgba(90, 145, 203, 0.25);
+            }
+
+        .btn-admin-login {
+            background: linear-gradient(135deg, #5A91CB 0%, #2C5B8C 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-weight: 500;
+            color: white;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+            .btn-admin-login:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(90, 145, 203, 0.3);
+            }
+
+        .admin-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #5A91CB;
+        }
+
+            .admin-footer a {
+                color: #2C5B8C;
+                text-decoration: none;
+                font-weight: 500;
+            }
+
+                .admin-footer a:hover {
+                    text-decoration: underline;
+                }
+    </style>
+</head>
+<body>
+    <div class="admin-login-container">
+        <div class="admin-login-card">
+            <div class="admin-header">
+                <div class="admin-icon">
+                    <i class="bi bi-shield-lock"></i>
+                </div>
+                <h3>Admin Access</h3>
+                <p>Employee Attendance Monitoring System</p>
+            </div>
+
+            <form asp-controller="Monitoring" asp-action="AdminLogin" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label for="adminEmail" class="form-label">Admin Email</label>
+                    <input type="email" class="form-control" id="adminEmail" name="email" placeholder="Enter admin email" required />
+                </div>
+
+                <div class="mb-4">
+                    <label for="adminPassword" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="adminPassword" name="password" placeholder="Enter password" required />
+                </div>
+
+                @if (ViewData.ModelState[""]?.Errors.Count > 0)
+                {
+                    <div class="alert alert-danger">
+                        @foreach (var error in ViewData.ModelState[""].Errors)
+                        {
+                            <span>@error.ErrorMessage</span>
+                        }
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-admin-login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Login as Admin
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

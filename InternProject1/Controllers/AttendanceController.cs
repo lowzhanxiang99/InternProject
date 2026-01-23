@@ -34,17 +34,144 @@ namespace InternProject1.Controllers
             return 1;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? month = null, int? year = null)
         {
             int employeeId = GetCurrentUserId();
 
-            var attendanceRecords = await _context.Attendances
+            // If month/year not specified, use current
+            month = month ?? DateTime.Now.Month;
+            year = year ?? DateTime.Now.Year;
+
+            // Get all attendance records for the employee
+            var allAttendance = await _context.Attendances
                 .Where(a => a.Employee_ID == employeeId)
-                .OrderByDescending(a => a.Date)
-                .Take(20)
+                .OrderByDescending(a => a.Date) // Default sorting for initial load
                 .ToListAsync();
 
-            return View(attendanceRecords);
+            ViewBag.SelectedMonth = month;
+            ViewBag.SelectedYear = year;
+
+            return View(allAttendance);
+        }
+
+        // AJAX endpoint for sorting and pagination
+        [HttpGet]
+        public async Task<IActionResult> GetSortedAttendance(
+            int page = 1,
+            string sort = "date",
+            string order = "desc")
+        {
+            try
+            {
+                int employeeId = GetCurrentUserId();
+
+                // Get all past attendance records for the employee
+                var allAttendance = await _context.Attendances
+                    .Where(a => a.Employee_ID == employeeId && a.Date.Date < DateTime.Today)
+                    .ToListAsync();
+
+                // Apply sorting
+                if (!string.IsNullOrEmpty(sort) && allAttendance.Any())
+                {
+                    allAttendance = sort.ToLower() switch
+                    {
+                        "date" => order == "asc"
+                            ? allAttendance.OrderBy(a => a.Date).ToList()
+                            : allAttendance.OrderByDescending(a => a.Date).ToList(),
+                        "timein" => order == "asc"
+                            ? allAttendance.OrderBy(a => a.ClockInTime.HasValue ? a.ClockInTime.Value.Ticks : long.MaxValue).ToList()
+                            : allAttendance.OrderByDescending(a => a.ClockInTime.HasValue ? a.ClockInTime.Value.Ticks : long.MinValue).ToList(),
+                        "timeout" => order == "asc"
+                            ? allAttendance.OrderBy(a => a.ClockOutTime.HasValue ? a.ClockOutTime.Value.Ticks : long.MaxValue).ToList()
+                            : allAttendance.OrderByDescending(a => a.ClockOutTime.HasValue ? a.ClockOutTime.Value.Ticks : long.MinValue).ToList(),
+                        "breakhours" => order == "asc"
+                            ? allAttendance.OrderBy(a => a.TotalBreakTime.HasValue ? a.TotalBreakTime.Value.TotalSeconds : double.MaxValue).ToList()
+                            : allAttendance.OrderByDescending(a => a.TotalBreakTime.HasValue ? a.TotalBreakTime.Value.TotalSeconds : double.MinValue).ToList(),
+                        "workinghours" => order == "asc"
+                            ? allAttendance.OrderBy(a =>
+                                (a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
+                                    ? (a.ClockOutTime.Value - a.ClockInTime.Value - (a.TotalBreakTime ?? TimeSpan.Zero)).TotalSeconds
+                                    : double.MaxValue).ToList()
+                            : allAttendance.OrderByDescending(a =>
+                                (a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
+                                    ? (a.ClockOutTime.Value - a.ClockInTime.Value - (a.TotalBreakTime ?? TimeSpan.Zero)).TotalSeconds
+                                    : double.MinValue).ToList(),
+                        _ => allAttendance.OrderByDescending(a => a.Date).ToList()
+                    };
+                }
+
+                // Pagination
+                int pageSize = 10;
+                int totalRecords = allAttendance.Count;
+                int totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
+
+                if (page < 1) page = 1;
+                if (page > totalPages && totalPages > 0) page = totalPages;
+
+                var recentAttendance = allAttendance
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => new
+            {
+                id = a.Attendance_ID,
+                date = a.Date.ToString("MMM dd, yyyy"),
+                clockInTime = a.ClockInTime.HasValue ?
+                    FormatTime(a.ClockInTime.Value) : "-",
+                clockOutTime = a.ClockOutTime.HasValue ?
+                    FormatTime(a.ClockOutTime.Value) : "-",
+                breakTime = a.TotalBreakTime.HasValue ?
+                    FormatDuration(a.TotalBreakTime.Value) : "0 Hr 00 Mins 00 Secs",
+                workingTime = CalculateWorkingTime(a),
+                status = a.Status
+            })
+            .ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    data = recentAttendance,
+                    page = page,
+                    totalPages = totalPages,
+                    totalRecords = totalRecords,
+                    sort = sort,
+                    order = order
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Error loading attendance data: " + ex.Message
+                });
+            }
+        }
+
+        private string FormatTime(TimeSpan time)
+        {
+            var dateTime = DateTime.Today.Add(time);
+            return dateTime.ToString("hh:mm tt");
+        }
+
+        private string FormatDuration(TimeSpan duration)
+        {
+            // Round seconds to avoid decimal values
+            int seconds = (int)Math.Round(duration.Seconds + (duration.Milliseconds / 1000.0));
+            return $"{duration.Hours} Hr {duration.Minutes:00} Mins {seconds:00} Secs";
+        }
+
+        private string CalculateWorkingTime(Attendance attendance)
+        {
+            if (!attendance.ClockInTime.HasValue || !attendance.ClockOutTime.HasValue)
+            {
+                return "-";
+            }
+
+            var totalDuration = attendance.ClockOutTime.Value - attendance.ClockInTime.Value;
+            var breakTime = attendance.TotalBreakTime ?? TimeSpan.Zero;
+            var workingTime = totalDuration - breakTime;
+
+            return FormatDuration(workingTime);
         }
 
         [HttpPost]
@@ -67,7 +194,7 @@ namespace InternProject1.Controllers
                 Date = DateTime.Today,
                 ClockInTime = DateTime.Now.TimeOfDay,
                 Location_Lat_Long = $"{latitude},{longitude}",
-                Status = DateTime.Now.TimeOfDay.Hours >= 9 ? "Late" : "Present",
+                Status = DateTime.Now.TimeOfDay.Hours >= 9 ? "Late" : "On Time",
                 IsOnBreak = false,
                 HasTakenBreak = false,
                 TotalBreakTime = TimeSpan.Zero
