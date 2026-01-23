@@ -36,6 +36,8 @@
     }
 }
 
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
     /* Main container styles - keep existing */
     .monitoring-container {
@@ -313,6 +315,17 @@
         margin-bottom: 10px;
     }
 
+    .real-time-insights-title {
+        font-family: 'Poppins', sans-serif;
+        font-style: normal;
+        font-weight: 500;
+        font-size: 16px;
+        line-height: 24px;
+        color: #5A91CB;
+        margin-top: 10px;
+        margin-bottom: 15px;
+    }
+
     /* Button styling */
     .view-attendance-btn {
         background: linear-gradient(135deg, #5A91CB 0%, #3a7bc8 100%);
@@ -583,16 +596,21 @@
                 <div class="stat-card">
                     <div class="real-time-header">
                         <div>
-                            <h3 class="stat-label">Real-time Insights</h3>
+                            <!-- Make sure these elements have the correct IDs -->
+                            <div class="digital-time-display">
+                                <span id="digital-time">@DateTime.Now.ToString("hh:mm:ss")</span>
+                                <span id="am-pm">@DateTime.Now.ToString("tt").ToUpper()</span>
+                            </div>
+                            <div class="real-time-insights-title">Real-time Insights</div>
                             <div class="date-display">
-                                Today: <span class="day-name">@DateTime.Now.DayOfWeek</span>, 
+                                Today: <span class="day-name">@DateTime.Now.DayOfWeek</span>,
                                 @DateTime.Now.ToString("MMMM dd, yyyy")
                             </div>
                         </div>
                     </div>
-                    
+
                     <a href="#" class="view-attendance-btn">
-                        <i class="bi bi-eye me-2"></i>View Detailed Attendance
+                        <i class="bi bi-eye me-2"></i>View Attendance
                     </a>
                 </div>
             </div>
@@ -790,97 +808,78 @@
             return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
         };
 
-        // Initialize charts when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // You would initialize your charts here with real data
-            
-            // Example Chart.js implementation:
-            /*
-            // 1. Attendance Comparison Chart (Line Chart)
-            const comparisonCtx = document.getElementById('attendanceComparisonChart').getContext('2d');
-            new Chart(comparisonCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    datasets: [
-                        {
-                            label: 'Current Week',
-                            data: [85, 92, 88, 94, 90, 45, 30],
-                            borderColor: '#5A91CB',
-                            backgroundColor: 'rgba(90, 145, 203, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Previous Week',
-                            data: [82, 88, 85, 90, 87, 40, 25],
-                            borderColor: '#6c757d',
-                            backgroundColor: 'rgba(108, 117, 125, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                            borderDash: [5, 5]
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            });
+        // Function to update digital clock
+        function updateDigitalClock() {
+            const now = new Date();
 
-            // 2. Weekly Attendance Chart (Bar Chart)
-            const weeklyCtx = document.getElementById('weeklyAttendanceChart').getContext('2d');
-            new Chart(weeklyCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-                    datasets: [{
-                        label: 'Attendance Rate (%)',
-                        data: [85, 92, 88, 94, 90],
-                        backgroundColor: [
-                            'rgba(90, 145, 203, 0.7)',
-                            'rgba(40, 167, 69, 0.7)',
-                            'rgba(90, 145, 203, 0.7)',
-                            'rgba(40, 167, 69, 0.7)',
-                            'rgba(90, 145, 203, 0.7)'
-                        ],
-                        borderColor: [
-                            '#5A91CB',
-                            '#28a745',
-                            '#5A91CB',
-                            '#28a745',
-                            '#5A91CB'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-            */
+            // Format time as HH:MM:SS
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+
+            // Format with AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const hour12 = (hours % 12 || 12).toString().padStart(2, '0');
+
+            // Update the elements
+            const digitalTimeElement = document.getElementById('digital-time');
+            const amPmElement = document.getElementById('am-pm');
+
+            if (digitalTimeElement) {
+                digitalTimeElement.textContent = `${hour12}:${minutes}:${seconds}`;
+            }
+
+            if (amPmElement) {
+                amPmElement.textContent = ampm;
+            }
+        }
+
+        function updateDateDisplay() {
+            const now = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+            const dayName = days[now.getDay()];
+            const monthName = months[now.getMonth()];
+            const day = now.getDate();
+            const year = now.getFullYear();
+
+            // Update the date display
+            const dateDisplayElement = document.querySelector('.date-display .day-name');
+            const dateDisplayFull = document.querySelector('.date-display');
+
+            if (dateDisplayElement) {
+                dateDisplayElement.textContent = dayName;
+            }
+
+            // Optional: Update the entire date string
+            if (dateDisplayFull) {
+                // Keep the existing structure but update the text
+                dateDisplayFull.innerHTML = `Today: <span class="day-name">${dayName}</span>, ${monthName} ${day}, ${year}`;
+            }
+        }
+
+        // Helper function to get week number
+        Date.prototype.getWeekOfYear = function() {
+            var d = new Date(Date.UTC(this.getFullYear(), this.getMonth(), this.getDate()));
+            var dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        };
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize digital clock immediately
+            updateDigitalClock();
+            updateDateDisplay();
+
+            // Update digital clock every second
+            setInterval(updateDigitalClock, 1000);
+            setInterval(updateDateDisplay, 60000);
+
+            // You would initialize your charts here with real data
+            // ... existing chart code ...
         });
     </script>
 }

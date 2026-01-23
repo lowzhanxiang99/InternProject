@@ -22,23 +22,21 @@ namespace InternProject1.Controllers
         }
 
         // Helper method to get current user ID
-        private int GetCurrentUserId()
+        private int? GetCurrentUserId()
         {
-            // For now, return a default user ID (e.g., 1)
-            // You should replace this with your actual authentication logic
-            var userIdClaim = HttpContext?.User?.FindFirst("UserId");
-            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
-            {
-                return userId;
-            }
-
-            // Default to user ID 1 for testing
-            return 1;
+            return HttpContext.Session.GetInt32("UserID");
         }
 
         public async Task<IActionResult> Index(int? month = null, int? year = null)
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             // If month/year not specified, use current
             month = month ?? DateTime.Now.Month;
@@ -65,7 +63,20 @@ namespace InternProject1.Controllers
         {
             try
             {
-                int employeeId = GetCurrentUserId();
+                var userId = GetCurrentUserId();
+
+                if (!userId.HasValue)
+                {
+                    // For AJAX calls, return JSON with redirect info instead of RedirectToAction
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Session expired. Please log in again.",
+                        redirect = "/Account/Login"
+                    });
+                }
+
+                int employeeId = userId.Value;
 
                 // Get all past attendance records for the employee
                 var allAttendance = await _context.Attendances
@@ -111,22 +122,22 @@ namespace InternProject1.Controllers
                 if (page > totalPages && totalPages > 0) page = totalPages;
 
                 var recentAttendance = allAttendance
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(a => new
-            {
-                id = a.Attendance_ID,
-                date = a.Date.ToString("MMM dd, yyyy"),
-                clockInTime = a.ClockInTime.HasValue ?
-                    FormatTime(a.ClockInTime.Value) : "-",
-                clockOutTime = a.ClockOutTime.HasValue ?
-                    FormatTime(a.ClockOutTime.Value) : "-",
-                breakTime = a.TotalBreakTime.HasValue ?
-                    FormatDuration(a.TotalBreakTime.Value) : "0 Hr 00 Mins 00 Secs",
-                workingTime = CalculateWorkingTime(a),
-                status = a.Status
-            })
-            .ToList();
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(a => new
+                    {
+                        id = a.Attendance_ID,
+                        date = a.Date.ToString("MMM dd, yyyy"),
+                        clockInTime = a.ClockInTime.HasValue ?
+                            FormatTime(a.ClockInTime.Value) : "-",
+                        clockOutTime = a.ClockOutTime.HasValue ?
+                            FormatTime(a.ClockOutTime.Value) : "-",
+                        breakTime = a.TotalBreakTime.HasValue ?
+                            FormatDuration(a.TotalBreakTime.Value) : "0 Hr 00 Mins 00 Secs",
+                        workingTime = CalculateWorkingTime(a),
+                        status = a.Status
+                    })
+                    .ToList();
 
                 return Json(new
                 {
@@ -179,7 +190,14 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> ClockIn(double latitude, double longitude)
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -213,7 +231,14 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> ClockOut(double latitude, double longitude)
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -250,7 +275,14 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> StartBreak()
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -286,7 +318,14 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> EndBreak()
         {
-            int employeeId = GetCurrentUserId();
+            var userId = GetCurrentUserId();
+
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            int employeeId = userId.Value;
 
             var todayAttendance = await _context.Attendances
                 .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == DateTime.Today);
@@ -310,7 +349,6 @@ namespace InternProject1.Controllers
             todayAttendance.IsOnBreak = false;
             todayAttendance.TotalBreakTime = (todayAttendance.TotalBreakTime ?? TimeSpan.Zero) + breakDuration;
             todayAttendance.HasTakenBreak = true;
-            todayAttendance.BreakStartTime = null; // Clear break start time
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Break ended successfully!";
@@ -323,11 +361,18 @@ namespace InternProject1.Controllers
         {
             try
             {
-                int userId = GetCurrentUserId();
+                var userId = GetCurrentUserId();
+
+                if (!userId.HasValue)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+
+                int employeeId = userId.Value;
 
                 // Find attendance for the specific date and user
                 var attendance = await _context.Attendances
-                    .FirstOrDefaultAsync(a => a.Employee_ID == userId && a.Date.Date == date.Date);
+                    .FirstOrDefaultAsync(a => a.Employee_ID == employeeId && a.Date.Date == date.Date);
 
                 if (attendance == null)
                 {
