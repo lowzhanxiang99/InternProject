@@ -15,15 +15,15 @@ public class HomeController : Controller
     }
 
     public async Task<IActionResult> Index()
-    {
+    {   
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
-
+         
         ViewBag.UserName = HttpContext.Session.GetString("UserName");
-
+                                                                                  
         var employee = await _context.Employees.FindAsync(userId);
         if (employee == null) return RedirectToAction("Login", "Account");
-
+                                                                         
         var userLeaves = await _context.LeaveRequests
             .Where(l => l.Employee_ID == userId && l.Status == "Approve")
             .ToListAsync();
@@ -66,7 +66,7 @@ public class HomeController : Controller
 
         ViewBag.UnpaidUsed = unpaidUsed;
 
-        // 4. RESTORED: Attendance Insights (Hardcoded for now)
+        // Attendance Insights (Hardcoded for now)
         ViewBag.OnTimePercentage = 65;
         ViewBag.LatePercentage = 35;
         ViewBag.TotalBreakHours = "00 Hours 40 Minutes 55 Seconds";
