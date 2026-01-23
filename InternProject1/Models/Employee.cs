@@ -36,7 +36,6 @@ public class Employee
     public string Employee_Name { get; internal set; }
     [NotMapped]
     public string FullName => $"{First_Name} {Last_Name}";
-    public string? Employee_Name { get; internal set; }
 
     // New Database
     public int AnnualLeaveDays { get; set; } = 0;
