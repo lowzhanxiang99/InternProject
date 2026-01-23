@@ -5,7 +5,7 @@
 namespace InternProject1.Migrations
 {
     /// <inheritdoc />
-    public partial class Test : Migration
+    public partial class AddProfilePictureToEmployee : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
