@@ -55,7 +55,7 @@
                 </a>
 
                 <a asp-controller="Monitoring" asp-action="AdminLogin"
-                   class="nav-link p-3 mb-2">
+                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Monitoring" ? "active" : "")">
                     <i class="bi bi-people me-2"></i> Employee Attendance Monitoring
                 </a>
 
