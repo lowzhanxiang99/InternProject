@@ -195,7 +195,7 @@ public class LeaveController : Controller
                         Employee_ID = request.Employee_ID,
                         Date = date,
                         Status = "Leave",
-                        ClockInTime = TimeSpan.Zero
+                        ClockInTime = null
                     });
                 }
                 else
