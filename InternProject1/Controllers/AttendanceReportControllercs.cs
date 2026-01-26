@@ -76,19 +76,55 @@ public class AttendanceReportController : Controller
         return View(attendance);
     }
 
+    // UPDATED: Logic to connect real database records to the Summary
     private async Task<List<StaffSummaryViewModel>> GetReportData()
     {
-        return await _context.Employees
-            .Select(e => new StaffSummaryViewModel
+        // Define the target period (matching your view: Jan 2026)
+        var targetMonth = 1;
+        var targetYear = 2026;
+
+        // Calculate total days passed in the month for Absent calculation
+        int daysToCount = (DateTime.Now.Year == targetYear && DateTime.Now.Month == targetMonth)
+            ? DateTime.Now.Day
+            : DateTime.DaysInMonth(targetYear, targetMonth);
+
+        var employees = await _context.Employees.ToListAsync();
+        var reportData = new List<StaffSummaryViewModel>();
+
+        foreach (var emp in employees)
+        {
+            // Fetch all attendance for this employee in the specific month
+            var records = await _context.Attendances
+                .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
+                .ToListAsync();
+
+            // 1. Attendance Count: Total times they actually clocked in (On Time + Late)
+            int attCount = records.Count(a => a.Status == "On Time" || a.Status == "Late");
+
+            // 2. Late Count: Specifically records marked as "Late"
+            int lateCount = records.Count(a => a.Status == "Late");
+
+            // 3. Leave Count: Approved leave requests
+            int leaveCount = await _context.LeaveRequests
+                .CountAsync(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve");
+
+            // 4. Absent Count: Logic: Potential days minus (Attended + On Leave)
+            int absentCount = daysToCount - (attCount + leaveCount);
+            if (absentCount < 0) absentCount = 0;
+
+            reportData.Add(new StaffSummaryViewModel
             {
-                Employee_ID = e.Employee_ID,
-                Name = e.First_Name + " " + e.Last_Name,
-                AttendanceCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && (a.Status == "Present" || a.Status == "Late")),
-                LateCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && a.Status == "Late"),
-                LeaveCount = _context.LeaveRequests.Count(l => l.Employee_ID == e.Employee_ID && l.Status == "Approve"),
-                AbsentCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && a.Status == "Absent"),
-                OvertimeCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && a.Status == "Overtime")
-            }).ToListAsync();
+                Employee_ID = emp.Employee_ID,
+                Name = emp.First_Name + " " + emp.Last_Name,
+                AttendanceCount = attCount,
+                LateCount = lateCount,
+                LeaveCount = leaveCount,
+                AbsentCount = absentCount,
+                OvertimeCount = records.Count(a => a.Status == "Overtime")
+            });
+        }
+
+        return reportData;
     }
 
     public async Task<IActionResult> ExportToExcel()
@@ -124,12 +160,10 @@ public class AttendanceReportController : Controller
         }
     }
 
-    // COMPLETED VERSION: Fixed Alignment and Uniform Columns
     public async Task<IActionResult> ExportToPdf()
     {
         var data = await GetReportData();
 
-        // Calculate Totals for the Summary Row
         int totalAtt = data.Sum(x => x.AttendanceCount);
         int totalLate = data.Sum(x => x.LateCount);
         int totalLeave = data.Sum(x => x.LeaveCount);
@@ -143,18 +177,12 @@ public class AttendanceReportController : Controller
                 body {{ font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #333; }}
                 .header {{ text-align: center; margin-bottom: 30px; border-bottom: 2px solid #4A77A5; padding-bottom: 10px; }}
                 h2 {{ color: #4A77A5; margin: 0; text-transform: uppercase; letter-spacing: 1px; }}
-                
                 table {{ width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }}
-                
                 th {{ background-color: #4A77A5; color: white; padding: 12px 5px; font-size: 13px; text-align: center; }}
                 td {{ border: 1px solid #ddd; padding: 10px 5px; text-align: center; font-size: 12px; }}
-                
-                /* Column Width Definitions */
                 .col-name {{ width: 25%; text-align: left; padding-left: 10px; }}
-                .col-data {{ width: 15%; }} /* Identical width for all status columns */
-
+                .col-data {{ width: 15%; }} 
                 tr:nth-child(even) {{ background-color: #f9f9f9; }}
-                
                 .total-row {{ background-color: #eee !important; font-weight: bold; border-top: 2px solid #4A77A5; }}
                 .footer {{ margin-top: 30px; font-size: 10px; text-align: right; color: #777; font-style: italic; }}
             </style>
@@ -190,7 +218,6 @@ public class AttendanceReportController : Controller
                     </tr>";
         }
 
-        // Add Summary Row
         htmlContent += $@"
                     <tr class='total-row'>
                         <td style='text-align: left; padding-left: 10px;'>COMPANY TOTAL</td>
