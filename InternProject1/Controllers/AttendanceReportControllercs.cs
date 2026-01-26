@@ -76,40 +76,71 @@ public class AttendanceReportController : Controller
         return View(attendance);
     }
 
-    // UPDATED: Logic to connect real database records to the Summary
+    // UPDATED: Logic to exclude Sundays and filter Leave by specific month
     private async Task<List<StaffSummaryViewModel>> GetReportData()
     {
-        // Define the target period (matching your view: Jan 2026)
+        // Define the target period
         var targetMonth = 1;
         var targetYear = 2026;
+        var monthStartDate = new DateTime(targetYear, targetMonth, 1);
+        var monthEndDate = monthStartDate.AddMonths(1).AddDays(-1);
 
-        // Calculate total days passed in the month for Absent calculation
-        int daysToCount = (DateTime.Now.Year == targetYear && DateTime.Now.Month == targetMonth)
+        // 1. Calculate how many work days to count (Excluding Sundays)
+        int workDaysToCount = 0;
+        int lastDayToProcess = (DateTime.Now.Year == targetYear && DateTime.Now.Month == targetMonth)
             ? DateTime.Now.Day
             : DateTime.DaysInMonth(targetYear, targetMonth);
+
+        for (int d = 1; d <= lastDayToProcess; d++)
+        {
+            DateTime current = new DateTime(targetYear, targetMonth, d);
+            if (current.DayOfWeek != DayOfWeek.Sunday)
+            {
+                workDaysToCount++;
+            }
+        }
 
         var employees = await _context.Employees.ToListAsync();
         var reportData = new List<StaffSummaryViewModel>();
 
         foreach (var emp in employees)
         {
-            // Fetch all attendance for this employee in the specific month
+            // Fetch attendance records strictly for this month
             var records = await _context.Attendances
                 .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
                 .ToListAsync();
 
-            // 1. Attendance Count: Total times they actually clocked in (On Time + Late)
-            int attCount = records.Count(a => a.Status == "On Time" || a.Status == "Late");
+            // 2. Attendance & Late Counts (Monday-Saturday only)
+            int attCount = records.Count(a => (a.Status == "On Time" || a.Status == "Late") && a.Date.DayOfWeek != DayOfWeek.Sunday);
+            int lateCount = records.Count(a => a.Status == "Late" && a.Date.DayOfWeek != DayOfWeek.Sunday);
 
-            // 2. Late Count: Specifically records marked as "Late"
-            int lateCount = records.Count(a => a.Status == "Late");
+            // 3. Leave Count: Fetch leaves that overlap with THIS month ONLY
+            var approvedLeaves = await _context.LeaveRequests
+                .Where(l => l.Employee_ID == emp.Employee_ID &&
+                            l.Status == "Approve" &&
+                            l.Start_Date <= monthEndDate &&
+                            l.End_Date >= monthStartDate)
+                .ToListAsync();
 
-            // 3. Leave Count: Approved leave requests
-            int leaveCount = await _context.LeaveRequests
-                .CountAsync(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve");
+            int leaveDaysThisMonth = 0;
+            foreach (var leave in approvedLeaves)
+            {
+                for (var date = leave.Start_Date.Date; date <= leave.End_Date.Date; date = date.AddDays(1))
+                {
+                    // Only count if the day falls inside January 2026 AND is not a Sunday
+                    if (date >= monthStartDate && date <= monthEndDate && date.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        // Additionally, if checking for "today's month", don't count future leave days yet
+                        if (date.Date <= DateTime.Now.Date || (targetYear != DateTime.Now.Year || targetMonth != DateTime.Now.Month))
+                        {
+                            leaveDaysThisMonth++;
+                        }
+                    }
+                }
+            }
 
-            // 4. Absent Count: Logic: Potential days minus (Attended + On Leave)
-            int absentCount = daysToCount - (attCount + leaveCount);
+            // 4. Absent Count Logic: workDaysToCount - (Attended + Leave)
+            int absentCount = workDaysToCount - (attCount + leaveDaysThisMonth);
             if (absentCount < 0) absentCount = 0;
 
             reportData.Add(new StaffSummaryViewModel
@@ -118,7 +149,7 @@ public class AttendanceReportController : Controller
                 Name = emp.First_Name + " " + emp.Last_Name,
                 AttendanceCount = attCount,
                 LateCount = lateCount,
-                LeaveCount = leaveCount,
+                LeaveCount = leaveDaysThisMonth,
                 AbsentCount = absentCount,
                 OvertimeCount = records.Count(a => a.Status == "Overtime")
             });
@@ -191,6 +222,7 @@ public class AttendanceReportController : Controller
             <div class='header'>
                 <h2>Attendance Analytics Report</h2>
                 <p>Generated for the month of January 2026</p>
+                <small style='color: #777;'>* Sundays and non-month days are excluded from calculations</small>
             </div>
             <table>
                 <thead>

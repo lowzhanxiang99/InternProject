@@ -198,7 +198,7 @@ public class LeaveController : Controller
                     });
                 }
                 else
-                    existing.Status = "Leave";
+                    existingRecord.Status = "Leave";
             }
         }
 
