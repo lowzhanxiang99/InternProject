@@ -1,0 +1,54 @@
+﻿@model InternProject1.Models.Employee
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-primary p-4 text-white text-center">
+                    <i class="bi bi-person-vcard fs-1"></i>
+                    <h4 class="mt-2">@Model.First_Name @Model.Last_Name</h4>
+                    <span class="badge bg-white text-primary rounded-pill px-3">Employee ID: @Model.Employee_ID</span>
+                </div>
+                <div class="card-body p-4 bg-light">
+                    <form asp-action="EditEntitlements" method="post">
+                        <input type="hidden" asp-for="Employee_ID" />
+
+                        <div class="bg-white p-3 rounded-4 shadow-sm mb-3">
+                            <label class="form-label fw-bold small text-muted">Annual Leave Days</label>
+                            <input asp-for="AnnualLeaveDays" type="number" class="form-control border-0 bg-light rounded-3" min="0" />
+                        </div>
+
+                        <div class="bg-white p-3 rounded-4 shadow-sm mb-3">
+                            <label class="form-label fw-bold small text-muted">Medical Leave (MC) Days</label>
+                            <input asp-for="MCDays" type="number" class="form-control border-0 bg-light rounded-3" min="0" />
+                        </div>
+
+                        <div class="bg-white p-3 rounded-4 shadow-sm mb-3">
+                            <label class="form-label fw-bold small text-muted">Compassionate Leave Days</label>
+                            <input asp-for="EmergencyLeaveDays" type="number" class="form-control border-0 bg-light rounded-3" min="0" />
+                        </div>
+
+                        <div class="bg-white p-3 rounded-4 shadow-sm mb-3">
+                            <label class="form-label fw-bold small text-muted">Maternity Leave Days</label>
+                            <input asp-for="MaternityLeaveDays" type="number" class="form-control border-0 bg-light rounded-3" min="0" />
+                        </div>
+
+                        <div class="bg-white p-3 rounded-4 shadow-sm mb-4">
+                            <label class="form-label fw-bold small text-muted">Other Leave Days</label>
+                            <input asp-for="OtherLeaveDays" type="number" class="form-control border-0 bg-light rounded-3" min="0" />
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a asp-action="Approval" class="btn btn-outline-secondary w-100 rounded-pill">Cancel</a>
+                            </div>
+                            <div class="col-6">
+                                <button type="submit" class="btn btn-primary w-100 rounded-pill">Save All</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

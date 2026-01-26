@@ -1,82 +1,75 @@
 ﻿@model IEnumerable<InternProject1.Models.LeaveRequest>
 
-<div class="container-fluid py-4">
-    <div class="card border-0 shadow-sm p-4 rounded-4 bg-white mb-4">
-        <h5 class="fw-bold text-primary mb-3"><i class="bi bi-person-gear me-2"></i> Set Employee Leave Entitlements</h5>
-        <p class="text-muted small">Select a leave category and enter the new limit for each employee.</p>
+<div class="container-fluid py-4" style="background-color: #f4f7f6; min-height: 100vh;">
 
-        <div class="table-responsive">
-            <table class="table table-sm align-middle table-hover">
-                <thead class="bg-light small">
-                    <tr>
-                        <th>Employee Name</th>
-                        <th style="min-width: 250px;">Leave Category</th>
-                        <th style="width: 120px;">New Day Limit</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (ViewBag.EmployeeList != null)
-                    {
-                        @foreach (var emp in ViewBag.EmployeeList as IEnumerable<InternProject1.Models.Employee>)
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm mb-4 rounded-4 bg-white">
+        <div class="card-body py-4">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person-gear text-primary fs-4 me-2"></i>
+                    <h5 class="fw-bold m-0">Manage Employee Entitlements</h5>
+                </div>
+
+                <div class="input-group shadow-sm" style="max-width: 300px;">
+                    <span class="input-group-text bg-white border-primary-subtle rounded-start">
+                        <i class="bi bi-search text-primary"></i>
+                    </span>
+                    <input type="text" id="employeeSearchInput" class="form-control border-primary-subtle py-1"
+                           placeholder="Type to filter employee (e.g. 'Tan')...">
+                </div>
+            </div>
+            <p class="text-muted small mb-4">Select an employee from the list to manage their leave balances.</p>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-9">
+                    <label class="form-label small fw-bold text-secondary">Search Employee Name</label>
+                    <select id="employeeSelect" class="form-select border-primary-subtle py-2 shadow-sm">
+                        <option value="">Employee List</option>
+                        @if (ViewBag.EmployeeList != null)
                         {
-                            <tr>
-                                <td class="small fw-bold">@emp.First_Name @emp.Last_Name</td>
-                                <form asp-action="SetEntitlements" method="post">
-                                    <input type="hidden" name="employeeId" value="@emp.Employee_ID" />
-                                <td>
-                                    <select name="leaveCategory" class="form-select form-select-sm border-primary-subtle shadow-sm">
-                                        <option value="Annual">Annual Leave (Current: @emp.AnnualLeaveDays)</option>
-                                        <option value="MC">Medical Leave / MC (Current: @emp.MCDays)</option>
-                                        <option value="Compassionate">Compassionate Leave (Current: @emp.EmergencyLeaveDays)</option>
-                                        <option value="Maternity">Maternity Leave (Policy: 60 Days)</option>
-                                        <option value="Other">Other Leave (Current: @emp.OtherLeaveDays)</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="number" name="newValue" placeholder="Days" class="form-control form-control-sm border-primary-subtle shadow-sm" required min="0">
-                                </td>
-                                <td>
-                                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
-                                        Update
-                                    </button>
-                                </td>
-                                </form>
-                            </tr>
+                            @foreach (var emp in ViewBag.EmployeeList as IEnumerable<InternProject1.Models.Employee>)
+                            {
+                                <option value="@emp.Employee_ID">@emp.First_Name @emp.Last_Name (ID: @emp.Employee_ID)</option>
+                            }
                         }
-                    }
-                </tbody>
-            </table>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" id="editBtn" class="btn btn-primary w-100 py-2 rounded-3 shadow-sm">
+                        <i class="bi bi-pencil-square me-2"></i> Edit All Leave Types
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm p-4 rounded-4 bg-white">
-        <form method="get" asp-action="Approval" id="filterForm">
+        <form method="get" asp-action="Approval">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="fw-bold m-0">Leave Approval History</h5>
-                <div class="d-flex gap-2 align-items-center">
-                    <span class="small text-muted">Filter By Date:</span>
-                    <div class="d-flex gap-1 align-items-center bg-light p-1 rounded">
-                        <span class="small px-2">
-                            From:
-                            <input type="date" name="fromDate" value="@Context.Request.Query["fromDate"]"
-                                   class="border-0 bg-transparent small" onchange="this.form.submit()" />
-                        </span>
-                        <span class="small px-2">
-                            To:
-                            <input type="date" name="toDate" value="@Context.Request.Query["toDate"]"
-                                   class="border-0 bg-transparent small" onchange="this.form.submit()" />
-                        </span>
+                <div class="d-flex gap-3 align-items-center">
+                    <div class="d-flex gap-2 align-items-center bg-light px-3 py-1 rounded-3">
+                        <span class="small text-muted">Filter By Date:</span>
+                        <input type="date" name="fromDate" value="@Context.Request.Query["fromDate"]" class="border-0 bg-transparent small" onchange="this.form.submit()" />
+                        <span class="small text-muted">To:</span>
+                        <input type="date" name="toDate" value="@Context.Request.Query["toDate"]" class="border-0 bg-transparent small" onchange="this.form.submit()" />
                     </div>
-                    <button type="button" onclick="exportData()" class="btn btn-outline-primary btn-sm px-3 rounded-3">
+                    <button type="button" onclick="exportData()" class="btn btn-outline-primary btn-sm px-3 shadow-sm">
                         <i class="bi bi-download me-1"></i> Export
                     </button>
                 </div>
             </div>
 
-            <div class="input-group mb-4 w-25 shadow-sm rounded-3">
-                <input type="text" name="searchString" value="@Context.Request.Query["searchString"]"
-                       class="form-control border-0 py-2" placeholder="Search by name or ID..." />
+            <div class="input-group mb-4 shadow-sm" style="max-width: 350px;">
+                <input type="text" name="searchString" value="@Context.Request.Query["searchString"]" class="form-control border-0 py-2" placeholder="Search by name or ID..." />
                 <button type="submit" class="input-group-text bg-white border-0">
                     <i class="bi bi-search text-primary"></i>
                 </button>
@@ -84,10 +77,10 @@
         </form>
 
         <div class="table-responsive">
-            <table class="table align-middle">
-                <thead class="text-secondary small border-bottom">
+            <table class="table align-middle table-hover">
+                <thead class="text-secondary small border-bottom bg-light">
                     <tr>
-                        <th>Request ID</th>
+                        <th class="ps-3">Request ID</th>
                         <th>Status</th>
                         <th>Type</th>
                         <th>Start Date</th>
@@ -99,30 +92,28 @@
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td class="fw-bold text-primary">REQ-@item.Leave_ID</td>
+                            <td class="ps-3 fw-bold text-primary">REQ-@item.Leave_ID</td>
                             <td>
                                 @if (item.Status == "Approve")
                                 {
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">Approve</span>
+                                    <span class="badge bg-success-subtle text-success rounded-pill px-3">Approve</span>
                                 }
                                 else if (item.Status == "Reject")
                                 {
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3">Reject</span>
+
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill px-3">Reject</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3">Pending</span>
+
+                                    <span class="badge bg-warning-subtle text-warning rounded-pill px-3">Pending</span>
                                 }
                             </td>
                             <td class="small fw-bold text-dark">@item.LeaveType</td>
                             <td class="small text-muted">@item.Start_Date.ToString("dd-MM-yy")</td>
                             <td class="small text-muted">@item.End_Date.ToString("dd-MM-yy")</td>
                             <td class="small text-muted">@item.Employee?.First_Name</td>
-                            <td class="small text-muted">
-                                <a asp-action="Details" asp-route-id="@item.Leave_ID" class="text-decoration-none text-muted fw-bold link-primary">
-                                    @item.Employee?.Last_Name
-                                </a>
-                            </td>
+                            <td class="small text-muted fw-bold">@item.Employee?.Last_Name</td>
                         </tr>
                     }
                 </tbody>
@@ -131,29 +122,40 @@
     </div>
 </div>
 
-<style>
-    .link-primary:hover {
-        color: #0d6efd !important;
-        text-decoration: underline !important;
-    }
-
-    thead th a:hover {
-        color: #0d6efd !important;
-    }
-
-    .form-control-sm:focus, .form-select-sm:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.25rem rgba(13,110,253,.1);
-    }
-
-    .badge {
-        font-weight: 600;
-        font-size: 0.75rem;
-    }
-</style>
-
 @section Scripts {
     <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const selectEl = document.getElementById('employeeSelect');
+            const searchInput = document.getElementById('employeeSearchInput');
+            const editBtn = document.getElementById('editBtn');
+            const originalOptions = Array.from(selectEl.options);
+
+            // Real-time search function to filter the dropdown list
+            searchInput.addEventListener('input', function() {
+                const filter = searchInput.value.toLowerCase();
+
+                // Clear existing options
+                selectEl.innerHTML = '';
+
+                // Add back options that match the filter
+                originalOptions.forEach(option => {
+                    if (option.text.toLowerCase().includes(filter) || option.value === "") {
+                        selectEl.appendChild(option);
+                    }
+                });
+            });
+
+            // Handle the "Edit All" button click redirect
+            editBtn.addEventListener('click', function() {
+                const selectedId = selectEl.value;
+                if (selectedId) {
+                    window.location.href = `/Leave/EditEntitlements/${selectedId}`;
+                } else {
+                    alert("Please select an employee first.");
+                }
+            });
+        });
+
         function exportData() {
             const search = document.querySelector('input[name="searchString"]').value;
             const from = document.querySelector('input[name="fromDate"]').value;
