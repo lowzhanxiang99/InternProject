@@ -42,7 +42,7 @@
         a.ClockOutTime.Value.Hours < 17 &&
         !(a.ClockOutTime.Value.Hours == 16 && a.ClockOutTime.Value.Minutes == 0));
 
-    var timeOffCount = 0;
+    var timeOffCount = Model.TimeOffCount;
     var currentWeekNumber = GetWeekOfYear(DateTime.Now);
 }
 
