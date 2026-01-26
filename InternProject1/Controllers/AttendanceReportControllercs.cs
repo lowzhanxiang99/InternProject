@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Http;
 using ClosedXML.Excel;
 using System.IO;
 using SelectPdf;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
 
 public class AttendanceReportController : Controller
 {
@@ -42,10 +46,17 @@ public class AttendanceReportController : Controller
         }
 
         var reportData = await GetReportData();
+
+        var allEmployees = await _context.Employees
+            .OrderBy(e => e.First_Name)
+            .Select(e => new { e.Employee_ID, FullName = e.First_Name + " " + e.Last_Name })
+            .ToListAsync();
+
+        ViewBag.EmployeeList = allEmployees;
+
         return View(reportData);
     }
 
-    // NEW: Action to show all records for a specific employee
     public async Task<IActionResult> EmployeeDetails(int id)
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
@@ -56,7 +67,6 @@ public class AttendanceReportController : Controller
         var employee = await _context.Employees.FindAsync(id);
         if (employee == null) return NotFound();
 
-        // Fetching all attendance records for this specific staff
         var attendance = await _context.Attendances
             .Where(a => a.Employee_ID == id)
             .OrderByDescending(a => a.Date)
@@ -66,31 +76,64 @@ public class AttendanceReportController : Controller
         return View(attendance);
     }
 
-    // Helper method: Updated to include EmployeeId for the View links
+    // UPDATED: Logic to connect real database records to the Summary
     private async Task<List<StaffSummaryViewModel>> GetReportData()
     {
-        return await _context.Employees
-            .Select(e => new StaffSummaryViewModel
+        // Define the target period (matching your view: Jan 2026)
+        var targetMonth = 1;
+        var targetYear = 2026;
+
+        // Calculate total days passed in the month for Absent calculation
+        int daysToCount = (DateTime.Now.Year == targetYear && DateTime.Now.Month == targetMonth)
+            ? DateTime.Now.Day
+            : DateTime.DaysInMonth(targetYear, targetMonth);
+
+        var employees = await _context.Employees.ToListAsync();
+        var reportData = new List<StaffSummaryViewModel>();
+
+        foreach (var emp in employees)
+        {
+            // Fetch all attendance for this employee in the specific month
+            var records = await _context.Attendances
+                .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
+                .ToListAsync();
+
+            // 1. Attendance Count: Total times they actually clocked in (On Time + Late)
+            int attCount = records.Count(a => a.Status == "On Time" || a.Status == "Late");
+
+            // 2. Late Count: Specifically records marked as "Late"
+            int lateCount = records.Count(a => a.Status == "Late");
+
+            // 3. Leave Count: Approved leave requests
+            int leaveCount = await _context.LeaveRequests
+                .CountAsync(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve");
+
+            // 4. Absent Count: Logic: Potential days minus (Attended + On Leave)
+            int absentCount = daysToCount - (attCount + leaveCount);
+            if (absentCount < 0) absentCount = 0;
+
+            reportData.Add(new StaffSummaryViewModel
             {
-                Employee_ID = e.Employee_ID, // Added this so Index.cshtml can link to Details
-                Name = e.First_Name + " " + e.Last_Name,
-                AttendanceCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && (a.Status == "Present" || a.Status == "Late")),
-                LateCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && a.Status == "Late"),
-                LeaveCount = _context.LeaveRequests.Count(l => l.Employee_ID == e.Employee_ID && l.Status == "Approve"),
-                AbsentCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && a.Status == "Absent"),
-                OvertimeCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID && a.Status == "Overtime")
-            }).ToListAsync();
+                Employee_ID = emp.Employee_ID,
+                Name = emp.First_Name + " " + emp.Last_Name,
+                AttendanceCount = attCount,
+                LateCount = lateCount,
+                LeaveCount = leaveCount,
+                AbsentCount = absentCount,
+                OvertimeCount = records.Count(a => a.Status == "Overtime")
+            });
+        }
+
+        return reportData;
     }
 
     public async Task<IActionResult> ExportToExcel()
     {
         var data = await GetReportData();
-
         using (var workbook = new XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Attendance Report");
             var currentRow = 1;
-
             worksheet.Cell(currentRow, 1).Value = "Employee Name";
             worksheet.Cell(currentRow, 2).Value = "Attendance";
             worksheet.Cell(currentRow, 3).Value = "Late";
@@ -108,9 +151,7 @@ public class AttendanceReportController : Controller
                 worksheet.Cell(currentRow, 5).Value = item.AbsentCount;
                 worksheet.Cell(currentRow, 6).Value = item.OvertimeCount;
             }
-
             worksheet.Columns().AdjustToContents();
-
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
@@ -123,54 +164,84 @@ public class AttendanceReportController : Controller
     {
         var data = await GetReportData();
 
-        var htmlContent = $@"
-            <html>
-            <head>
-                <style>
-                    body {{ font-family: Arial, sans-serif; }}
-                    .header {{ text-align: center; background-color: #BDD2E7; padding: 20px; border-bottom: 2px solid #a5bed9; }}
-                    table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                    th {{ background-color: #4A77A5; color: white; padding: 12px; border: 1px solid #ddd; }}
-                    td {{ border: 1px solid #ddd; padding: 10px; text-align: center; }}
-                    .name-cell {{ text-align: left; font-weight: bold; color: #4A77A5; }}
-                </style>
-            </head>
-            <body>
-                <div class='header'>
-                    <h2 style='margin:0;'>Attendance Report</h2>
-                    <p style='margin:5px 0 0 0;'>2026 / Jan</p>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Employee Name</th>
-                            <th>Attendance</th>
-                            <th>Late</th>
-                            <th>Leave</th>
-                            <th>Absent</th>
-                            <th>Overtime</th>
-                        </tr>
-                    </thead>
-                    <tbody>";
+        int totalAtt = data.Sum(x => x.AttendanceCount);
+        int totalLate = data.Sum(x => x.LateCount);
+        int totalLeave = data.Sum(x => x.LeaveCount);
+        int totalAbs = data.Sum(x => x.AbsentCount);
+        int totalOt = data.Sum(x => x.OvertimeCount);
+
+        string htmlContent = $@"
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #333; }}
+                .header {{ text-align: center; margin-bottom: 30px; border-bottom: 2px solid #4A77A5; padding-bottom: 10px; }}
+                h2 {{ color: #4A77A5; margin: 0; text-transform: uppercase; letter-spacing: 1px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }}
+                th {{ background-color: #4A77A5; color: white; padding: 12px 5px; font-size: 13px; text-align: center; }}
+                td {{ border: 1px solid #ddd; padding: 10px 5px; text-align: center; font-size: 12px; }}
+                .col-name {{ width: 25%; text-align: left; padding-left: 10px; }}
+                .col-data {{ width: 15%; }} 
+                tr:nth-child(even) {{ background-color: #f9f9f9; }}
+                .total-row {{ background-color: #eee !important; font-weight: bold; border-top: 2px solid #4A77A5; }}
+                .footer {{ margin-top: 30px; font-size: 10px; text-align: right; color: #777; font-style: italic; }}
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h2>Attendance Analytics Report</h2>
+                <p>Generated for the month of January 2026</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class='col-name'>Employee Name</th>
+                        <th class='col-data'>Attendance</th>
+                        <th class='col-data'>Late</th>
+                        <th class='col-data'>Leave</th>
+                        <th class='col-data'>Absent</th>
+                        <th class='col-data'>Overtime</th>
+                    </tr>
+                </thead>
+                <tbody>";
 
         foreach (var item in data)
         {
             htmlContent += $@"
-                        <tr>
-                            <td class='name-cell'>{item.Name}</td>
-                            <td>{item.AttendanceCount}</td>
-                            <td>{item.LateCount}</td>
-                            <td>{item.LeaveCount}</td>
-                            <td>{item.AbsentCount}</td>
-                            <td>{item.OvertimeCount}</td>
-                        </tr>";
+                    <tr>
+                        <td style='text-align: left; padding-left: 10px;'>{item.Name}</td>
+                        <td>{item.AttendanceCount}</td>
+                        <td>{item.LateCount}</td>
+                        <td>{item.LeaveCount}</td>
+                        <td>{item.AbsentCount}</td>
+                        <td>{item.OvertimeCount}</td>
+                    </tr>";
         }
 
-        htmlContent += "</tbody></table></body></html>";
+        htmlContent += $@"
+                    <tr class='total-row'>
+                        <td style='text-align: left; padding-left: 10px;'>COMPANY TOTAL</td>
+                        <td>{totalAtt}</td>
+                        <td>{totalLate}</td>
+                        <td>{totalLeave}</td>
+                        <td>{totalAbs}</td>
+                        <td>{totalOt}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class='footer'>
+                Record Summary | Generated on: {DateTime.Now:dd-MM-yyyy HH:mm}
+            </div>
+        </body>
+        </html>";
 
         HtmlToPdf converter = new HtmlToPdf();
         converter.Options.PdfPageSize = PdfPageSize.A4;
         converter.Options.PdfPageOrientation = PdfPageOrientation.Portrait;
+        converter.Options.MarginTop = 30;
+        converter.Options.MarginBottom = 30;
+        converter.Options.MarginLeft = 20;
+        converter.Options.MarginRight = 20;
 
         PdfDocument doc = converter.ConvertHtmlString(htmlContent);
         byte[] pdfFile = doc.Save();

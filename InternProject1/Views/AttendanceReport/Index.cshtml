@@ -1,180 +1,151 @@
 ﻿@model IEnumerable<InternProject1.Models.StaffSummaryViewModel>
 
 @{
-    // Dynamically calculate company-wide totals for the summary cards and the chart
     var totalAttendance = Model?.Sum(s => s.AttendanceCount) ?? 0;
     var totalLate = Model?.Sum(s => s.LateCount) ?? 0;
     var totalLeave = Model?.Sum(s => s.LeaveCount) ?? 0;
     var totalAbsent = Model?.Sum(s => s.AbsentCount) ?? 0;
 }
 
-<div class="container-fluid p-0" style="background-color: #f8f9fa; min-height: 100vh;">
-    @* Top Header Section *@
-    <div class="text-center py-3 mb-4" style="background-color: #BDD2E7; border-bottom: 2px solid #a5bed9;">
-        <h5 class="fw-bold m-0" style="text-decoration: underline; text-underline-offset: 5px;">Attendance Report</h5>
-        <small class="fw-bold">2026 / Jan</small>
+<div class="container-fluid p-0" style="background-color: #f4f7f6; min-height: 100vh;">
+    @* Optimized Header: Less padding to save vertical space *@
+    <div class="text-center py-3 mb-3 shadow-sm" style="background: linear-gradient(135deg, #BDD2E7 0%, #9bbad9 100%);">
+        <h5 class="fw-bold m-0 text-dark">ATTENDANCE ANALYTICS</h5>
+        <div class="badge bg-white text-dark mt-1 px-3 py-1 shadow-sm" style="border-radius: 20px; font-size: 0.75rem;">
+            <i class="bi bi-calendar3 me-1"></i> January 2026
+        </div>
     </div>
 
-    <div class="px-4">
-        @* Summary Statistics Cards *@
-        <div class="row g-3 mb-4 justify-content-center text-center">
-            <div class="col-md-2">
-                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
-                    <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Attendance</p>
-                    <h2 class="fw-bold m-0">@totalAttendance</h2>
+    @* Changed to standard 'container' to keep width at 100% of standard screens *@
+    <div class="container">
+
+        @* Summary Statistics Cards: Smaller padding and border-radius *@
+        <div class="row g-3 mb-4 justify-content-center">
+            @foreach (var item in new[] {
+                        new { Title = "Attendance", Count = totalAttendance, Color = "#4A77A5" },
+                        new { Title = "Late", Count = totalLate, Color = "#FFCC00" },
+                        new { Title = "Leave", Count = totalLeave, Color = "#99CCFF" },
+                        new { Title = "Absent", Count = totalAbsent, Color = "#FF6666" }
+                        })
+            {
+                <div class="col-6 col-md-3">
+                    <div class="p-3 border-0 text-center shadow-sm" style="background-color: white; border-radius: 15px; border-bottom: 4px solid @item.Color !important;">
+                        <p class="text-uppercase mb-1 text-muted" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">@item.Title</p>
+                        <h3 class="fw-bold m-0" style="color: #333;">@item.Count</h3>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
-                    <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Days Late</p>
-                    <h2 class="fw-bold m-0">@totalLate</h2>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
-                    <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Days Of Leave</p>
-                    <h2 class="fw-bold m-0">@totalLeave</h2>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <div class="p-3 shadow-sm" style="background-color: #DDE7F2; border-radius: 15px;">
-                    <p class="small fw-bold mb-1" style="font-size: 0.75rem;">Total Absences</p>
-                    <h2 class="fw-bold m-0">@totalAbsent</h2>
-                </div>
-            </div>
+            }
         </div>
 
-        @* Search Section *@
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="input-group shadow-sm">
-                    <span class="input-group-text bg-white border-0"><i class="bi bi-search"></i></span>
-                    <input type="text" id="employeeSearch" class="form-control border-0" placeholder="Search employee name..." style="font-size: 0.9rem;">
-                </div>
-            </div>
-        </div>
-
-        @* Combined Bar Chart Visualization - Summed for all People *@
-        <div class="card border-0 shadow-sm mb-4 p-4" style="border-radius: 12px;">
-            <h6 class="fw-bold text-muted mb-3"><i class="bi bi-bar-chart-fill me-2"></i>Company Overall Attendance Summary</h6>
-            <div style="height: 300px;">
+        @* Company Overall Chart: Fixed height to ensure it renders *@
+        <div class="card border-0 shadow-sm mb-4 p-3" style="border-radius: 15px; background: white;">
+            <p class="fw-bold text-muted mb-2 small" style="font-size: 0.8rem;"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Overall Summary</p>
+            <div style="height: 260px; width: 100%; position: relative;">
                 <canvas id="attendanceBarChart"></canvas>
             </div>
         </div>
 
-        @* Employee Data Table *@
-        <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 8px;">
-            <table class="table align-middle text-center mb-0" id="attendanceTable">
-                <thead style="background-color: #4A77A5; color: white;">
-                    <tr class="small fw-bold">
-                        <th class="py-3 text-start ps-4">Employee Name</th>
-                        <th>Attendance</th>
-                        <th>Late</th>
-                        <th>Leave</th>
-                        <th>Absent</th>
-                        <th>Overtime</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white">
-                    @if (Model != null && Model.Any())
-                    {
-                        @foreach (var staff in Model)
-                        {
-                            <tr class="border-bottom">
-                                <td class="py-3 fw-semibold text-start ps-4">
-                                    <a asp-action="EmployeeDetails" asp-route-id="@staff.Employee_ID" class="text-decoration-none" style="color: #4A77A5;">
-                                        @staff.Name <i class="bi bi-arrow-right-short ms-1"></i>
-                                    </a>
-                                </td>
-                                <td class="text-secondary">@staff.AttendanceCount</td>
-                                <td class="text-secondary">@staff.LateCount</td>
-                                <td class="text-secondary">@staff.LeaveCount</td>
-                                <td class="text-secondary">@staff.AbsentCount</td>
-                                <td class="text-secondary">@staff.OvertimeCount</td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="6" class="py-5 text-muted">No attendance records found.</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        @* Employee Search Card: Clean and Centered *@
+        <div class="row justify-content-center mb-4">
+            <div class="col-lg-9">
+                <div class="card border-0 shadow-sm p-4 text-center" style="border-radius: 20px; background: white;">
+                    <div class="mb-3">
+                        <h6 class="fw-bold m-0">Employee Detailed Log</h6>
+                        <p class="text-muted" style="font-size: 0.75rem;">Search and select to view individual history</p>
+                    </div>
+
+                    <div class="row g-2 justify-content-center align-items-center">
+                        <div class="col-md-8 text-start">
+                            <select id="employeeSelect" class="form-select border-2 py-2" style="border-radius: 10px;">
+                                <option value="">Start typing name...</option>
+                                @if (ViewBag.EmployeeList != null)
+                                {
+                                    foreach (var emp in ViewBag.EmployeeList)
+                                    {
+                                        <option value="@emp.Employee_ID">@emp.FullName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary w-100 fw-bold py-2" onclick="goToDetails()" style="border-radius: 10px; background: #4A77A5; border: none;">
+                                VIEW REPORT
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        @* Export Actions *@
-        <div class="text-end mt-4 d-flex flex-column align-items-end gap-2 mb-5">
-            <a asp-action="ExportToExcel" class="btn btn-sm px-4 shadow-sm"
-               style="background-color: #DDE7F2; border-radius: 10px; font-weight: 500; font-size: 0.85rem; border: none; color: black; text-decoration: none;">
-                Convert To Excel
+        @* Compact Export Section *@
+        <div class="d-flex justify-content-center gap-2 pb-5">
+            <a asp-action="ExportToExcel" class="btn btn-outline-secondary btn-sm px-3" style="border-radius: 8px; font-size: 0.75rem;">
+                <i class="bi bi-file-earmark-excel me-1"></i>Excel
             </a>
-            <a asp-action="ExportToPdf" class="btn btn-sm px-4 shadow-sm"
-               style="background-color: #DDE7F2; border-radius: 10px; font-weight: 500; font-size: 0.85rem; border: none; color: black; text-decoration: none;">
-                Convert To PDF
+            <a asp-action="ExportToPdf" class="btn btn-outline-secondary btn-sm px-3" style="border-radius: 8px; font-size: 0.75rem;">
+                <i class="bi bi-file-earmark-pdf me-1"></i>PDF
             </a>
         </div>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
     <script>
-        // 1. Instant Search Functionality
-        document.getElementById('employeeSearch').addEventListener('keyup', function() {
-            let filter = this.value.toLowerCase();
-            let rows = document.querySelectorAll('#attendanceTable tbody tr');
-            rows.forEach(row => {
-                let nameCell = row.cells[0].textContent.toLowerCase();
-                row.style.display = nameCell.includes(filter) ? "" : "none";
+        $(document).ready(function() {
+            // Initialize Select2 with improved styling
+            $('#employeeSelect').select2({
+                placeholder: "Search for an employee...",
+                allowClear: true,
+                width: '100%'
             });
-        });
 
-        // 2. Summary Bar Chart (Combined Totals)
-        const ctx = document.getElementById('attendanceBarChart').getContext('2d');
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Attendance', 'Late', 'Leave', 'Absent'],
-                datasets: [{
-                    label: 'Total Count',
-                    data: [
-                        @totalAttendance,
-                        @totalLate,
-                        @totalLeave,
-                        @totalAbsent
-                    ],
-                    backgroundColor: [
-                        '#4A77A5', // Blue
-                        '#FFCC00', // Yellow
-                        '#99CCFF', // Light Blue
-                        '#FF6666'  // Red
-                    ],
-                    borderRadius: 8,
-                    barThickness: 50
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }, // Hiding legend as labels are on X-axis
-                    tooltip: { enabled: true }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 }
+            // FIXED: Chart initialization inside document ready
+            const canvas = document.getElementById('attendanceBarChart');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Attendance', 'Late', 'Leave', 'Absent'],
+                        datasets: [{
+                            label: 'Total',
+                            data: [@totalAttendance, @totalLate, @totalLeave, @totalAbsent],
+                            backgroundColor: ['#4A77A5', '#FFCC00', '#99CCFF', '#FF6666'],
+                            borderRadius: 8,
+                            barThickness: 45
+                        }]
                     },
-                    x: {
-                        grid: { display: false }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#f0f0f0' },
+                                ticks: { stepSize: 1, font: { size: 10 } }
+                            },
+                            x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                        }
                     }
-                }
+                });
             }
         });
+
+        function goToDetails() {
+            var id = $('#employeeSelect').val();
+            if (id) {
+                // Ensure this URL matches your controller route
+                window.location.href = '/AttendanceReport/EmployeeDetails/' + id;
+            } else {
+                alert("Please select an employee name first.");
+            }
+        }
     </script>
 }
