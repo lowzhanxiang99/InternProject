@@ -928,19 +928,17 @@
                     <div class="chart-header">
                         <h4>Attendance Comparison</h4>
                         <div class="chart-filter-dropdown">
-                            <button class="filter-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-sliders"></i> <!-- This shows 3 horizontal bars -->
+                            <button class="filter-icon-btn" type="button" id="chart1FilterBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-sliders"></i>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end chart-filter-menu">
-                                <li><a class="dropdown-item filter-option active" href="#" data-filter="week">This Week</a></li>
-                                <li><a class="dropdown-item filter-option" href="#" data-filter="last-week">Last Week</a></li>
-                                <li><a class="dropdown-item filter-option" href="#" data-filter="month">This Month</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item filter-option" href="#" data-filter="custom">Custom Range</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end chart-filter-menu" id="chart1FilterMenu">
+                                <li><a class="dropdown-item chart1-filter-option active" href="#" data-filter="week">Week-over-Week</a></li>
+                                <li><a class="dropdown-item chart1-filter-option" href="#" data-filter="last-week">Last Week vs Today</a></li>
+                                <li><a class="dropdown-item chart1-filter-option" href="#" data-filter="month">Month-over-Month</a></li>
                             </ul>
                         </div>
                     </div>
-                    <div class="chart-container" id="attendanceComparisonChart">
+                    <div class="chart-container">
                         <canvas id="attendanceChart"></canvas>
                     </div>
                 </div>
@@ -952,19 +950,16 @@
                     <div class="chart-header">
                         <h4>Weekly Attendance</h4>
                         <div class="chart-filter-dropdown">
-                            <button class="filter-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-sliders"></i> <!-- This shows 3 horizontal bars -->
-                                </button>
-                            <ul class="dropdown-menu dropdown-menu-end chart-filter-menu">
-                                <li><a class="dropdown-item filter-option active" href="#" data-filter="current-week">Current Week</a></li>
-                                <li><a class="dropdown-item filter-option" href="#" data-filter="last-week-data">Last Week</a></li>
-                                <li><a class="dropdown-item filter-option" href="#" data-filter="two-weeks">Last 2 Weeks</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item filter-option" href="#" data-filter="month-data">This Month</a></li>
+                            <button class="filter-icon-btn" type="button" id="chart2FilterBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-sliders"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end chart-filter-menu" id="chart2FilterMenu">
+                                <li><a class="dropdown-item chart2-filter-option active" href="#" data-filter="current-week">Current Week</a></li>
+                                <li><a class="dropdown-item chart2-filter-option" href="#" data-filter="last-week-data">Last Week</a></li>
                             </ul>
                         </div>
                     </div>
-                    <div class="chart-container" id="weeklyAttendanceChart">
+                    <div class="chart-container">
                         <canvas id="weeklyChart"></canvas>
                     </div>
                 </div>
@@ -976,47 +971,42 @@
 @section Scripts {
     <script>
         // Get REAL data from your Model
-         const chartData = {
-             // Today's counts
-             total: @Model.TotalEmployees,
-             present: @Model.PresentCount,
-             absent: @Model.AbsentCount,
-             late: @Model.LateCount,
+        const chartData = {
+            // Today's counts
+            total: @Model.TotalEmployees,
+            present: @Model.PresentCount,
+            absent: @Model.AbsentCount,
+            late: @Model.LateCount,
 
-             // Attendance rates
-             todayAttendanceRate: @Model.TodayAttendanceRate,
-             lastWeekAttendanceRate: @Model.LastWeekAttendanceRate,
-             lastMonthAttendanceRate: @Model.LastMonthAttendanceRate,
+            // Attendance rates
+            todayAttendanceRate: @Model.TodayAttendanceRate,
+            lastWeekAttendanceRate: @Model.LastWeekAttendanceRate,
+            lastMonthAttendanceRate: @Model.LastMonthAttendanceRate,
 
-             // Historical counts
-             lastWeekPresentCount: @Model.LastWeekPresentCount,
-             lastMonthPresentCount: @Model.LastMonthPresentCount,
+            // Historical counts
+            lastWeekPresentCount: @Model.LastWeekPresentCount,
+            lastMonthPresentCount: @Model.LastMonthPresentCount,
 
-             // Weekly data (100% REAL from database)
-             weeklyData: @Html.Raw(Json.Serialize(Model.WeeklyData))
-         };
+            // Weekly data (100% REAL from database)
+            weeklyData: @Html.Raw(Json.Serialize(Model.WeeklyData)),
+            lastWeekData: @Html.Raw(Json.Serialize(Model.LastWeekData))
+        };
 
         // Function to update digital clock
         function updateDigitalClock() {
             const now = new Date();
-
-            // Format time as HH:MM:SS
             const hours = now.getHours().toString().padStart(2, '0');
             const minutes = now.getMinutes().toString().padStart(2, '0');
             const seconds = now.getSeconds().toString().padStart(2, '0');
-
-            // Format with AM/PM
             const ampm = hours >= 12 ? 'PM' : 'AM';
             const hour12 = (hours % 12 || 12).toString().padStart(2, '0');
 
-            // Update the elements
             const digitalTimeElement = document.getElementById('digital-time');
             const amPmElement = document.getElementById('am-pm');
 
             if (digitalTimeElement) {
                 digitalTimeElement.textContent = `${hour12}:${minutes}:${seconds}`;
             }
-
             if (amPmElement) {
                 amPmElement.textContent = ampm;
             }
@@ -1032,7 +1022,6 @@
             const monthName = months[now.getMonth()];
             const year = now.getFullYear();
 
-            // Get day suffix (st, nd, rd, th)
             function getDaySuffix(day) {
                 if (day >= 11 && day <= 13) return "th";
                 switch (day % 10) {
@@ -1046,319 +1035,579 @@
             const daySuffix = getDaySuffix(day);
             const formattedDate = `${day}${daySuffix} ${monthName} ${year} ${dayName}`;
 
-            // Update the date display
             const dateDisplayElement = document.getElementById('formatted-date');
-
             if (dateDisplayElement) {
                 dateDisplayElement.innerHTML = formattedDate;
             }
         }
 
         // ======================
-         // CHART 1: Attendance Comparison (Using ONLY Real Data)
-         // ======================
-         function createAttendanceComparisonChart() {
-             const ctx = document.getElementById('attendanceChart');
+        // CHART 1: Attendance Comparison Line Chart - IMPROVED COMPARISONS
+        // ======================
+            function createAttendanceComparisonChart(filterType = 'week') {
+        const ctx = document.getElementById('attendanceChart');
 
-             if (!ctx) {
-                 console.error('Canvas element #attendanceChart not found');
-                 return null;
-             }
+        if (!ctx) {
+            console.error('Canvas element #attendanceChart not found');
+            return null;
+        }
 
-             // Destroy existing chart if it exists
-             if (window.attendanceChartInstance) {
-                 window.attendanceChartInstance.destroy();
-             }
+        // Destroy existing chart if it exists
+        if (window.attendanceChartInstance) {
+            window.attendanceChartInstance.destroy();
+        }
 
-             // OPTION 1: Simple Bar Chart with REAL period averages (Recommended)
-             const data = {
-                 labels: ['Today', 'Last Week Avg', 'Last Month Avg'],
-                 datasets: [{
-                     label: 'Attendance Rate (%)',
-                     data: [
-                         chartData.todayAttendanceRate,
-                         chartData.lastWeekAttendanceRate,
-                         chartData.lastMonthAttendanceRate
-                     ],
-                     backgroundColor: [
-                         'rgba(90, 145, 203, 0.8)',  // Blue for Today
-                         'rgba(255, 193, 7, 0.8)',    // Yellow for Last Week
-                         'rgba(108, 117, 125, 0.8)'   // Gray for Last Month
-                     ],
-                     borderColor: [
-                         '#5A91CB',
-                         '#ffc107',
-                         '#6c757d'
-                     ],
-                     borderWidth: 1
-                 }]
-             };
+        let data;
+        let chartTitle = 'Attendance Comparison';
 
-             window.attendanceChartInstance = new Chart(ctx, {
-                 type: 'bar', // Keep as bar chart for clear comparison
-                 data: data,
-                 options: {
-                     responsive: true,
-                     maintainAspectRatio: false,
-                     plugins: {
-                         legend: {
-                             display: false
-                         },
-                         tooltip: {
-                             backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                             titleFont: {
-                                 family: 'Poppins',
-                                 size: 12
-                             },
-                             bodyFont: {
-                                 family: 'Poppins',
-                                 size: 11
-                             },
-                             callbacks: {
-                                 label: function(context) {
-                                     const value = context.parsed.y;
-                                     const label = context.label;
+        // DECLARE THIS AT THE TOP - OUTSIDE THE SWITCH
+        let thisMonthRate = 0;
 
-                                     // Show employee counts for context
-                                     let countText = '';
-                                     if (label === 'Today') {
-                                         countText = ` (${chartData.present}/${chartData.total} employees)`;
-                                     } else if (label === 'Last Week Avg') {
-                                         countText = ` (${chartData.lastWeekPresentCount} attendance records)`;
-                                     } else if (label === 'Last Month Avg') {
-                                         countText = ` (${chartData.lastMonthPresentCount} attendance records)`;
-                                     }
+        switch (filterType) {
+            case 'week':
+                // Calculate current week average from weeklyData
+                let currentWeekTotal = 0;
+                let currentWeekDays = 0;
+                if (chartData.weeklyData && chartData.weeklyData.length > 0) {
+                    chartData.weeklyData.forEach(day => {
+                        if (day.present > 0) {
+                            currentWeekTotal += ((day.present / chartData.total) * 100);
+                            currentWeekDays++;
+                        }
+                    });
+                }
+                const currentWeekRate = currentWeekDays > 0 ?
+                    Math.round((currentWeekTotal / currentWeekDays) * 10) / 10 :
+                    chartData.todayAttendanceRate;
 
-                                     return `${label}: ${value}%${countText}`;
-                                 }
-                             }
-                         }
-                     },
-                     scales: {
-                         y: {
-                             beginAtZero: true,
-                             max: 100,
-                             ticks: {
-                                 font: {
-                                     family: 'Poppins',
-                                     size: 11
-                                 },
-                                 color: '#718096',
-                                 callback: function(value) {
-                                     return value + '%';
-                                 }
-                             },
-                             grid: {
-                                 color: 'rgba(226, 232, 240, 0.5)'
-                             },
-                             title: {
-                                 display: true,
-                                 text: 'Attendance Rate (%)',
-                                 font: {
-                                     family: 'Poppins',
-                                     size: 12
-                                 },
-                                 color: '#718096'
-                             }
-                         },
-                         x: {
-                             ticks: {
-                                 font: {
-                                     family: 'Poppins',
-                                     size: 11
-                                 },
-                                 color: '#718096'
-                             },
-                             grid: {
-                                 color: 'rgba(226, 232, 240, 0.5)'
-                             }
-                         }
-                     }
-                 }
-             });
+                data = {
+                    labels: ['Last Week', 'This Week'],
+                    datasets: [{
+                        label: 'Attendance Rate (%)',
+                        data: [
+                            chartData.lastWeekAttendanceRate,
+                            currentWeekRate
+                        ],
+                        backgroundColor: 'rgba(90, 145, 203, 0.2)',
+                        borderColor: '#5A91CB',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#5A91CB',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                };
+                chartTitle = 'Week-over-Week Comparison';
+                break;
 
-             return window.attendanceChartInstance;
-         }
+            case 'last-week':
+                data = {
+                    labels: ['Last Week Average', 'Today'],
+                    datasets: [{
+                        label: 'Attendance Rate (%)',
+                        data: [
+                            chartData.lastWeekAttendanceRate,
+                            chartData.todayAttendanceRate
+                        ],
+                        backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                        borderColor: '#ffc107',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffc107',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                };
+                chartTitle = 'Last Week vs Today';
+                break;
 
-         // ======================
-         // CHART 2: Weekly Attendance (Using ONLY Real Weekly Data)
-         // ======================
-         function createWeeklyAttendanceChart() {
-             const ctx = document.getElementById('weeklyChart');
+            case 'month':
+                // Calculate month-to-date average
+                let monthToDateTotal = 0;
+                let monthToDateDays = 0;
 
-             if (!ctx) {
-                 console.error('Canvas element #weeklyChart not found');
-                 return null;
-             }
+                if (chartData.weeklyData && chartData.weeklyData.length > 0) {
+                    chartData.weeklyData.forEach(day => {
+                        if (day.present > 0) {
+                            monthToDateTotal += ((day.present / chartData.total) * 100);
+                            monthToDateDays++;
+                        }
+                    });
+                }
+                thisMonthRate = monthToDateDays > 0 ?
+                    Math.round((monthToDateTotal / monthToDateDays) * 10) / 10 :
+                    chartData.todayAttendanceRate;
 
-             // Destroy existing chart if it exists
-             if (window.weeklyChartInstance) {
-                 window.weeklyChartInstance.destroy();
-             }
+                // DEBUG
+                console.log('Last Month Rate:', chartData.lastMonthAttendanceRate);
+                console.log('This Month Rate:', thisMonthRate);
 
-             // Check if we have REAL weekly data
-             if (!chartData.weeklyData || chartData.weeklyData.length === 0) {
-                 console.warn('No weekly data available in database');
+                data = {
+                    labels: ['Last Month', 'This Month'],
+                    datasets: [{
+                        label: 'Attendance Rate (%)',
+                        data: [
+                            chartData.lastMonthAttendanceRate || 0,
+                            thisMonthRate || 0
+                        ],
+                        backgroundColor: 'rgba(108, 117, 125, 0.2)',
+                        borderColor: '#6c757d',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#6c757d',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                };
 
-                 // Show empty state message
-                 ctx.parentElement.innerHTML = `
-                     <div class="text-center py-5">
-                         <i class="bi bi-calendar-x fs-1 text-muted mb-3"></i>
-                         <p class="text-muted">No Weekly Data Available</p>
-                         <small>Attendance records for this week not found</small>
-                     </div>
-                 `;
-                 return null;
-             }
+                if (chartData.lastMonthAttendanceRate === 0 && thisMonthRate === 0) {
+                    chartTitle = 'Month-over-Month (No Data Available)';
+                } else {
+                    chartTitle = 'Month-over-Month Comparison';
+                }
+                break;
 
-             // Use 100% REAL weekly data from database
-             const days = chartData.weeklyData.map(d => d.dayName);
-             const presentData = chartData.weeklyData.map(d => d.present);
-             const lateData = chartData.weeklyData.map(d => d.late);
-             const absentData = chartData.weeklyData.map(d => d.absent);
+                default:
+                    // Default: Historical Trend (3 data points)
+                    let currentWeekTotalDefault = 0;
+                    let currentWeekDaysDefault = 0;
+                    if (chartData.weeklyData && chartData.weeklyData.length > 0) {
+                        chartData.weeklyData.forEach(day => {
+                            if (day.present > 0) {
+                                currentWeekTotalDefault += ((day.present / chartData.total) * 100);
+                                currentWeekDaysDefault++;
+                            }
+                        });
+                    }
+                    const currentWeekRateDefault = currentWeekDaysDefault > 0 ?
+                        Math.round((currentWeekTotalDefault / currentWeekDaysDefault) * 10) / 10 :
+                        chartData.todayAttendanceRate;
 
-             window.weeklyChartInstance = new Chart(ctx, {
-                 type: 'bar',
-                 data: {
-                     labels: days,
-                     datasets: [
-                         {
-                             label: 'Present',
-                             data: presentData,
-                             backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                             borderColor: '#28a745',
-                             borderWidth: 1
-                         },
-                         {
-                             label: 'Late',
-                             data: lateData,
-                             backgroundColor: 'rgba(255, 193, 7, 0.8)',
-                             borderColor: '#ffc107',
-                             borderWidth: 1
-                         },
-                         {
-                             label: 'Absent',
-                             data: absentData,
-                             backgroundColor: 'rgba(220, 53, 69, 0.8)',
-                             borderColor: '#dc3545',
-                             borderWidth: 1
-                         }
-                     ]
-                 },
-                 options: {
-                     responsive: true,
-                     maintainAspectRatio: false,
-                     plugins: {
-                         legend: {
-                             position: 'top',
-                             labels: {
-                                 font: {
-                                     family: 'Poppins',
-                                     size: 12
-                                 },
-                                 color: '#718096',
-                                 padding: 20
-                             }
-                         },
-                         tooltip: {
-                             backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                             titleFont: {
-                                 family: 'Poppins',
-                                 size: 12
-                             },
-                             bodyFont: {
-                                 family: 'Poppins',
-                                 size: 11
-                             },
-                             callbacks: {
-                                 label: function(context) {
-                                     const total = chartData.total;
-                                     const value = context.parsed.y;
-                                     const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                     return `${context.dataset.label}: ${value} employees (${percentage}%)`;
-                                 }
-                             }
-                         }
-                     },
-                     scales: {
-                         y: {
-                             beginAtZero: true,
-                             stacked: false,
-                             ticks: {
-                                 font: {
-                                     family: 'Poppins',
-                                     size: 11
-                                 },
-                                 color: '#718096',
-                                 callback: function(value) {
-                                     return value;
-                                 }
-                             },
-                             grid: {
-                                 color: 'rgba(226, 232, 240, 0.5)'
-                             },
-                             title: {
-                                 display: true,
-                                 text: 'Number of Employees',
-                                 font: {
-                                     family: 'Poppins',
-                                     size: 12
-                                 },
-                                 color: '#718096'
-                             }
-                         },
-                         x: {
-                             stacked: false,
-                             ticks: {
-                                 font: {
-                                     family: 'Poppins',
-                                     size: 11
-                                 },
-                                 color: '#718096'
-                             },
-                             grid: {
-                                 color: 'rgba(226, 232, 240, 0.5)'
-                             }
-                         }
-                     }
-                 }
-             });
+                    data = {
+                        labels: ['Last Month', 'Last Week', 'This Week'],
+                        datasets: [{
+                            label: 'Attendance Rate (%)',
+                            data: [
+                                chartData.lastMonthAttendanceRate,
+                                chartData.lastWeekAttendanceRate,
+                                currentWeekRateDefault
+                            ],
+                            backgroundColor: 'rgba(90, 145, 203, 0.2)',
+                            borderColor: '#5A91CB',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#5A91CB',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    };
+                    chartTitle = 'Attendance Trend';
+            }
 
-             return window.weeklyChartInstance;
-         }
+            window.attendanceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: chartTitle,
+                            font: {
+                                family: 'Poppins',
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            color: '#122539',
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: 'Poppins',
+                                    size: 12
+                                },
+                                color: '#718096',
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: {
+                                family: 'Poppins',
+                                size: 12
+                            },
+                            bodyFont: {
+                                family: 'Poppins',
+                                size: 11
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    return `${context.dataset.label}: ${value}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                font: {
+                                    family: 'Poppins',
+                                    size: 11
+                                },
+                                color: '#718096',
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(226, 232, 240, 0.5)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Attendance Rate (%)',
+                                font: {
+                                    family: 'Poppins',
+                                    size: 12
+                                },
+                                color: '#718096'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    family: 'Poppins',
+                                    size: 11
+                                },
+                                color: '#718096'
+                            },
+                            grid: {
+                                color: 'rgba(226, 232, 240, 0.5)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    elements: {
+                        line: {
+                            tension: 0.4
+                        }
+                    }
+                }
+            });
 
-         // Initialize when page loads
-         document.addEventListener('DOMContentLoaded', function() {
-             console.log('DOM loaded, initializing with REAL database data...');
+            return window.attendanceChartInstance;
+        }
 
-             // Log the actual data for verification
-             console.log('Real Data Loaded:', {
-                 todayRate: chartData.todayAttendanceRate + '%',
-                 lastWeekRate: chartData.lastWeekAttendanceRate + '%',
-                 lastMonthRate: chartData.lastMonthAttendanceRate + '%',
-                 weeklyData: chartData.weeklyData
-             });
+        // ======================
+        // CHART 2: Weekly Attendance Bar Chart - REAL DATA ONLY
+        // ======================
+        function createWeeklyAttendanceChart(filterType = 'current-week') {
+            const ctx = document.getElementById('weeklyChart');
 
-             // Initialize digital clock
-             updateDigitalClock();
-             updateDateDisplay();
+            if (!ctx) {
+                console.error('Canvas element #weeklyChart not found');
+                return null;
+            }
 
-             // Update digital clock every second
-             setInterval(updateDigitalClock, 1000);
-             setInterval(updateDateDisplay, 60000);
+            // Destroy existing chart if it exists
+            if (window.weeklyChartInstance) {
+                window.weeklyChartInstance.destroy();
+            }
 
-             // Initialize charts with REAL data
-             setTimeout(() => {
-                 try {
-                     window.attendanceChart = createAttendanceComparisonChart();
-                     window.weeklyChart = createWeeklyAttendanceChart();
+            let chartTitle = 'Weekly Attendance';
+            let days, presentData, lateData, absentData;
 
-                     console.log('Charts initialized with 100% real database data');
+            // Handle different filter types
+            switch (filterType) {
+                case 'current-week':
+                    // Use current week data from database
+                    if (chartData.weeklyData && chartData.weeklyData.length > 0) {
+                        days = chartData.weeklyData.map(d => d.dayName);
+                        presentData = chartData.weeklyData.map(d => d.present);
+                        lateData = chartData.weeklyData.map(d => d.late);
+                        absentData = chartData.weeklyData.map(d => d.absent);
+                        chartTitle = 'Current Week';
+                    } else {
+                        // No data available
+                        days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        presentData = [0, 0, 0, 0, 0, 0, 0];
+                        lateData = [0, 0, 0, 0, 0, 0, 0];
+                        absentData = [chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total];
+                        chartTitle = 'Current Week - No Data';
+                    }
+                    break;
 
-                 } catch (error) {
-                     console.error('Error creating charts:', error);
-                 }
-             }, 100);
-         });
+                case 'last-week-data':
+                    // Use last week data from database (if available)
+                    if (chartData.lastWeekData && chartData.lastWeekData.length > 0) {
+                        days = chartData.lastWeekData.map(d => d.dayName);
+                        presentData = chartData.lastWeekData.map(d => d.present);
+                        lateData = chartData.lastWeekData.map(d => d.late);
+                        absentData = chartData.lastWeekData.map(d => d.absent);
+                        chartTitle = 'Last Week';
+                    } else {
+                        // Fallback to current week if last week data not available
+                        if (chartData.weeklyData && chartData.weeklyData.length > 0) {
+                            days = chartData.weeklyData.map(d => d.dayName);
+                            presentData = chartData.weeklyData.map(d => d.present);
+                            lateData = chartData.weeklyData.map(d => d.late);
+                            absentData = chartData.weeklyData.map(d => d.absent);
+                            chartTitle = 'Last Week - Using Current Week Data';
+                        } else {
+                            days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                            presentData = [0, 0, 0, 0, 0, 0, 0];
+                            lateData = [0, 0, 0, 0, 0, 0, 0];
+                            absentData = [chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total];
+                            chartTitle = 'Last Week - No Data';
+                        }
+                    }
+                    break;
+
+                default:
+                    // Default to current week
+                    if (chartData.weeklyData && chartData.weeklyData.length > 0) {
+                        days = chartData.weeklyData.map(d => d.dayName);
+                        presentData = chartData.weeklyData.map(d => d.present);
+                        lateData = chartData.weeklyData.map(d => d.late);
+                        absentData = chartData.weeklyData.map(d => d.absent);
+                        chartTitle = 'Weekly Attendance';
+                    } else {
+                        days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        presentData = [0, 0, 0, 0, 0, 0, 0];
+                        lateData = [0, 0, 0, 0, 0, 0, 0];
+                        absentData = [chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total];
+                        chartTitle = 'No Data Available';
+                    }
+                    break;
+            }
+
+            window.weeklyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: 'Present',
+                            data: presentData,
+                            backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                            borderColor: '#28a745',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Late',
+                            data: lateData,
+                            backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                            borderColor: '#ffc107',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Absent',
+                            data: absentData,
+                            backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                            borderColor: '#dc3545',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: chartTitle,
+                            font: {
+                                family: 'Poppins',
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            color: '#122539',
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: 'Poppins',
+                                    size: 12
+                                },
+                                color: '#718096',
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: {
+                                family: 'Poppins',
+                                size: 12
+                            },
+                            bodyFont: {
+                                family: 'Poppins',
+                                size: 11
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    return `${context.dataset.label}: ${value} employees`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            stacked: false,
+                            ticks: {
+                                font: {
+                                    family: 'Poppins',
+                                    size: 11
+                                },
+                                color: '#718096',
+                                callback: function(value) {
+                                    return value;
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(226, 232, 240, 0.5)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Number of Employees',
+                                font: {
+                                    family: 'Poppins',
+                                    size: 12
+                                },
+                                color: '#718096'
+                            }
+                        },
+                        x: {
+                            stacked: false,
+                            ticks: {
+                                font: {
+                                    family: 'Poppins',
+                                    size: 11
+                                },
+                                color: '#718096'
+                            },
+                            grid: {
+                                color: 'rgba(226, 232, 240, 0.5)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            return window.weeklyChartInstance;
+        }
+
+                // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing...');
+
+            // Initialize digital clock
+            updateDigitalClock();
+            updateDateDisplay();
+
+            // Update digital clock every second
+            setInterval(updateDigitalClock, 1000);
+            setInterval(updateDateDisplay, 60000);
+
+            // Initialize charts
+            setTimeout(() => {
+                try {
+                    window.attendanceChart = createAttendanceComparisonChart('week');
+                    window.weeklyChart = createWeeklyAttendanceChart('current-week');
+
+                    // Setup filter event handlers AFTER charts are created
+                    setupFilterEventHandlers();
+
+                    console.log('Charts initialized successfully');
+                } catch (error) {
+                    console.error('Error creating charts:', error);
+                }
+            }, 100);
+        });
+
+                function setupFilterEventHandlers() {
+            console.log('Setting up filter event handlers...');
+
+            // Chart 1 - Attendance Comparison filters
+            const chart1Filters = document.querySelectorAll('.chart1-filter-option');
+            console.log('Found Chart 1 filters:', chart1Filters.length);
+
+            chart1Filters.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Chart 1 filter clicked!');
+
+                    // Remove active class from all Chart 1 options
+                    chart1Filters.forEach(opt => opt.classList.remove('active'));
+
+                    // Add active class to clicked option
+                    this.classList.add('active');
+
+                    // Get filter type
+                    const filterType = this.getAttribute('data-filter');
+                    console.log('Chart 1 filter type:', filterType);
+
+                    // Update chart
+                    createAttendanceComparisonChart(filterType);
+                });
+            });
+
+            // Chart 2 - Weekly Attendance filters
+            const chart2Filters = document.querySelectorAll('.chart2-filter-option');
+            console.log('Found Chart 2 filters:', chart2Filters.length);
+
+            chart2Filters.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Chart 2 filter clicked!');
+
+                    // Remove active class from all Chart 2 options
+                    chart2Filters.forEach(opt => opt.classList.remove('active'));
+
+                    // Add active class to clicked option
+                    this.classList.add('active');
+
+                    // Get filter type
+                    const filterType = this.getAttribute('data-filter');
+                    console.log('Chart 2 filter type:', filterType);
+
+                    // Update chart
+                    createWeeklyAttendanceChart(filterType);
+                });
+            });
+
+            console.log('Filter event handlers setup complete');
+        }
     </script>
 }

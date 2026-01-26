@@ -200,12 +200,19 @@
     }
 
         .attendance-table thead {
-            background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
-            border-bottom: 2px solid #C6E6FB;
+            font-family: 'Poppins', sans-serif;
+            font-style: normal;
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 24px;
+            color: #2C5B8C;
+            border-bottom: 2px solid #D6E3F2;
+            padding: 16px 8px;
+            background: #FFFFFF;
         }
 
         .attendance-table th {
-            padding: 16px 20px;
+            padding: 16px 8px;
             text-align: left;
             font-weight: 600;
             font-size: 14px;
@@ -235,17 +242,30 @@
             opacity: 0.7;
         }
 
-        .attendance-table th.active .sort-icon {
-            opacity: 1;
-            color: #122539;
+        .attendance-table thead th.sortable::after {
+            content: '↕';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #2C5B8C;
+            opacity: 0.5;
+            transition: opacity 0.2s ease;
         }
 
         .attendance-table th.sort-asc .sort-icon::after {
-            content: "↑";
+            content: '↑';
+            color: #2C5B8C;
+            opacity: 2;
+            font-weight: bold;
         }
 
         .attendance-table th.sort-desc .sort-icon::after {
-            content: "↓";
+            content: '↓';
+            color: #2C5B8C;
+            opacity: 2;
+            font-weight: bold;
         }
 
         .attendance-table tbody tr {
@@ -619,59 +639,51 @@
         <!-- Table Section -->
         <div class="table-container" style="background: #FFFFFF; border: 1px solid #C6E3F2; box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25); border-radius: 12px; overflow: hidden; margin-bottom: 25px;">
             <div class="table-responsive" style="padding: 0 32px 20px 32px;">
-                <table class="table table-hover" style="margin-bottom: 0;">
-                    <thead>
-                        <tr>
-                            <th class="sortable @(sortBy == "Employee_ID" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="Employee_ID" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                ID
-                                <span class="sort-icon"></span>
-                            </th>
-                            <th class="sortable @(sortBy == "EmployeeName" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="EmployeeName" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                Employee
-                                <span class="sort-icon"></span>
-                            </th>
-                            <th class="sortable @(sortBy == "Department" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="Department" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                Department
-                                <span class="sort-icon"></span>
-                            </th>
-                            <th class="sortable @(sortBy == "Date" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="Date" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                Date
-                                <span class="sort-icon"></span>
-                            </th>
-                            <th class="sortable @(sortBy == "Status" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="Status" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                Status
-                                <span class="sort-icon"></span>
-                            </th>
-                            <th class="sortable @(sortBy == "ClockInTime" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="ClockInTime" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                Check In
-                                <span class="sort-icon"></span>
-                            </th>
-                            <th class="sortable @(sortBy == "ClockOutTime" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="ClockOutTime" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                Check Out
-                                <span class="sort-icon"></span>
-                            </th>
-                            <th class="sortable @(sortBy == "WorkHours" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
-                                data-sort="WorkHours" 
-                                style="font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px; color: #2C5B8C; border-bottom: 2px solid #D6E3F2; padding: 16px 8px;">
-                                Work Hours
-                                <span class="sort-icon"></span>
-                            </th>
-                        </tr>
-                    </thead>
+                <table class="attendance-table">
+                <thead>
+                    <tr>
+                        <th class="sortable @(sortBy == "Employee_ID" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="Employee_ID">
+                            ID
+                            <span class="sort-icon"></span>
+                        </th>
+                        <th class="sortable @(sortBy == "EmployeeName" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="EmployeeName">
+                            Employee
+                            <span class="sort-icon"></span>
+                        </th>
+                        <th class="sortable @(sortBy == "Department" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="Department">
+                            Department
+                            <span class="sort-icon"></span>
+                        </th>
+                        <th class="sortable @(sortBy == "Date" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="Date">
+                            Date
+                            <span class="sort-icon"></span>
+                        </th>
+                        <th class="sortable @(sortBy == "Status" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="Status">
+                            Status
+                            <span class="sort-icon"></span>
+                        </th>
+                        <th class="sortable @(sortBy == "ClockInTime" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="ClockInTime">
+                            Check In
+                            <span class="sort-icon"></span>
+                        </th>
+                        <th class="sortable @(sortBy == "ClockOutTime" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="ClockOutTime">
+                            Check Out
+                            <span class="sort-icon"></span>
+                        </th>
+                        <th class="sortable @(sortBy == "WorkHours" ? (sortOrder == "asc" ? "sort-asc" : "sort-desc") + " active" : "")" 
+                            data-sort="WorkHours">
+                            Work Hours
+                            <span class="sort-icon"></span>
+                        </th>
+                    </tr>
+                </thead>
                     <tbody id="attendanceTableBody">
                         @if (attendanceRecords.Any())
                         {
@@ -703,13 +715,16 @@
                                     <td style="font-family: 'Poppins', sans-serif; font-weight: 400; font-size: 16px; color: #5A91CB; padding: 16px 8px;">@(record.ClockOutTime?.ToString(@"hh\:mm") ?? "-")</td>
                                     <td style="font-family: 'Poppins', sans-serif; font-weight: 400; font-size: 16px; color: #5A91CB; padding: 16px 8px;">
                                         @{
-                                            double workHours = 0;
                                             if (record.ClockInTime.HasValue && record.ClockOutTime.HasValue)
                                             {
-                                                workHours = Math.Max(0, (record.ClockOutTime.Value - record.ClockInTime.Value).TotalHours);
+                                                double workHours = Math.Max(0, (record.ClockOutTime.Value - record.ClockInTime.Value).TotalHours);
                                                 workHours = Math.Round(workHours, 1);
+                                                @($"{workHours:0.0} hrs")
                                             }
-                                            @($"{workHours:0.0} hrs")
+                                            else
+                                            {
+                                                @("-")
+                                            }
                                         }
                                     </td>
                                 </tr>
@@ -868,6 +883,10 @@
             const searchTerm = document.getElementById('searchTerm')?.value || '';
             const dateFrom = document.getElementById('dateFrom')?.value || '';
             const dateTo = document.getElementById('dateTo')?.value || '';
+    
+            // ADDED: Get current sorting values
+            const sortBy = document.getElementById('sortBy')?.value || 'Date';
+            const sortOrder = document.getElementById('sortOrder')?.value || 'desc';
 
             // Create a hidden form
             const form = document.createElement('form');
@@ -896,19 +915,26 @@
             dateToInput.value = dateTo;
             form.appendChild(dateToInput);
 
+            // ADDED: Add sortBy
+            const sortByInput = document.createElement('input');
+            sortByInput.type = 'hidden';
+            sortByInput.name = 'sortBy';
+            sortByInput.value = sortBy;
+            form.appendChild(sortByInput);
+
+            // ADDED: Add sortOrder
+            const sortOrderInput = document.createElement('input');
+            sortOrderInput.type = 'hidden';
+            sortOrderInput.name = 'sortOrder';
+            sortOrderInput.value = sortOrder;
+            form.appendChild(sortOrderInput);
+
             // Add anti-forgery token
             const token = document.querySelector('input[name="__RequestVerificationToken"]');
             if (token) {
                 form.appendChild(token.cloneNode(true));
             }
     
-            // Add onsubmit handler to reset button if form fails
-            form.onsubmit = function() {
-                // Store original HTML in form data so we can restore it later
-                form.setAttribute('data-original-html', originalHTML);
-                return true;
-            };
-
             document.body.appendChild(form);
             form.submit();
     

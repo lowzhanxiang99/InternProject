@@ -184,9 +184,19 @@ public class LeaveController : Controller
 
             for (DateTime date = request.Start_Date.Date; date <= request.End_Date.Date; date = date.AddDays(1))
             {
-                var existing = await _context.Attendances.FirstOrDefaultAsync(a => a.Employee_ID == request.Employee_ID && a.Date.Date == date);
-                if (existing == null)
-                    _context.Attendances.Add(new Attendance { Employee_ID = request.Employee_ID, Date = date, Status = "Leave", ClockInTime = null });
+                var existingRecord = await _context.Attendances
+                    .FirstOrDefaultAsync(a => a.Employee_ID == request.Employee_ID && a.Date.Date == date);
+
+                if (existingRecord == null)
+                {
+                    _context.Attendances.Add(new Attendance
+                    {
+                        Employee_ID = request.Employee_ID,
+                        Date = date,
+                        Status = "Leave",
+                        ClockInTime = null
+                    });
+                }
                 else
                     existing.Status = "Leave";
             }

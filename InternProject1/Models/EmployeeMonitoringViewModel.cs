@@ -12,6 +12,7 @@ namespace InternProject1.Models
         public int AbsentCount { get; set; }
         public int LateCount { get; set; }
         public int OnTimeCount { get; set; }
+        public int TimeOffCount { get; set; }
         public int EarlyDeparturesCount { get; set; }
         public string EmployeeTrend { get; set; }
         public string TrendDirection { get; set; }
@@ -22,6 +23,7 @@ namespace InternProject1.Models
         public int LastWeekPresentCount { get; set; }
         public int LastMonthPresentCount { get; set; }
         public List<DailyAttendance> WeeklyData { get; set; }
+        public List<DailyAttendance> LastWeekData { get; set; }
 
         // Helper method to get attendance for specific employee
         public Attendance GetEmployeeAttendance(int employeeId)
