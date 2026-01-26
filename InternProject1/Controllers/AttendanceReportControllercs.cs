@@ -67,25 +67,50 @@ public class AttendanceReportController : Controller
         var employee = await _context.Employees.FindAsync(id);
         if (employee == null) return NotFound();
 
+        // 1. Get all dates that have an "Approve" status in LeaveRequests for this specific employee
+        var approvedLeaveDates = await _context.LeaveRequests
+            .Where(l => l.Employee_ID == id && l.Status == "Approve")
+            .ToListAsync();
+
+        // Expand ranges (Start_Date to End_Date) into a flat list of dates for easy comparison
+        var validDatesList = new HashSet<DateTime>();
+        foreach (var leave in approvedLeaveDates)
+        {
+            for (var dt = leave.Start_Date.Date; dt <= leave.End_Date.Date; dt = dt.AddDays(1))
+            {
+                validDatesList.Add(dt);
+            }
+        }
+
+        // 2. Fetch the attendance records
         var attendance = await _context.Attendances
             .Where(a => a.Employee_ID == id)
             .OrderByDescending(a => a.Date)
             .ToListAsync();
 
+        // 3. Validation Logic: 
+        // If a row says "Leave" but isn't approved in the LeaveRequests table, 
+        // change its status to "Absent" so the View counts it correctly.
+        foreach (var log in attendance)
+        {
+            if (log.Status == "Leave" && !validDatesList.Contains(log.Date.Date))
+            {
+                log.Status = "Absent";
+            }
+        }
+
         ViewBag.EmployeeName = employee.First_Name + " " + employee.Last_Name;
+
         return View(attendance);
     }
 
-    // UPDATED: Logic to exclude Sundays and filter Leave by specific month
     private async Task<List<StaffSummaryViewModel>> GetReportData()
     {
-        // Define the target period
         var targetMonth = 1;
         var targetYear = 2026;
         var monthStartDate = new DateTime(targetYear, targetMonth, 1);
         var monthEndDate = monthStartDate.AddMonths(1).AddDays(-1);
 
-        // 1. Calculate how many work days to count (Excluding Sundays)
         int workDaysToCount = 0;
         int lastDayToProcess = (DateTime.Now.Year == targetYear && DateTime.Now.Month == targetMonth)
             ? DateTime.Now.Day
@@ -105,16 +130,13 @@ public class AttendanceReportController : Controller
 
         foreach (var emp in employees)
         {
-            // Fetch attendance records strictly for this month
             var records = await _context.Attendances
                 .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
                 .ToListAsync();
 
-            // 2. Attendance & Late Counts (Monday-Saturday only)
-            int attCount = records.Count(a => (a.Status == "On Time" || a.Status == "Late") && a.Date.DayOfWeek != DayOfWeek.Sunday);
-            int lateCount = records.Count(a => a.Status == "Late" && a.Date.DayOfWeek != DayOfWeek.Sunday);
+            int attCount = records.Count(a => a.ClockInTime.HasValue && a.Date.DayOfWeek != DayOfWeek.Sunday);
+            int lateCount = records.Count(a => a.Status == "Late" && a.ClockInTime.HasValue && a.Date.DayOfWeek != DayOfWeek.Sunday);
 
-            // 3. Leave Count: Fetch leaves that overlap with THIS month ONLY
             var approvedLeaves = await _context.LeaveRequests
                 .Where(l => l.Employee_ID == emp.Employee_ID &&
                             l.Status == "Approve" &&
@@ -127,19 +149,24 @@ public class AttendanceReportController : Controller
             {
                 for (var date = leave.Start_Date.Date; date <= leave.End_Date.Date; date = date.AddDays(1))
                 {
-                    // Only count if the day falls inside January 2026 AND is not a Sunday
                     if (date >= monthStartDate && date <= monthEndDate && date.DayOfWeek != DayOfWeek.Sunday)
                     {
-                        // Additionally, if checking for "today's month", don't count future leave days yet
-                        if (date.Date <= DateTime.Now.Date || (targetYear != DateTime.Now.Year || targetMonth != DateTime.Now.Month))
+                        bool workedOnThisDay = records.Any(r => r.Date.Date == date.Date && r.ClockInTime.HasValue);
+                        if (!workedOnThisDay)
                         {
-                            leaveDaysThisMonth++;
+                            if (date.Date <= DateTime.Now.Date || (targetYear != DateTime.Now.Year || targetMonth != DateTime.Now.Month))
+                            {
+                                leaveDaysThisMonth++;
+                            }
                         }
                     }
                 }
             }
 
-            // 4. Absent Count Logic: workDaysToCount - (Attended + Leave)
+            int overtimeCount = records.Count(a => a.ClockInTime.HasValue &&
+                                                  a.ClockOutTime.HasValue &&
+                                                  (a.ClockOutTime.Value - a.ClockInTime.Value).TotalHours > 9);
+
             int absentCount = workDaysToCount - (attCount + leaveDaysThisMonth);
             if (absentCount < 0) absentCount = 0;
 
@@ -151,7 +178,7 @@ public class AttendanceReportController : Controller
                 LateCount = lateCount,
                 LeaveCount = leaveDaysThisMonth,
                 AbsentCount = absentCount,
-                OvertimeCount = records.Count(a => a.Status == "Overtime")
+                OvertimeCount = overtimeCount
             });
         }
 
@@ -212,7 +239,6 @@ public class AttendanceReportController : Controller
                 th {{ background-color: #4A77A5; color: white; padding: 12px 5px; font-size: 13px; text-align: center; }}
                 td {{ border: 1px solid #ddd; padding: 10px 5px; text-align: center; font-size: 12px; }}
                 .col-name {{ width: 25%; text-align: left; padding-left: 10px; }}
-                .col-data {{ width: 15%; }} 
                 tr:nth-child(even) {{ background-color: #f9f9f9; }}
                 .total-row {{ background-color: #eee !important; font-weight: bold; border-top: 2px solid #4A77A5; }}
                 .footer {{ margin-top: 30px; font-size: 10px; text-align: right; color: #777; font-style: italic; }}
@@ -228,11 +254,11 @@ public class AttendanceReportController : Controller
                 <thead>
                     <tr>
                         <th class='col-name'>Employee Name</th>
-                        <th class='col-data'>Attendance</th>
-                        <th class='col-data'>Late</th>
-                        <th class='col-data'>Leave</th>
-                        <th class='col-data'>Absent</th>
-                        <th class='col-data'>Overtime</th>
+                        <th>Attendance</th>
+                        <th>Late</th>
+                        <th>Leave</th>
+                        <th>Absent</th>
+                        <th>Overtime</th>
                     </tr>
                 </thead>
                 <tbody>";
@@ -241,12 +267,12 @@ public class AttendanceReportController : Controller
         {
             htmlContent += $@"
                     <tr>
-                        <td style='text-align: left; padding-left: 10px;'>{item.Name}</td>
-                        <td>{item.AttendanceCount}</td>
-                        <td>{item.LateCount}</td>
-                        <td>{item.LeaveCount}</td>
-                        <td>{item.AbsentCount}</td>
-                        <td>{item.OvertimeCount}</td>
+                <td style='text-align: left; padding-left: 10px;'>{item.Name}</td>
+                <td>{item.AttendanceCount}</td>
+                <td>{item.LateCount}</td>
+                <td>{item.LeaveCount}</td>
+                <td>{item.AbsentCount}</td>
+                <td>{item.OvertimeCount}</td>
                     </tr>";
         }
 
@@ -269,12 +295,6 @@ public class AttendanceReportController : Controller
 
         HtmlToPdf converter = new HtmlToPdf();
         converter.Options.PdfPageSize = PdfPageSize.A4;
-        converter.Options.PdfPageOrientation = PdfPageOrientation.Portrait;
-        converter.Options.MarginTop = 30;
-        converter.Options.MarginBottom = 30;
-        converter.Options.MarginLeft = 20;
-        converter.Options.MarginRight = 20;
-
         PdfDocument doc = converter.ConvertHtmlString(htmlContent);
         byte[] pdfFile = doc.Save();
         doc.Close();

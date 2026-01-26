@@ -52,7 +52,7 @@
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fs-5 fw-bold text-dark text-md-end pe-4">Enter Your ID:</label>
                 <div class="col-md-7">
-                    <input type="hidden" asp-for="Employee_ID" value="@Context.Session.GetInt32("UserID")" />
+                    <input type="hidden" asp-for="Employee_ID" id="empId" value="@Context.Session.GetInt32("UserID")" />
                     <input type="text" class="form-control premium-pill shadow-sm bg-light-blue"
                            value="@Context.Session.GetInt32("UserID")" readonly />
                 </div>
@@ -108,28 +108,27 @@
         background-color: #dbe5f0 !important;
     }
 
-    /* Modern Shared Button Base */
     .btn-submit-modern, .btn-cancel-modern {
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
         border-radius: 15px !important;
-        padding: 12px 60px !important; /* Fixed width via padding */
+        padding: 12px 60px !important;
         font-weight: bold !important;
         border: none !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         transition: all 0.2s;
         text-decoration: none !important;
-        min-width: 180px; /* Ensures identical sizing */
+        min-width: 180px;
     }
 
     .btn-submit-modern {
-        background-color: #98d8a3 !important; /* Soft Pastel Green */
+        background-color: #98d8a3 !important;
         color: #2d5a35 !important;
     }
 
     .btn-cancel-modern {
-        background-color: #f9a8a8 !important; /* Soft Pastel Red/Coral */
+        background-color: #f9a8a8 !important;
         color: #7a2a2a !important;
     }
 
@@ -139,7 +138,6 @@
             box-shadow: 0 6px 12px rgba(0,0,0,0.1);
         }
 
-    /* Remove focus outlines */
     .form-control:focus {
         box-shadow: 0 0 0 0.25rem rgba(219, 229, 240, 0.5) !important;
     }
@@ -182,10 +180,34 @@
             return 0;
         }
 
-        document.getElementById('leaveForm').addEventListener('submit', function (e) {
+        document.getElementById('leaveForm').addEventListener('submit', async function (e) {
             e.preventDefault();
             const days = calculateAndCheck();
 
+            const empId = document.getElementById('empId').value;
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            // Step 1: Check for duplicate leave dates via Controller
+            try {
+                const response = await fetch(`/Leave/CheckDuplicateLeave?employeeId=${empId}&start=${start}&end=${end}`);
+                const data = await response.json();
+
+                if (data.isDuplicate) {
+                    Swal.fire({
+                        title: 'Application Failed',
+                        text: 'You have already applied for leave on these dates. Please check your history.',
+                        icon: 'error',
+                        confirmButtonColor: '#f9a8a8',
+                        customClass: { popup: 'rounded-4' }
+                    });
+                    return; // Stop the process here
+                }
+            } catch (error) {
+                console.error("Error checking leave dates:", error);
+            }
+
+            // Step 2: Show confirmation if no duplicates found
             Swal.fire({
                 title: 'Confirm Application?',
                 text: `You are applying for ${days} day(s) of leave.`,
@@ -195,9 +217,7 @@
                 cancelButtonColor: '#f9a8a8',
                 confirmButtonText: 'Confirm',
                 cancelButtonText: 'Edit',
-                customClass: {
-                    popup: 'rounded-4'
-                }
+                customClass: { popup: 'rounded-4' }
             }).then((result) => {
                 if (result.isConfirmed) {
                     this.submit();
