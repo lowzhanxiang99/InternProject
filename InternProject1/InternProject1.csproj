@@ -23,8 +23,4 @@
     <PackageReference Include="Select.HtmlToPdf.NetCore" Version="25.2.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="wwwroot\uploads\profile-pictures\" />
-  </ItemGroup>
-
 </Project>
