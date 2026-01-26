@@ -4,7 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using ClosedXML.Excel;
+using System;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 public class LeaveController : Controller
 {
@@ -83,25 +87,10 @@ public class LeaveController : Controller
 
         var history = await _context.LeaveRequests
             .Where(l => l.Employee_ID == userId)
-            .OrderByDescending(l => l.Leave_ID)
+            .OrderBy(l => l.Leave_ID)
             .ToListAsync();
 
         return View(history);
-    }
-
-    // MISSING METHOD ADDED HERE: Handles the Export button in Mystatus.cshtml
-    [HttpGet]
-    public async Task<IActionResult> ExportMyStatusExcel()
-    {
-        var userId = HttpContext.Session.GetInt32("UserID");
-        if (userId == null) return RedirectToAction("Login", "Account");
-
-        var data = await _context.LeaveRequests
-            .Where(l => l.Employee_ID == userId)
-            .OrderByDescending(l => l.Leave_ID)
-            .ToListAsync();
-
-        return GenerateExcelFile(data, "My_Leave_History.xlsx");
     }
 
     // --- ADMIN SECTION ---
@@ -120,16 +109,62 @@ public class LeaveController : Controller
         return View();
     }
 
-    public async Task<IActionResult> Approval(string searchString, DateTime? fromDate, DateTime? toDate)
+    // MODIFIED: Employee list now follows ID sequence, and search/pagination logic is refined
+    public async Task<IActionResult> Approval(string searchString, DateTime? fromDate, DateTime? toDate, int page = 1)
     {
         if (HttpContext.Session.GetString("IsManager") != "true") return RedirectToAction("ApprovalLogin");
 
-        ViewBag.EmployeeList = await _context.Employees.OrderBy(e => e.First_Name).ToListAsync();
+        // KEY CHANGE HERE: OrderBy(e => e.Employee_ID) ensures the dropdown follows numerical ID sequence
+        ViewBag.EmployeeList = await _context.Employees.OrderBy(e => e.Employee_ID).ToListAsync();
 
-        var requests = _context.LeaveRequests.Include(l => l.Employee).AsQueryable();
-        requests = ApplyFilters(requests, searchString, fromDate, toDate);
+        // 1. Build the query with filters
+        var requestsQuery = _context.LeaveRequests.Include(l => l.Employee).AsQueryable();
+        requestsQuery = ApplyFilters(requestsQuery, searchString, fromDate, toDate);
 
-        return View(await requests.OrderByDescending(s => s.Leave_ID).ToListAsync());
+        // 2. Pagination Logic
+        int pageSize = 10;
+        int totalItems = await requestsQuery.CountAsync();
+        int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+        // Ensure page is within valid range
+        page = page < 1 ? 1 : (totalPages > 0 && page > totalPages ? totalPages : page);
+
+        var data = await requestsQuery
+            .OrderByDescending(s => s.Leave_ID) // Latest requests usually better at top for admins
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        // 3. Pass pagination and filter info to ViewBag
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.SearchString = searchString;
+        ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
+        ViewBag.ToDate = toDate?.ToString("yyyy-MM-dd");
+
+        return View(data);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetDetails(int id)
+    {
+        var request = await _context.LeaveRequests
+            .Include(l => l.Employee)
+            .FirstOrDefaultAsync(l => l.Leave_ID == id);
+
+        if (request == null) return NotFound();
+
+        return Json(new
+        {
+            leave_ID = request.Leave_ID,
+            firstName = request.Employee?.First_Name ?? "Unknown",
+            lastName = request.Employee?.Last_Name ?? "",
+            leaveType = request.LeaveType,
+            startDate = request.Start_Date.ToString("dd-MM-yy"),
+            endDate = request.End_Date.ToString("dd-MM-yy"),
+            reasons = request.Reasons,
+            status = request.Status
+        });
     }
 
     [HttpPost]
@@ -141,14 +176,12 @@ public class LeaveController : Controller
         {
             int totalDays = (request.End_Date - request.Start_Date).Days + 1;
 
-            // Deduct from Balance
             if (request.LeaveType == "Annual") request.Employee.AnnualLeaveDays -= totalDays;
             else if (request.LeaveType == "MC") request.Employee.MCDays -= totalDays;
             else if (request.LeaveType == "Compassionate") request.Employee.EmergencyLeaveDays -= totalDays;
             else if (request.LeaveType == "Other") request.Employee.OtherLeaveDays -= totalDays;
             else if (request.LeaveType == "Maternity Leave") request.Employee.MaternityLeaveDays -= totalDays;
 
-            // Mark Attendance as 'Leave'
             for (DateTime date = request.Start_Date.Date; date <= request.End_Date.Date; date = date.AddDays(1))
             {
                 var existing = await _context.Attendances.FirstOrDefaultAsync(a => a.Employee_ID == request.Employee_ID && a.Date.Date == date);
@@ -163,6 +196,7 @@ public class LeaveController : Controller
         {
             request.Status = status;
             await _context.SaveChangesAsync();
+            TempData["Success"] = $"Request REQ-{id} updated to {status}.";
         }
         return RedirectToAction(nameof(Approval));
     }

@@ -1,5 +1,13 @@
 ﻿@model IEnumerable<InternProject1.Models.LeaveRequest>
 
+@{
+    ViewData["Title"] = "Leave Approval History";
+    int currentPage = ViewBag.CurrentPage ?? 1;
+    int totalPages = ViewBag.TotalPages ?? 1;
+    // This calculates the starting number for the 'No.' column based on the page
+    int rowCount = ((currentPage - 1) * 10) + 1;
+}
+
 <div class="container-fluid py-4" style="background-color: #f4f7f6; min-height: 100vh;">
 
     @if (TempData["Success"] != null)
@@ -58,9 +66,9 @@
                 <div class="d-flex gap-3 align-items-center">
                     <div class="d-flex gap-2 align-items-center bg-light px-3 py-1 rounded-3">
                         <span class="small text-muted">Filter By Date:</span>
-                        <input type="date" name="fromDate" value="@Context.Request.Query["fromDate"]" class="border-0 bg-transparent small" onchange="this.form.submit()" />
+                        <input type="date" name="fromDate" value="@ViewBag.FromDate" class="border-0 bg-transparent small" onchange="this.form.submit()" />
                         <span class="small text-muted">To:</span>
-                        <input type="date" name="toDate" value="@Context.Request.Query["toDate"]" class="border-0 bg-transparent small" onchange="this.form.submit()" />
+                        <input type="date" name="toDate" value="@ViewBag.ToDate" class="border-0 bg-transparent small" onchange="this.form.submit()" />
                     </div>
                     <button type="button" onclick="exportData()" class="btn btn-outline-primary btn-sm px-3 shadow-sm">
                         <i class="bi bi-download me-1"></i> Export
@@ -69,7 +77,7 @@
             </div>
 
             <div class="input-group mb-4 shadow-sm" style="max-width: 350px;">
-                <input type="text" name="searchString" value="@Context.Request.Query["searchString"]" class="form-control border-0 py-2" placeholder="Search by name or ID..." />
+                <input type="text" name="searchString" value="@ViewBag.SearchString" class="form-control border-0 py-2" placeholder="Search by name or ID..." />
                 <button type="submit" class="input-group-text bg-white border-0">
                     <i class="bi bi-search text-primary"></i>
                 </button>
@@ -80,19 +88,21 @@
             <table class="table align-middle table-hover">
                 <thead class="text-secondary small border-bottom bg-light">
                     <tr>
-                        <th class="ps-3">Request ID</th>
+                        <th class="ps-3">No.</th>
+                        <th>Request ID</th>
                         <th>Status</th>
                         <th>Type</th>
                         <th>Start Date</th>
                         <th>End Date</th>
-                        <th colspan="2">Employee Name</th>
+                        <th colspan="2">Employee Name (Click to Manage)</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td class="ps-3 fw-bold text-primary">REQ-@item.Leave_ID</td>
+                            <td class="ps-3 text-muted small">@(rowCount++)</td>
+                            <td class="fw-bold text-primary">REQ-@item.Leave_ID</td>
                             <td>
                                 @if (item.Status == "Approve")
                                 {
@@ -100,44 +110,163 @@
                                 }
                                 else if (item.Status == "Reject")
                                 {
-
                                     <span class="badge bg-danger-subtle text-danger rounded-pill px-3">Reject</span>
                                 }
                                 else
                                 {
-
                                     <span class="badge bg-warning-subtle text-warning rounded-pill px-3">Pending</span>
                                 }
                             </td>
                             <td class="small fw-bold text-dark">@item.LeaveType</td>
                             <td class="small text-muted">@item.Start_Date.ToString("dd-MM-yy")</td>
                             <td class="small text-muted">@item.End_Date.ToString("dd-MM-yy")</td>
-                            <td class="small text-muted">@item.Employee?.First_Name</td>
-                            <td class="small text-muted fw-bold">@item.Employee?.Last_Name</td>
+
+                            <td class="small text-muted" style="cursor: pointer;" onclick="viewLeaveDetails(@item.Leave_ID)">
+                                <span class="text-primary text-decoration-underline">@item.Employee?.First_Name</span>
+                            </td>
+                            <td class="small text-muted fw-bold" style="cursor: pointer;" onclick="viewLeaveDetails(@item.Leave_ID)">
+                                <span class="text-primary text-decoration-underline">@item.Employee?.Last_Name</span>
+                            </td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <div class="small text-muted">
+                    Page <strong>@currentPage</strong> of <strong>@totalPages</strong>
+                </div>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm m-0">
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <a class="page-link shadow-sm rounded-start-3" asp-action="Approval"
+                               asp-route-page="@(currentPage - 1)"
+                               asp-route-searchString="@ViewBag.SearchString"
+                               asp-route-fromDate="@ViewBag.FromDate"
+                               asp-route-toDate="@ViewBag.ToDate">Previous</a>
+                        </li>
+
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            <li class="page-item @(i == currentPage ? "active" : "")">
+                                <a class="page-link shadow-sm" asp-action="Approval"
+                                   asp-route-page="@i"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-fromDate="@ViewBag.FromDate"
+                                   asp-route-toDate="@ViewBag.ToDate">@i</a>
+                            </li>
+                        }
+
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <a class="page-link shadow-sm rounded-end-3" asp-action="Approval"
+                               asp-route-page="@(currentPage + 1)"
+                               asp-route-searchString="@ViewBag.SearchString"
+                               asp-route-fromDate="@ViewBag.FromDate"
+                               asp-route-toDate="@ViewBag.ToDate">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom-0 pt-4 px-4">
+                <h5 class="fw-bold m-0 text-primary">Request Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pb-4">
+                <div id="modalLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+                <div id="modalContent" class="d-none">
+                    <div class="bg-light p-3 rounded-3 mb-3">
+                        <div class="row mb-2">
+                            <div class="col-5 text-muted small">Employee:</div>
+                            <div class="col-7 fw-bold" id="lblEmployee"></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-5 text-muted small">Leave Type:</div>
+                            <div class="col-7 fw-bold" id="lblType"></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-5 text-muted small">Dates:</div>
+                            <div class="col-7" id="lblDates"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="small fw-bold text-secondary mb-2">Reason for Leave:</label>
+                        <div class="p-3 rounded-3 small text-dark border-start border-4 border-primary"
+                             id="lblReason"
+                             style="background-color: #ebf2ff; min-height: 60px;">
+                        </div>
+                    </div>
+
+                    <hr class="text-muted opacity-25">
+
+                    <form action="/Leave/UpdateStatus" method="post">
+                        <input type="hidden" name="id" id="txtLeaveId" />
+                        <label class="small fw-bold text-secondary mb-2">Update Status:</label>
+                        <select name="status" id="ddlStatus" class="form-select border-primary-subtle py-2 mb-4 shadow-sm">
+                            <option value="Pending">Pending</option>
+                            <option value="Approve">Approve</option>
+                            <option value="Reject">Reject</option>
+                        </select>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary w-100 py-2 rounded-3 shadow-sm fw-bold">Update Request</button>
+                            <button type="button" class="btn btn-light w-100 py-2 rounded-3" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        function viewLeaveDetails(id) {
+            var myModal = new bootstrap.Modal(document.getElementById('detailModal'));
+            myModal.show();
+            document.getElementById('modalLoading').classList.remove('d-none');
+            document.getElementById('modalContent').classList.add('d-none');
+
+            fetch(`/Leave/GetDetails/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('txtLeaveId').value = data.leave_ID;
+                    document.getElementById('lblEmployee').innerText = data.firstName + ' ' + data.lastName;
+                    document.getElementById('lblType').innerText = data.leaveType;
+                    document.getElementById('lblDates').innerText = data.startDate + ' to ' + data.endDate;
+                    document.getElementById('lblReason').innerText = data.reasons || "No reason provided.";
+                    document.getElementById('ddlStatus').value = data.status;
+
+                    document.getElementById('modalLoading').classList.add('d-none');
+                    document.getElementById('modalContent').classList.remove('d-none');
+                })
+                .catch(err => {
+                    Swal.fire('Error', 'Could not load details.', 'error');
+                    myModal.hide();
+                });
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
             const selectEl = document.getElementById('employeeSelect');
             const searchInput = document.getElementById('employeeSearchInput');
             const editBtn = document.getElementById('editBtn');
             const originalOptions = Array.from(selectEl.options);
 
-            // Real-time search function to filter the dropdown list
             searchInput.addEventListener('input', function() {
                 const filter = searchInput.value.toLowerCase();
-
-                // Clear existing options
                 selectEl.innerHTML = '';
-
-                // Add back options that match the filter
                 originalOptions.forEach(option => {
                     if (option.text.toLowerCase().includes(filter) || option.value === "") {
                         selectEl.appendChild(option);
@@ -145,13 +274,12 @@
                 });
             });
 
-            // Handle the "Edit All" button click redirect
             editBtn.addEventListener('click', function() {
                 const selectedId = selectEl.value;
                 if (selectedId) {
                     window.location.href = `/Leave/EditEntitlements/${selectedId}`;
                 } else {
-                    alert("Please select an employee first.");
+                    Swal.fire('Note', 'Please select an employee first.', 'info');
                 }
             });
         });
