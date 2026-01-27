@@ -3,78 +3,118 @@
     Layout = "_Layout";
 }
 
+<style>
+    .border-purple {
+        border-color: #6f42c1 !important;
+    }
+</style>
+
 <div class="container-fluid py-4 px-4">
     <div class="mb-4">
-        <h4 class="fw-bold">Welcome Back, @(ViewBag.UserName ?? "Jane")!</h4>
+        <h4 class="fw-bold">Welcome Back, @(ViewBag.UserName ?? "User")!</h4>
     </div>
 
     <p class="text-secondary fw-bold mb-3">Leave Balance</p>
-    <div class="row g-3 mb-5">
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+
+        @* Annual *@
         <div class="col">
             <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Annual Leave</small>
+                <small class="text-muted mb-3 d-block">Annual</small>
                 <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-primary border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.AnnualLeave ?? "05/07")</span>
+                    <span class="fw-bold">@(ViewBag.AnnualLeave ?? "00/00")</span>
                 </div>
-                <small class="text-muted d-block small">Available - 05</small>
-                <small class="text-secondary small">Used - 02</small>
+                <small class="text-muted d-block small">Available - @(ViewBag.AnnualAvailable ?? "0")</small>
+                <small class="text-secondary small">Used - @(ViewBag.AnnualUsed ?? "0")</small>
             </div>
         </div>
 
+        @* MC *@
         <div class="col">
             <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Medical Leave</small>
+                <small class="text-muted mb-3 d-block">MC</small>
                 <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-info border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.MedicalLeave ?? "05/05")</span>
+                    <span class="fw-bold">@(ViewBag.MCLeave ?? "00/00")</span>
                 </div>
-                <small class="text-muted d-block small">Available - 05</small>
-                <small class="text-secondary small">Used - 00</small>
+                <small class="text-muted d-block small">Available - @(ViewBag.MCAvailable ?? "0")</small>
+                <small class="text-secondary small">Used - @(ViewBag.MCUsed ?? "0")</small>
             </div>
         </div>
 
+        @* Compassionate *@
         <div class="col">
             <div class="card border-0 shadow-sm p-3 text-center h-100">
                 <small class="text-muted mb-3 d-block">Compassionate</small>
                 <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-success border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.CompassionateLeave ?? "03/03")</span>
+                    <span class="fw-bold">@(ViewBag.CompassionateLeave ?? "00/00")</span>
                 </div>
-                <small class="text-muted d-block small">Available - 03</small>
-                <small class="text-secondary small">Used - 00</small>
+                <small class="text-muted d-block small">Available - @(ViewBag.CompassionateAvailable ?? "0")</small>
+                <small class="text-secondary small">Used - @(ViewBag.CompassionateUsed ?? "0")</small>
             </div>
         </div>
 
+        @* Maternity *@
         <div class="col">
             <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Unpaid Leave</small>
+                <small class="text-muted mb-3 d-block">Maternity</small>
+                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-purple border-4" style="width: 75px; height: 75px;">
+                    <span class="fw-bold">@(ViewBag.MaternityLeave ?? "00/00")</span>
+                </div>
+                <small class="text-muted d-block small">Available - @(ViewBag.MaternityAvailable ?? "0")</small>
+                <small class="text-secondary small">Used - @(ViewBag.MaternityUsed ?? "0")</small>
+            </div>
+        </div>
+
+        @* Unpaid *@
+        <div class="col">
+            <div class="card border-0 shadow-sm p-3 text-center h-100">
+                <small class="text-muted mb-3 d-block">Unpaid</small>
                 <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-danger border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.UnpaidLeave ?? "00/00")</span>
+                    <span class="fw-bold">@(ViewBag.UnpaidUsed ?? "0")</span>
                 </div>
-                <small class="text-muted d-block small">Available - 00</small>
-                <small class="text-secondary small">Used - 00</small>
+                <small class="text-muted d-block small">-</small>
+                <small class="text-secondary small">Used Days</small>
             </div>
         </div>
 
+        @* Other *@
         <div class="col">
             <div class="card border-0 shadow-sm p-3 text-center h-100">
-                <small class="text-muted mb-3 d-block">Half Day Leave</small>
+                <small class="text-muted mb-3 d-block">Other</small>
                 <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle border border-warning border-4" style="width: 75px; height: 75px;">
-                    <span class="fw-bold">@(ViewBag.HalfDayLeave ?? "00/00")</span>
+                    <span class="fw-bold">@(ViewBag.OtherLeave ?? "00/00")</span>
                 </div>
-                <small class="text-muted d-block small">Available - 00</small>
-                <small class="text-secondary small">Used - 00</small>
+                <small class="text-muted d-block small">Available - @(ViewBag.OtherAvailable ?? "0")</small>
+                <small class="text-secondary small">Used - @(ViewBag.OtherUsed ?? "0")</small>
             </div>
         </div>
     </div>
 
+    @* ATTENDANCE INSIGHTS *@
     <p class="text-secondary fw-bold mb-3">Attendance Insights</p>
     <div class="row g-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-4">
+            <div class="card border-0 shadow-sm p-4 h-100">
                 <small class="text-muted">On Time Percentage</small>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div>
-                        <h2 class="fw-bold text-primary mb-1">@(ViewBag.OnTimePercentage ?? "65")%</h2>
-                        <small class="text-danger small"><i class="bi bi-graph-down"></i> -25% vs Jan</small>
+                        <h2 class="fw-bold text-primary mb-1">@(ViewBag.OnTimePercentage ?? "0")%</h2>
+                        @{
+                            var onTimeDirection = ViewBag.OnTimeChangeDirection ?? "down";
+                            var onTimeChange = ViewBag.OnTimeChange ?? 0;
+                        }
+                        @if (onTimeChange > 0)
+                        {
+                            <small class="text-success small"><i class="bi bi-graph-up"></i> +@onTimeChange% vs previous month</small>
+                        }
+                        else if (onTimeChange < 0)
+                        {
+                            <small class="text-danger small"><i class="bi bi-graph-down"></i> @onTimeChange% vs previous month</small>
+                        }
+                        else
+                        {
+                            <small class="text-secondary small"><i class="bi bi-dash"></i> No change</small>
+                        }
                     </div>
                     <div class="bg-primary bg-opacity-10 p-2 rounded">
                         <i class="bi bi-bar-chart-fill text-primary"></i>
@@ -84,12 +124,27 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-4">
+            <div class="card border-0 shadow-sm p-4 h-100">
                 <small class="text-muted">Late Percentage</small>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div>
-                        <h2 class="fw-bold text-info mb-1">@(ViewBag.LatePercentage ?? "35")%</h2>
-                        <small class="text-success small"><i class="bi bi-graph-up"></i> +35% vs Jan</small>
+                        <h2 class="fw-bold text-info mb-1">@(ViewBag.LatePercentage ?? "0")%</h2>
+                        @{
+                            var lateDirection = ViewBag.LateChangeDirection ?? "up";
+                            var lateChange = ViewBag.LateChange ?? 0;
+                        }
+                        @if (lateChange > 0)
+                        {
+                            <small class="text-success small"><i class="bi bi-graph-up"></i> +@lateChange% vs previous month</small>
+                        }
+                        else if (lateChange < 0)
+                        {
+                            <small class="text-danger small"><i class="bi bi-graph-down"></i> @lateChange% vs previous month</small>
+                        }
+                        else
+                        {
+                            <small class="text-secondary small"><i class="bi bi-dash"></i> No change</small>
+                        }
                     </div>
                     <div class="bg-info bg-opacity-10 p-2 rounded">
                         <i class="bi bi-clock-history text-info"></i>
@@ -99,12 +154,27 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-4">
-                <small class="text-muted">Total Break Hours / February</small>
+            <div class="card border-0 shadow-sm p-4 h-100">
+                <small class="text-muted">Total Break Hours / @DateTime.Now.ToString("MMMM")</small>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div>
-                        <h5 class="fw-bold mb-1">@(ViewBag.TotalBreakHours ?? "00 Hours 40 Minutes 55 Seconds")</h5>
-                        <small class="text-danger small"><i class="bi bi-graph-down"></i> -13% vs Jan</small>
+                        <h5 class="fw-bold mb-1">@(ViewBag.TotalBreakHours ?? "00 Hours 00 Minutes 00 Seconds")</h5>
+                        @{
+                            var breakDirection = ViewBag.BreakChangeDirection ?? "down";
+                            var breakChange = ViewBag.BreakChange ?? 0;
+                        }
+                        @if (breakChange > 0)
+                        {
+                            <small class="text-success small"><i class="bi bi-graph-up"></i> +@breakChange% vs previous month</small>
+                        }
+                        else if (breakChange < 0)
+                        {
+                            <small class="text-danger small"><i class="bi bi-graph-down"></i> @breakChange% vs previous month</small>
+                        }
+                        else
+                        {
+                            <small class="text-secondary small"><i class="bi bi-dash"></i> No change</small>
+                        }
                     </div>
                     <div class="bg-warning bg-opacity-10 p-2 rounded">
                         <i class="bi bi-cup-hot text-warning"></i>
@@ -114,12 +184,27 @@
         </div>
 
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-4">
-                <small class="text-muted">Total Working Hours / February</small>
+            <div class="card border-0 shadow-sm p-4 h-100">
+                <small class="text-muted">Total Working Hours / @DateTime.Now.ToString("MMMM")</small>
                 <div class="d-flex justify-content-between align-items-end mt-2">
                     <div>
-                        <h5 class="fw-bold mb-1">@(ViewBag.TotalWorkingHours ?? "08 Hours 15 Minutes 10 Seconds")</h5>
-                        <small class="text-success small"><i class="bi bi-graph-up"></i> +33% vs Jan</small>
+                        <h5 class="fw-bold mb-1">@(ViewBag.TotalWorkingHours ?? "00 Hours 00 Minutes 00 Seconds")</h5>
+                        @{
+                            var workDirection = ViewBag.WorkChangeDirection ?? "up";
+                            var workChange = ViewBag.WorkChange ?? 0;
+                        }
+                        @if (workChange > 0)
+                        {
+                            <small class="text-success small"><i class="bi bi-graph-up"></i> +@workChange% vs previous month</small>
+                        }
+                        else if (workChange < 0)
+                        {
+                            <small class="text-danger small"><i class="bi bi-graph-down"></i> @workChange% vs previous month</small>
+                        }
+                        else
+                        {
+                            <small class="text-secondary small"><i class="bi bi-dash"></i> No change</small>
+                        }
                     </div>
                     <div class="bg-success bg-opacity-10 p-2 rounded">
                         <i class="bi bi-briefcase text-success"></i>

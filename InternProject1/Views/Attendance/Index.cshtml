@@ -20,19 +20,92 @@
 
     // Get today's attendance if exists
     var todayAttendance = Model?.FirstOrDefault(a => a.Date.Date == DateTime.Today);
-    var recentAttendance = Model?.Where(a => a.Date.Date < DateTime.Today)
-                                 .OrderByDescending(a => a.Date)
-                                 .Take(5)
-                                 .ToList();
 
-    // Get attendance for selected month
-    var monthlyAttendance = Model?.Where(a => a.Date.Month == selectedMonth && a.Date.Year == selectedYear).ToList();
+    // Pagination settings for recent attendance
+    int pageSize = 10; // Number of records per page
+    int currentPage = 1;
+    if (Context.Request.Query.ContainsKey("page") && int.TryParse(Context.Request.Query["page"], out int page))
+    {
+        currentPage = page;
+    }
+
+    // Get all past attendance records
+    var allPastAttendance = Model?.OrderByDescending(a => a.Date).ToList();
+
+    // Apply pagination
+    var totalRecords = allPastAttendance?.Count ?? 0;
+    var totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
+
+    // Ensure current page is valid
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+
+    // Get paginated recent attendance
+    var recentAttendance = allPastAttendance?
+        .Skip((currentPage - 1) * pageSize)
+        .Take(pageSize)
+        .ToList();
+
+    // Helper functions inside the main block
+    Attendance GetAttendanceForDay(int day)
+    {
+        if (Model == null) return null;
+        var date = new DateTime(selectedYear, selectedMonth, day);
+        return Model.FirstOrDefault(a => a.Date.Date == date.Date);
+    }
+
+    string GetAttendanceClass(Attendance attendance)
+    {
+        if (attendance == null) return "no-attendance";
+
+        // Use the actual status from database
+        if (!string.IsNullOrEmpty(attendance.Status))
+        {
+            string status = attendance.Status.ToLower();
+
+            // Check if both clock in and clock out exist
+            bool isCompleted = attendance.ClockInTime != null && attendance.ClockOutTime != null;
+
+            if (status == "on time")
+            {
+                return isCompleted ? "completed-on-time" : "incomplete-on-time";
+            }
+            else if (status == "late")
+            {
+                return isCompleted ? "completed-late" : "incomplete-late";
+            }
+        }
+
+        // Fallback for "absent" or no status
+        if (attendance.ClockInTime != null && attendance.ClockOutTime != null)
+            return "completed";
+        if (attendance.ClockInTime != null)
+            return "incomplete";
+
+        return "absent";
+    }
+
+    string GetAttendanceTooltip(Attendance attendance, DateTime date)
+    {
+        if (attendance == null)
+            return $"{date:MMM dd}: No attendance record";
+
+        if (attendance.ClockInTime != null && attendance.ClockOutTime != null)
+            return $"{date:MMM dd}: {TimeSpanToString(attendance.ClockInTime)} - {TimeSpanToString(attendance.ClockOutTime)}";
+
+        if (attendance.ClockInTime != null)
+            return $"{date:MMM dd}: Clocked in at {TimeSpanToString(attendance.ClockInTime)}";
+
+        return $"{date:MMM dd}: Marked absent";
+    }
 }
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
 <style>
     /* ===== MAIN CONTAINER ===== */
     .container-fluid {
-        background: #F3F8FB !important;
+        background: #f8f9fa !important;
         min-height: 100vh;
         padding: 0;
     }
@@ -47,10 +120,9 @@
     h1.h3.mb-0 {
         font-family: 'Poppins', sans-serif;
         font-style: normal;
-        font-weight: 500;
-        font-size: 20px;
-        line-height: 30px;
-        text-transform: capitalize;
+        font-weight: 600;
+        font-size: 24px;
+        line-height: 36px;
         color: #122539;
         margin: 0;
     }
@@ -84,7 +156,7 @@
     }
 
         .card.shadow-sm.border-0.h-100 {
-            height: 350px !important;
+            height: 340px !important;
         }
 
     .card-body {
@@ -111,7 +183,7 @@
         font-weight: 500;
         color: #5A91CB !important;
         margin-bottom: 5px;
-		margin-top: 30px;
+        margin-top: 20px;
         padding: 0 2px;
         font-family: 'Poppins', sans-serif;
         font-size: 14px;
@@ -159,7 +231,7 @@
         text-align: center;
         color: #2C5B8C;
         margin-bottom: 10px !important;
-		margin-top: 20px !important;
+        margin-top: 8px !important;
     }
 
     /* ===== CLOCK SECTION - 40% LEFT SIDE ===== */
@@ -256,7 +328,7 @@
         justify-content: space-between !important;
         height: 100%;
         padding-left: 20px;
-		padding-right: 20px;
+        padding-right: 20px;
     }
 
     /* ===== SUMMARY BOXES - IMPROVED LAYOUT ===== */
@@ -285,7 +357,7 @@
         font-size: 16px !important;
         line-height: 24px;
         color: #1F4062 !important;
-        margin-bottom: 2px !important;
+        margin-bottom: 5px !important;
         text-transform: none !important;
         letter-spacing: 0 !important;
     }
@@ -343,8 +415,9 @@
         box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
         border-radius: 8px !important;
         color: #2C5B8C !important;
-        padding: 10px 20px !important;
-        height: 44px !important;
+        padding: 10px 10px !important;
+        height: 40px !important;
+        margin-top: 18px !important;
     }
 
         .btn-outline-primary.btn-lg.w-100.py-3 h4 {
@@ -361,8 +434,24 @@
     .btn-danger.btn-lg.w-100.py-3 {
         background: linear-gradient(180deg, #FF9C8E 0%, #F5533D 100%) !important;
         padding: 10px 20px !important;
-        height: 44px !important;
+        height: 40px !important;
+        margin-top: -8px !important;
     }
+
+    /* End Break button - same as danger but with adjusted margin */
+    #endBreakForm {
+        margin-top: 20px !important;
+    }
+
+    /* Or if you want to target the button directly */
+    #endBreakBtn {
+        margin-top: 8px !important;
+    }
+
+    #clockInBtn {
+        margin-bottom: 18px !important;
+    }
+
 
     /* ===== ALERT ADJUSTMENTS ===== */
     .alert-warning, .alert-success {
@@ -371,8 +460,8 @@
         box-shadow: 0px 1px 4px rgba(88, 134, 166, 0.25) !important;
         border-radius: 8px !important;
         color: #122539 !important;
-        padding: 15px !important;
-        margin-top: 20px !important;
+        padding: 12px !important;
+        margin-top: 8px !important;
     }
 
         .alert-warning h5, .alert-success h5 {
@@ -409,7 +498,7 @@
         }
 
     .table-responsive {
-        padding: 0 32px 32px 32px;
+        padding: 0 32px 20px 32px;
     }
 
     .table {
@@ -482,7 +571,528 @@
         border-right-color: transparent !important;
     }
 
-    /* ===== RESPONSIVE ADJUSTMENTS ===== */
+    /* ===== STATUS INDICATORS ===== */
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+
+    .status-on-time {
+        background: linear-gradient(180deg, #94D145 0%, #52B623 100%);
+        box-shadow: 0px 0px 4px rgba(82, 182, 35, 0.5);
+    }
+
+    .status-late {
+        background: linear-gradient(180deg, #FF9C8E 0%, #F5533D 100%);
+        box-shadow: 0px 0px 4px rgba(245, 83, 61, 0.5);
+    }
+
+    /* Remove the old status indicator rule */
+    .table tbody tr:first-child td:nth-child(2)::before {
+        display: none !important;
+    }
+
+    /* ===== AJAX LOADING STYLES ===== */
+    .table-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        border-radius: 4px;
+    }
+
+        .table-loading-overlay .spinner-border {
+            width: 2rem;
+            height: 2rem;
+            border-width: 3px;
+        }
+
+    /* Fade animation for table updates */
+    #attendanceTableBody {
+        transition: opacity 0.3s ease;
+    }
+
+        #attendanceTableBody.loading {
+            opacity: 0.6;
+        }
+
+    /* Smooth transition for pagination */
+    .pagination-container {
+        transition: opacity 0.3s ease;
+    }
+
+        .pagination-container.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+    /* ===== TABLE SORTING INDICATORS ===== */
+    .table thead th.sortable {
+        cursor: pointer;
+        position: relative;
+        padding-right: 30px !important;
+        transition: all 0.2s ease;
+    }
+
+        .table thead th.sortable:hover {
+            background-color: #F3F8FB;
+        }
+
+        .table thead th.sortable::after {
+            content: '↕';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #2C5B8C;
+            opacity: 2;
+        }
+
+        .table thead th.sortable.asc::after {
+            content: '↑';
+            color: #2C5B8C;
+            opacity: 2;
+            font-weight: bold;
+        }
+
+        .table thead th.sortable.desc::after {
+            content: '↓';
+            color: #2C5B8C;
+            opacity: 2;
+            font-weight: bold;
+        }
+
+    @@keyframes spin {
+        0% {
+            transform: translateY(-50%) rotate(0deg);
+        }
+
+        100% {
+            transform: translateY(-50%) rotate(360deg);
+        }
+    }
+
+    /* ===== PAGINATION STYLES ===== */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between; /* Space between left and right */
+        align-items: center;
+        padding: 20px 32px;
+        background: #FFFFFF;
+        border-top: 1px solid #D6E3F2;
+        border-radius: 0 0 12px 12px;
+    }
+
+    .pagination {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+    }
+
+        .pagination .page-item .page-link {
+            color: #2C5B8C;
+            background-color: #FFFFFF;
+            border: 1px solid #C6E6FB;
+            padding: 8px 16px;
+            margin: 0 4px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 400;
+            min-width: 40px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+            .pagination .page-item .page-link:hover {
+                background-color: #F3F8FB;
+                border-color: #5A91CB;
+                color: #122539;
+            }
+
+        .pagination .page-item.active .page-link {
+            background-color: #D6E3F2;
+            border-color: #5A91CB;
+            color: #122539;
+            font-weight: 500;
+        }
+
+        .pagination .page-item.disabled .page-link {
+            color: #AAD9F9;
+            background-color: #FFFFFF;
+            border-color: #C6E6FB;
+            cursor: not-allowed;
+        }
+
+    .pagination-info {
+        font-family: 'Poppins', sans-serif;
+        font-size: 14px;
+        color: #5A91CB;
+        white-space: nowrap;
+        /* Remove margin-left since we're using flexbox spacing */
+    }
+
+    /* Remove the conflicting justify-content properties from page-arrow */
+    .page-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: #FFFFFF;
+        border: 1px solid #C6E6FB;
+        border-radius: 6px;
+        color: #2C5B8C;
+        transition: all 0.2s ease;
+        /* Remove justify-content: end from here */
+    }
+
+        .page-arrow:hover {
+            background: #F3F8FB;
+            border-color: #5A91CB;
+            color: #122539;
+            text-decoration: none;
+        }
+
+        .page-arrow.disabled {
+            color: #AAD9F9;
+            border-color: #C6E3F2;
+            cursor: not-allowed;
+            background: #FFFFFF;
+        }
+
+            .page-arrow.disabled:hover {
+                background: #FFFFFF;
+                border-color: #C6E3F2;
+                color: #AAD9F9;
+            }
+
+    /* Responsive adjustments */
+    @@media (max-width: 768px) {
+        .pagination-container {
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px 20px;
+        }
+
+        .pagination-info {
+            order: 1; /* Info comes first on mobile */
+            text-align: center;
+        }
+
+        .pagination {
+            order: 2; /* Pagination comes after info on mobile */
+        }
+
+            .pagination .page-item .page-link {
+                padding: 6px 12px;
+                margin: 0 2px;
+                min-width: 36px;
+                font-size: 13px;
+            }
+    }
+
+    /* ===== ATTENDANCE MODAL STYLES ===== */
+    #attendanceModal .modal-content {
+        border-radius: 12px;
+        border: 1px solid #C6E3F2;
+        box-shadow: 0px 4px 20px rgba(88, 134, 166, 0.25);
+    }
+
+    #attendanceModal .modal-header {
+        background: linear-gradient(135deg, #F3F8FB 0%, #FFFFFF 100%);
+        border-bottom: 2px solid #D6E3F2;
+        padding: 20px 24px;
+    }
+
+    #attendanceModal .modal-title {
+        color: #2C5B8C;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 18px;
+    }
+
+    #attendanceModal .modal-body {
+        padding: 24px;
+    }
+
+    .attendance-details-container {
+        min-height: 200px;
+    }
+
+    /* Attendance details content */
+    .attendance-details {
+        display: none; /* Hidden by default, shown when content loaded */
+    }
+
+        .attendance-details.show {
+            display: block;
+        }
+
+    .loading-state {
+        display: block;
+    }
+
+        .loading-state.hidden {
+            display: none;
+        }
+
+    /* Detail items styling */
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #E9F2FB;
+    }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+    .detail-label {
+        color: #5A91CB;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .detail-value {
+        color: #122539;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    /* Status badges in modal */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .status-present {
+        background: rgba(148, 209, 69, 0.1);
+        color: #52B623;
+        border: 1px solid rgba(82, 182, 35, 0.2);
+    }
+
+    .status-incomplete {
+        background: rgba(255, 155, 142, 0.1);
+        color: #F5533D;
+        border: 1px solid rgba(245, 83, 61, 0.2);
+    }
+
+    .status-absent {
+        background: rgba(90, 145, 203, 0.1);
+        color: #5A91CB;
+        border: 1px solid rgba(90, 145, 203, 0.2);
+    }
+
+    /* Time display in modal */
+    .time-display {
+        font-family: 'Courier New', monospace;
+        background: #F8FBFE;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #E1EEFB;
+        color: #2C5B8C;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+        .empty-state .icon {
+            font-size: 48px;
+            color: #AAD9F9;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h6 {
+            color: #5A91CB;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            color: #AAD9F9;
+            font-size: 14px;
+        }
+
+    /* ===== CALENDAR ATTENDANCE STATUS ===== */
+    /* ON TIME - Green for completed on time */
+    .calendar-day.completed-on-time {
+        background: linear-gradient(135deg, #94D145 0%, #52B623 100%) !important;
+        color: #FFFFFF !important;
+    }
+
+    /* LATE - Red for late arrival */
+    .calendar-day.completed-late {
+        background: linear-gradient(135deg, #FF9C8E 0%, #F5533D 100%) !important;
+        color: #FFFFFF !important;
+    }
+
+    /* INCOMPLETE ON TIME - Partial green for incomplete but on time */
+    .calendar-day.incomplete-on-time {
+        background: linear-gradient(135deg, #94D14566 0%, #52B62366 100%) !important;
+        color: #FFFFFF !important;
+        border: 2px solid #52B623 !important;
+    }
+
+    /* INCOMPLETE LATE - Partial red for incomplete and late */
+    .calendar-day.incomplete-late {
+        background: linear-gradient(135deg, #FF9C8E66 0%, #F5533D66 100%) !important;
+        color: #FFFFFF !important;
+        border: 2px solid #F5533D !important;
+    }
+
+    /* ABSENT - Grey for absent or no record */
+    .calendar-day.absent {
+        background: #F3F8FB !important;
+        color: #AAD9F9 !important;
+        border: 1px solid #D6E3F2 !important;
+    }
+
+    /* COMPLETED (fallback) - Blue for general completion */
+    .calendar-day.completed {
+        background: linear-gradient(135deg, #5A91CB 0%, #2C5B8C 100%) !important;
+        color: #FFFFFF !important;
+    }
+
+    /* INCOMPLETE (fallback) - Orange for general incomplete */
+    .calendar-day.incomplete {
+        background: linear-gradient(135deg, #FFB347 0%, #FF8C00 100%) !important;
+        color: #FFFFFF !important;
+    }
+
+    /* NO ATTENDANCE - Light background */
+    .calendar-day.no-attendance {
+        background: #F8F9FA !important;
+        color: #6C757D !important;
+    }
+
+    /* TODAY highlight */
+    .calendar-day.today {
+        position: relative;
+        background: #5A91CB !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+    }
+
+        /* When today also has attendance status */
+        .calendar-day.today.completed-on-time {
+            background: linear-gradient(135deg, #52B623 0%, #94D145 100%) !important;
+        }
+
+        .calendar-day.today.completed-late {
+            background: linear-gradient(135deg, #F5533D 0%, #FF9C8E 100%) !important;
+        }
+
+        .calendar-day.today.absent {
+            background: #5A91CB !important;
+            color: #FFFFFF !important;
+        }
+
+    /* ===== PAGINATION STATUS INDICATORS ===== */
+    .pagination-status-indicators {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-right: 20px;
+    }
+
+    .status-indicator-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 13px;
+        color: #5A91CB;
+    }
+
+    .pagination-status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-dot-on-time {
+        background: linear-gradient(180deg, #94D145 0%, #52B623 100%);
+        box-shadow: 0px 0px 4px rgba(82, 182, 35, 0.5);
+    }
+
+    .status-dot-late {
+        background: linear-gradient(180deg, #FF9C8E 0%, #F5533D 100%);
+        box-shadow: 0px 0px 4px rgba(245, 83, 61, 0.5);
+    }
+
+    /* Update pagination container to accommodate status indicators */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 32px;
+        background: #FFFFFF;
+        border-top: 1px solid #D6E3F2;
+        border-radius: 0 0 12px 12px;
+    }
+
+    /* Adjust for mobile */
+    @@media (max-width: 768px) {
+        .pagination-container {
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px 20px;
+        }
+
+        .pagination-status-indicators {
+            order: 2;
+            margin-right: 0;
+            margin-bottom: 10px;
+        }
+
+        .pagination-info {
+            order: 1;
+        }
+
+        .pagination {
+            order: 3;
+        }
+    }
+
+    /* Loading animation for calendar days */
+    @@keyframes pulse {
+        0% {
+            opacity: 0.6;
+        }
+
+        50% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0.6;
+        }
+    }
+
+    .calendar-day.loading {
+        animation: pulse 1.5s infinite;
+    }
+
     @@media (max-width: 992px) {
         .col-md-4.border-end, .col-md-8 {
             width: 100% !important;
@@ -571,6 +1181,29 @@
                 font-size: 11px !important;
                 line-height: 16px;
             }
+        /* Responsive pagination */
+        .pagination-container {
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px 20px;
+        }
+
+        .pagination-info {
+            margin-left: 0;
+            order: -1;
+        }
+
+        .pagination .page-item .page-link {
+            padding: 6px 12px;
+            margin: 0 2px;
+            min-width: 36px;
+            font-size: 13px;
+        }
+
+        .page-arrow {
+            width: 32px;
+            height: 32px;
+        }
     }
 </style>
 
@@ -601,7 +1234,7 @@
 
                     <!-- Year Dropdown -->
                     <select class="form-select form-select-sm" id="yearSelect" style="min-width: 100px;">
-                        @for (int y = DateTime.Now.Year - 5; y <= DateTime.Now.Year + 1; y++)
+                        @for (int y = DateTime.Now.Year - 5; y <= DateTime.Now.Year; y++)
                         {
                             if (y == selectedYear)
                             {
@@ -637,6 +1270,7 @@
                                     <div class="text-muted">F</div>
                                     <div class="text-muted">S</div>
                                 </div>
+                                <!-- Calendar Grid -->
                                 <div class="calendar-grid">
                                     @{
                                         var firstDay = new DateTime(selectedYear, selectedMonth, 1);
@@ -653,15 +1287,36 @@
                                     {
                                         var dayDate = new DateTime(selectedYear, selectedMonth, day);
                                         var isToday = dayDate.Date == DateTime.Today;
-                                        var dayClass = "calendar-day";
+                                        var attendance = GetAttendanceForDay(day);
+                                        var attendanceClass = GetAttendanceClass(attendance);
+                                        var tooltip = GetAttendanceTooltip(attendance, dayDate);
+
+                                        var dayClass = $"calendar-day {attendanceClass}";
 
                                         if (isToday)
                                         {
                                             dayClass += " today";
                                         }
 
-                                        <div class="@dayClass">
+                                        <div class="@dayClass"
+                                             data-date="@dayDate.ToString("yyyy-MM-dd")"
+                                             data-attendance-id="@attendance?.Attendance_ID"
+                                             title="@tooltip"
+                                             onclick="showAttendanceDetails(this)">
                                             @day
+                                            @if (attendance != null)
+                                            {
+                                                <div class="attendance-indicator">
+                                                    @if (attendance.ClockInTime != null && attendance.ClockOutTime != null)
+                                                    {
+                                                        <i class="bi bi-check-circle"></i>
+                                                    }
+                                                    else if (attendance.ClockInTime != null)
+                                                    {
+                                                        <i class="bi bi-clock"></i>
+                                                    }
+                                                </div>
+                                            }
                                         </div>
                                     }
                                 </div>
@@ -805,7 +1460,7 @@
                                                                     <span id="breakStartTime">
                                                                         @if (todayAttendance?.BreakStartTime != null)
                                                                         {
-                                                                            @TimeSpanToString(todayAttendance.BreakStartTime.Value.TimeOfDay)
+                                                                            @DateTimeToTimeString(todayAttendance.BreakStartTime)
                                                                         }
                                                                     </span>
                                                                 </div>
@@ -841,10 +1496,6 @@
                                                     <p class="mb-0">
                                                         Checked in: @TimeSpanToString(todayAttendance.ClockInTime.Value)<br>
                                                         Checked out: @TimeSpanToString(todayAttendance.ClockOutTime.Value)<br>
-                                                        @if (todayAttendance.TotalBreakTime > TimeSpan.Zero)
-                                                        {
-                                                            <span>Break time: @todayAttendance.TotalBreakTime.Value.ToString(@"hh\:mm")</span>
-                                                        }
                                                     </p>
                                                 </div>
                                             }
@@ -864,29 +1515,66 @@
                         <div class="card-header bg-white">
                             <h5 class="mb-0">Recent Attendance</h5>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body" style="padding: 0;">
                             <div class="table-responsive">
-                                <table class="table table-hover">
+                                <table class="table table-hover" id="attendanceTable">
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
-                                            <th>Time In</th>
-                                            <th>Time Out</th>
-                                            <th>Break Hours</th>
-                                            <th>Working Hours</th>
+                                            <th class="sortable" data-sort="date" data-order="desc">Date</th>
+                                            <th class="sortable" data-sort="timeIn" data-order="desc">Time In</th>
+                                            <th class="sortable" data-sort="timeOut" data-order="desc">Time Out</th>
+                                            <th class="sortable" data-sort="breakHours" data-order="desc">Break Hours</th>
+                                            <th class="sortable" data-sort="workingHours" data-order="desc">Working Hours</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="attendanceTableBody">
                                         @if (recentAttendance != null && recentAttendance.Any())
                                         {
                                             @foreach (var record in recentAttendance)
                                             {
-                                                <tr>
+                                                bool isCompleted = record.ClockInTime != null && record.ClockOutTime != null;
+
+                                                // Determine status based on clock-in time
+                                                string statusClass = "";
+                                                string statusText = "";
+
+                                                if (record.ClockInTime.HasValue && record.ClockInTime.Value != null)
+                                                {
+                                                    TimeSpan workStartTime = new TimeSpan(9, 0, 0);
+                                                    var clockInTime = record.ClockInTime.Value;
+
+                                                    if (clockInTime <= workStartTime)
+                                                    {
+                                                        statusClass = "status-on-time";
+                                                        statusText = "On Time";
+                                                    }
+                                                    else
+                                                    {
+                                                        statusClass = "status-late";
+                                                        statusText = "Late";
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    statusText = "No Clock In";
+                                                }
+
+                                                <tr data-date="@record.Date.ToString("yyyy-MM-dd")"
+                                                    data-time-in="@(record.ClockInTime?.ToString(@"hh\:mm\:ss") ?? "")"
+                                                    data-time-out="@(record.ClockOutTime?.ToString(@"hh\:mm\:ss") ?? "")"
+                                                    data-break-hours="@(record.TotalBreakTime?.TotalSeconds ?? 0)"
+                                                    data-working-hours="@((record.ClockInTime.HasValue && record.ClockOutTime.HasValue ? (record.ClockOutTime.Value - record.ClockInTime.Value - (record.TotalBreakTime ?? TimeSpan.Zero)).TotalSeconds : 0))">
                                                     <td>@record.Date.ToString("MMM dd, yyyy")</td>
                                                     <td>
                                                         @if (record.ClockInTime != null)
                                                         {
-                                                            <span>@TimeSpanToString(record.ClockInTime.Value)</span>
+                                                            <div class="d-flex align-items-center">
+                                                                @if (!string.IsNullOrEmpty(statusClass))
+                                                                {
+                                                                    <span class="status-indicator @statusClass me-2" title="@statusText"></span>
+                                                                }
+                                                                <span>@TimeSpanToString(record.ClockInTime.Value)</span>
+                                                            </div>
                                                         }
                                                         else
                                                         {
@@ -904,22 +1592,33 @@
                                                         }
                                                     </td>
                                                     <td>
-                                                        @if (record.TotalBreakTime != null && record.TotalBreakTime > TimeSpan.Zero)
+                                                        @if (record.TotalBreakTime.HasValue)
                                                         {
-                                                            <span>@record.TotalBreakTime.Value.ToString(@"hh\:mm")</span>
+                                                            var breakTime = record.TotalBreakTime.Value;
+                                                            <span>
+                                                                @breakTime.Hours Hr
+                                                                @breakTime.Minutes.ToString("00") Mins
+                                                                @breakTime.Seconds.ToString("00") Secs
+                                                            </span>
                                                         }
                                                         else
                                                         {
-                                                            <span>0:00</span>
+                                                            <span>0 Hr 00 Mins 00 Secs</span>
                                                         }
                                                     </td>
                                                     <td>
-                                                        @if (record.ClockInTime != null && record.ClockOutTime != null)
+                                                        @if (record.ClockInTime.HasValue && record.ClockOutTime.HasValue)
                                                         {
-                                                            var totalHours = (record.ClockOutTime.Value - record.ClockInTime.Value).TotalHours;
-                                                            var breakHours = record.TotalBreakTime?.TotalHours ?? 0;
-                                                            var workingHours = totalHours - breakHours;
-                                                            <span>@workingHours.ToString("F2")</span>
+                                                            // Calculate total working time
+                                                            var totalDuration = record.ClockOutTime.Value - record.ClockInTime.Value;
+                                                            var breakTime = record.TotalBreakTime ?? TimeSpan.Zero;
+                                                            var workingTime = totalDuration - breakTime;
+
+                                                            <span>
+                                                                @workingTime.Hours Hr
+                                                                @workingTime.Minutes.ToString("00") Mins
+                                                                @workingTime.Seconds.ToString("00") Secs
+                                                            </span>
                                                         }
                                                         else
                                                         {
@@ -940,8 +1639,109 @@
                                     </tbody>
                                 </table>
                             </div>
+
+                            <!-- Pagination -->
+                            @if (totalRecords > 0)
+                            {
+                                <div class="pagination-container" id="paginationContainer">
+                                    <!-- Left side: Status indicators and info -->
+                                    <div class="d-flex align-items-center gap-4">
+                                        <!-- Pagination Info -->
+                                        <div class="pagination-info">
+                                            Showing @(((currentPage - 1) * pageSize) + 1)-@Math.Min(currentPage * pageSize, totalRecords) of @totalRecords records
+                                        </div>
+
+                                        <div class="pagination-status-indicators">
+                                            <div class="status-indicator-item">
+                                                <span class="pagination-status-dot status-dot-on-time"></span>
+                                                <span>On Time</span>
+                                            </div>
+                                            <div class="status-indicator-item">
+                                                <span class="pagination-status-dot status-dot-late"></span>
+                                                <span>Late</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Vertical separator -->
+                                        <div class="vr" style="height: 20px; background-color: #D6E3F2;"></div>
+                                    </div>
+
+                                    <!-- Right side: Pagination Navigation - FIXED -->
+                                    <nav aria-label="Attendance pagination">
+                                        <ul class="pagination mb-0" id="paginationNav">
+                                            <!-- Previous button -->
+                                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                                <a class="page-link"
+                                                   href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage - 1)"
+                                                   onclick="changePage(@(currentPage - 1)); return false;"
+                                                   aria-label="Previous">
+                                                    <span aria-hidden="true">&laquo;</span>
+                                                </a>
+                                            </li>
+
+                                            <!-- Page numbers -->
+                                            @{
+                                                int startPage = Math.Max(1, currentPage - 2);
+                                                int endPage = Math.Min(totalPages, startPage + 4);
+
+                                                if (endPage - startPage < 4)
+                                                {
+                                                    startPage = Math.Max(1, endPage - 4);
+                                                }
+                                            }
+
+                                            @for (int i = startPage; i <= endPage; i++)
+                                            {
+                                                <li class="page-item @(i == currentPage ? "active" : "")">
+                                                    <a class="page-link"
+                                                       href="?month=@selectedMonth&year=@selectedYear&page=@i"
+                                                       onclick="changePage(@i); return false;">
+                                                        @i
+                                                    </a>
+                                                </li>
+                                            }
+
+                                            <!-- Next button -->
+                                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                                <a class="page-link"
+                                                   href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage + 1)"
+                                                   onclick="changePage(@(currentPage + 1)); return false;"
+                                                   aria-label="Next">
+                                                    <span aria-hidden="true">&raquo;</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
+                            }
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Attendance Details Modal -->
+<div class="modal fade" id="attendanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="attendanceDate">
+                    <i class="bi bi-calendar-check me-2"></i>Attendance Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="attendance-details-container">
+                    <!-- Loading state -->
+                    <div class="loading-state">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Content will be inserted here by JavaScript -->
                 </div>
             </div>
         </div>
@@ -950,7 +1750,217 @@
 
 @section Scripts {
     <script>
-        // Global variables for timers
+        // ========== OPTIMIZATION FUNCTIONS ==========
+        // Debounce function for better performance
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Cache DOM elements
+        let cachedElements = {};
+
+        function getElement(id) {
+            if (!cachedElements[id]) {
+                cachedElements[id] = document.getElementById(id);
+            }
+            return cachedElements[id];
+        }
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            // Remove existing toasts
+            const existingToast = document.querySelector('.custom-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // Create toast
+            const toast = document.createElement('div');
+            toast.className = `custom-toast custom-toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <div class="toast-icon"></div>
+                    <div class="toast-message">${message}</div>
+                    <button class="toast-close">&times;</button>
+                </div>
+            `;
+
+            // Add styles if not already added
+            if (!document.getElementById('toast-styles')) {
+                const style = document.createElement('style');
+                style.id = 'toast-styles';
+                style.textContent = `
+                    .custom-toast {
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        z-index: 9999;
+                        min-width: 300px;
+                        max-width: 400px;
+                        background: #FFFFFF;
+                        border: 1px solid #C6E6FB;
+                        box-shadow: 0px 4px 12px rgba(88, 134, 166, 0.25);
+                        border-radius: 8px;
+                        padding: 16px;
+                        font-family: 'Poppins', sans-serif;
+                        animation: slideIn 0.3s ease-out;
+                    }
+
+                    .custom-toast-error {
+                        border-left: 4px solid #F5533D;
+                    }
+
+                    .custom-toast-success {
+                        border-left: 4px solid #52B623;
+                    }
+
+                    .custom-toast-warning {
+                        border-left: 4px solid #FF9C00;
+                    }
+
+                    .custom-toast-info {
+                        border-left: 4px solid #5A91CB;
+                    }
+
+                    .toast-content {
+                        display: flex;
+                        align-items: flex-start;
+                        gap: 12px;
+                    }
+
+                    .toast-icon {
+                        width: 24px;
+                        height: 24px;
+                        border-radius: 50%;
+                        flex-shrink: 0;
+                    }
+
+                    .custom-toast-error .toast-icon {
+                        background: #F5533D;
+                    }
+
+                    .custom-toast-success .toast-icon {
+                        background: #52B623;
+                    }
+
+                    .custom-toast-warning .toast-icon {
+                        background: #FF9C00;
+                    }
+
+                    .custom-toast-info .toast-icon {
+                        background: #5A91CB;
+                    }
+
+                    .toast-message {
+                        flex: 1;
+                        color: #122539;
+                        font-size: 14px;
+                        line-height: 1.4;
+                    }
+
+                    .toast-close {
+                        background: none;
+                        border: none;
+                        color: #5A91CB;
+                        font-size: 20px;
+                        cursor: pointer;
+                        padding: 0;
+                        line-height: 1;
+                        opacity: 0.7;
+                        transition: opacity 0.2s;
+                    }
+
+                    .toast-close:hover {
+                        opacity: 1;
+                    }
+
+                    @@keyframes slideIn {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+
+                    @@keyframes fadeOut {
+                        from {
+                            opacity: 1;
+                        }
+                        to {
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(toast);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+
+            // Close button functionality
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                toast.remove();
+            });
+        }
+
+        // Better error handling for geolocation
+        function handleGeolocationError(error, button, originalHTML) {
+            let message = 'Please enable location services to continue.';
+
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    message = 'Location permission was denied. Please enable location access in your browser settings.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = 'Location information is currently unavailable. Please check your connection.';
+                    break;
+                case error.TIMEOUT:
+                    message = 'The request to get your location timed out. Please try again.';
+                    break;
+                case error.UNKNOWN_ERROR:
+                    message = 'An unknown error occurred while getting your location.';
+                    break;
+            }
+
+            showToast(message, 'error');
+
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+            }
+        }
+
+        // Loading state manager
+        function setLoading(element, isLoading, loadingText = 'Processing...') {
+            const originalHTML = element.innerHTML;
+
+            if (isLoading) {
+                element.dataset.originalContent = originalHTML;
+                element.disabled = true;
+                element.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> ${loadingText}`;
+            } else {
+                element.disabled = false;
+                element.innerHTML = originalHTML;
+            }
+        }
+
+        // ========== GLOBAL VARIABLES ==========
         let workingTimer = null;
         let breakTimer = null;
         let workingSeconds = 0;
@@ -958,16 +1968,20 @@
         let breakStartTime = null;
         let isOnBreak = @((todayAttendance?.IsOnBreak ?? false) ? "true" : "false");
 
+        // Cache clock elements
+        let clockElements = {};
+        let lastSecond = -1;
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize clock face
+            // Initialize all components
             initializeClockFace();
 
-            // Start analog clock
+            // Start optimized clock updates
             updateAnalogClock();
             setInterval(updateAnalogClock, 50);
 
             // Live clock update for check-in time
-            function updateTime() {
+            const updateTime = debounce(function() {
                 const now = new Date();
                 const timeString = now.toLocaleTimeString('en-US', {
                     hour12: true,
@@ -975,19 +1989,21 @@
                     minute: '2-digit',
                     second: '2-digit'
                 });
-                if (document.getElementById('checkInTime')) {
-                    document.getElementById('checkInTime').textContent = timeString;
+                const checkInTimeElement = getElement('checkInTime');
+                if (checkInTimeElement) {
+                    checkInTimeElement.textContent = timeString;
                 }
-            }
+            }, 100);
+
             setInterval(updateTime, 1000);
             updateTime();
 
             // Initialize time displays
             initializeTimeDisplays();
 
-            // Get dropdown elements
-            const monthSelect = document.getElementById('monthSelect');
-            const yearSelect = document.getElementById('yearSelect');
+            // Get and cache dropdown elements
+            const monthSelect = getElement('monthSelect');
+            const yearSelect = getElement('yearSelect');
 
             // Set initial values from selected month/year
             if (monthSelect && yearSelect) {
@@ -996,12 +2012,12 @@
             }
 
             // Auto-apply when either dropdown changes
-            function applyMonthYear() {
+            const applyMonthYear = debounce(function() {
                 const newYear = yearSelect.value;
                 const newMonth = monthSelect.value;
 
                 // Update the calendar header text
-                const monthYearElement = document.getElementById('calendarMonthYear');
+                const monthYearElement = getElement('calendarMonthYear');
                 if (monthYearElement) {
                     const date = new Date(newYear, newMonth - 1);
                     monthYearElement.textContent =
@@ -1013,9 +2029,9 @@
 
                 // Reload the page with new parameters
                 window.location.href = `?month=${newMonth}&year=${newYear}`;
-            }
+            }, 300);
 
-            // Add event listeners
+            // Add event listeners with debouncing
             if (monthSelect) {
                 monthSelect.addEventListener('change', applyMonthYear);
             }
@@ -1024,33 +2040,430 @@
                 yearSelect.addEventListener('change', applyMonthYear);
             }
 
-            // Prevent double submission for clock in/out
-            const clockInBtn = document.getElementById('clockInBtn');
-            const clockOutBtn = document.getElementById('clockOutBtn');
-            const startBreakBtn = document.getElementById('startBreakBtn');
-            const endBreakBtn = document.getElementById('endBreakBtn');
+            // Initialize button handlers
+            initializeButtonHandlers();
+
+            // Preserve pagination parameters when changing month/year
+            const currentPage = @currentPage;
+            if (currentPage > 1) {
+                const newUrl = window.location.pathname +
+                              '?month=@selectedMonth&year=@selectedYear&page=' + currentPage;
+                window.history.replaceState({}, '', newUrl);
+            }
+
+            // Make calendar days clickable
+            document.addEventListener('click', function(e) {
+                const calendarDay = e.target.closest('.calendar-day:not(.empty)');
+                if (calendarDay) {
+                    showAttendanceDetails(calendarDay);
+                }
+            });
+            initializeAjaxSorting();
+        });
+        // ===== AJAX TABLE SORTING =====
+        let currentSort = {
+            column: 'date',
+            order: 'desc',
+            currentPage: 1,
+            totalPages: 1
+        };
+
+        // Initialize table sorting with AJAX
+        function initializeAjaxSorting() {
+            const tableHeaders = document.querySelectorAll('#attendanceTable th.sortable');
+
+            tableHeaders.forEach(header => {
+                header.addEventListener('click', async function() {
+                    const column = this.dataset.sort;
+                    const currentOrder = this.dataset.order;
+                    const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+
+                    // Update UI immediately
+                    tableHeaders.forEach(h => {
+                        h.classList.remove('asc', 'desc');
+                        h.dataset.order = 'desc';
+                    });
+
+                    this.classList.add(newOrder);
+                    this.dataset.order = newOrder;
+
+                    // Update current sort
+                    currentSort.column = column;
+                    currentSort.order = newOrder;
+
+                    // Show loading state
+                    showTableLoading(true);
+
+                    try {
+                        // Fetch sorted data via AJAX
+                        await loadSortedData(column, newOrder, 1); // Reset to page 1 when sorting
+                    } catch (error) {
+                        console.error('Sorting error:', error);
+                        showToast('Error sorting data. Please try again.', 'error');
+                    } finally {
+                        showTableLoading(false);
+                    }
+                });
+            });
+
+            // Initialize pagination event listeners
+            initializePagination();
+        }
+
+        // Function to load sorted data via AJAX
+        async function loadSortedData(sortColumn, sortOrder, page) {
+            try {
+                const response = await fetch(`/Attendance/GetSortedAttendance?page=${page}&sort=${sortColumn}&order=${sortOrder}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update table with new data
+                    updateTableWithData(result.data);
+
+                    // Update pagination with AJAX flag
+                    updatePagination(result.page, result.totalPages, result.totalRecords, true);
+
+                    // Update current sort state
+                    currentSort = {
+                        column: result.sort,
+                        order: result.order,
+                        currentPage: result.page,
+                        totalPages: result.totalPages
+                    };
+                } else {
+                    throw new Error(result.message || 'Failed to load data');
+                }
+            } catch (error) {
+                console.error('Error loading sorted data:', error);
+                throw error;
+            }
+        }
+
+        // Function to update table with new data
+                // Function to update table with new data
+        function updateTableWithData(data) {
+            const tbody = document.getElementById('attendanceTableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            No attendance records found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Build new rows
+            let rowsHtml = '';
+
+            data.forEach(record => {
+                // Determine status
+                let statusClass = "";
+                let statusText = "";
+
+                if (record.clockInTime && record.clockInTime !== '-') {
+                    // Parse the time string (e.g., "09:15 AM")
+                    const timeMatch = record.clockInTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const minutes = parseInt(timeMatch[2]);
+                        const ampm = timeMatch[3].toUpperCase();
+
+                        // Convert to 24-hour format for comparison
+                        if (ampm === 'PM' && hours < 12) hours += 12;
+                        if (ampm === 'AM' && hours === 12) hours = 0;
+
+                        // Compare with 9:00 AM
+                        if (hours < 9 || (hours === 9 && minutes === 0)) {
+                            statusClass = "status-on-time";
+                            statusText = "On Time";
+                        } else {
+                            statusClass = "status-late";
+                            statusText = "Late";
+                        }
+                    }
+                } else {
+                    statusText = "No Clock In";
+                }
+
+                // Build row using pre-formatted values from server
+                rowsHtml += `
+                    <tr>
+                        <td>${record.date}</td>
+                        <td>
+                            ${record.clockInTime !== '-' ? `
+                                <div class="d-flex align-items-center">
+                                    ${statusClass ? `<span class="status-indicator ${statusClass} me-2" title="${statusText}"></span>` : ''}
+                                    <span>${record.clockInTime}</span>
+                                </div>
+                            ` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td>
+                            ${record.clockOutTime !== '-' ? `<span>${record.clockOutTime}</span>` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td>${record.breakTime}</td>
+                        <td>${record.workingTime}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rowsHtml;
+        }
+
+        // Function to update pagination (for both initial and AJAX)
+        function updatePagination(currentPage, totalPages, totalRecords, isAjax = false) {
+            const paginationContainer = document.querySelector('.pagination-container');
+            if (!paginationContainer) return;
+
+            // Update pagination info
+            const startRecord = ((currentPage - 1) * 10) + 1;
+            const endRecord = Math.min(currentPage * 10, totalRecords);
+
+            const paginationInfo = paginationContainer.querySelector('.pagination-info');
+            if (paginationInfo) {
+                paginationInfo.textContent = `Showing ${startRecord}-${endRecord} of ${totalRecords} records`;
+            }
+
+            // Get current month and year for non-AJAX links
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
+            const currentMonth = monthSelect ? monthSelect.value : @selectedMonth;
+            const currentYear = yearSelect ? yearSelect.value : @selectedYear;
+
+            // Update pagination navigation
+            const paginationNav = paginationContainer.querySelector('.pagination');
+            if (paginationNav) {
+                let paginationHtml = '';
+
+                // Previous button
+                paginationHtml += `
+                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link"
+                           href="${isAjax ? '#' : `?month=${currentMonth}&year=${currentYear}&page=${currentPage - 1}`}"
+                           onclick="changePage(${currentPage - 1}, ${isAjax}); return false;"
+                           aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                `;
+
+                // Page numbers
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, startPage + 4);
+
+                if (endPage - startPage < 4) {
+                    startPage = Math.max(1, endPage - 4);
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationHtml += `
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link"
+                               href="${isAjax ? '#' : `?month=${currentMonth}&year=${currentYear}&page=${i}`}"
+                               onclick="changePage(${i}, ${isAjax}); return false;">
+                                ${i}
+                            </a>
+                        </li>
+                    `;
+                }
+
+                // Next button
+                paginationHtml += `
+                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link"
+                           href="${isAjax ? '#' : `?month=${currentMonth}&year=${currentYear}&page=${currentPage + 1}`}"
+                           onclick="changePage(${currentPage + 1}, ${isAjax}); return false;"
+                           aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                `;
+
+                paginationNav.innerHTML = paginationHtml;
+            }
+
+            // Store current state
+            currentSort.currentPage = currentPage;
+            currentSort.totalPages = totalPages;
+        }
+
+        // Modified changePage function
+        async function changePage(page, isAjax = false) {
+            if (page < 1 || page > currentSort.totalPages) return;
+
+            if (isAjax) {
+                // AJAX pagination (when sorting is active)
+                showTableLoading(true);
+                try {
+                    await loadSortedData(currentSort.column, currentSort.order, page);
+                } catch (error) {
+                    console.error('Page change error:', error);
+                    showToast('Error loading page. Please try again.', 'error');
+                } finally {
+                    showTableLoading(false);
+                }
+            } else {
+                // Regular pagination (non-AJAX)
+                const monthSelect = document.getElementById('monthSelect');
+                const yearSelect = document.getElementById('yearSelect');
+                const currentMonth = monthSelect ? monthSelect.value : @selectedMonth;
+                const currentYear = yearSelect ? yearSelect.value : @selectedYear;
+
+                // Navigate to the page with month/year parameters
+                window.location.href = `?month=${currentMonth}&year=${currentYear}&page=${page}`;
+            }
+        }
+
+        // Function to change page
+        async function changePage(page) {
+            if (page < 1 || page > currentSort.totalPages) return;
+
+            showTableLoading(true);
+
+            try {
+                await loadSortedData(currentSort.column, currentSort.order, page);
+            } catch (error) {
+                console.error('Page change error:', error);
+                showToast('Error loading page. Please try again.', 'error');
+            } finally {
+                showTableLoading(false);
+            }
+        }
+
+        // Function to show/hide table loading
+        function showTableLoading(show) {
+            const tableBody = document.getElementById('attendanceTableBody');
+            const tableHeader = document.querySelector('#attendanceTable thead');
+
+            if (show) {
+                // Add loading overlay to table
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.id = 'tableLoadingOverlay';
+                loadingOverlay.className = 'table-loading-overlay';
+                loadingOverlay.innerHTML = `
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                `;
+
+                // Position it over the table body
+                if (tableBody) {
+                    tableBody.style.position = 'relative';
+                    tableBody.appendChild(loadingOverlay);
+                }
+
+                // Disable sort headers
+                const sortHeaders = document.querySelectorAll('th.sortable');
+                sortHeaders.forEach(header => {
+                    header.style.pointerEvents = 'none';
+                    header.style.opacity = '0.6';
+                });
+            } else {
+                // Remove loading overlay
+                const existingOverlay = document.getElementById('tableLoadingOverlay');
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                }
+
+                // Re-enable sort headers
+                const sortHeaders = document.querySelectorAll('th.sortable');
+                sortHeaders.forEach(header => {
+                    header.style.pointerEvents = '';
+                    header.style.opacity = '';
+                });
+            }
+        }
+
+        // Initialize pagination event listeners
+        function initializePagination() {
+            // Event delegation for pagination links
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('.page-link') || e.target.closest('.page-link')) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Helper function to format time from database
+        function formatTimeFromDatabase(timeStr) {
+            if (!timeStr) return 'N/A';
+
+            try {
+                const [hours, minutes, seconds] = timeStr.split(':');
+                const hourNum = parseInt(hours, 10);
+                const minuteNum = parseInt(minutes, 10);
+
+                const date = new Date();
+                date.setHours(hourNum, minuteNum, 0);
+
+                return date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            } catch (e) {
+                return timeStr;
+            }
+        }
+
+        // ========== BUTTON HANDLERS ==========
+        function initializeButtonHandlers() {
+            const clockInBtn = getElement('clockInBtn');
+            const clockOutBtn = getElement('clockOutBtn');
+            const startBreakBtn = getElement('startBreakBtn');
+            const endBreakBtn = getElement('endBreakBtn');
 
             if (clockInBtn) {
                 clockInBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    this.disabled = true;
-                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Clocking in...';
+                    const originalHTML = this.innerHTML;
+                    setLoading(this, true, 'Clocking in...');
 
                     // Get current location for clock in
                     if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(function(position) {
-                            document.getElementById('clockInLat').value = position.coords.latitude;
-                            document.getElementById('clockInLng').value = position.coords.longitude;
-                            document.getElementById('clockInForm').submit();
-                        }, function(error) {
-                            alert('Please enable location services to clock in.');
-                            clockInBtn.disabled = false;
-                            clockInBtn.innerHTML = '<h4 class="mb-1">Check In</h4><small class="text-white-50">Start your workday</small>';
-                        });
+                        navigator.geolocation.getCurrentPosition(
+                            function(position) {
+                                // Validate coordinates
+                                if (isValidCoordinates(position.coords.latitude, position.coords.longitude)) {
+                                    const clockInLat = getElement('clockInLat');
+                                    const clockInLng = getElement('clockInLng');
+
+                                    if (clockInLat && clockInLng) {
+                                        clockInLat.value = position.coords.latitude;
+                                        clockInLng.value = position.coords.longitude;
+
+                                        // Submit form
+                                        const clockInForm = getElement('clockInForm');
+                                        if (clockInForm) {
+                                            clockInForm.submit();
+                                        }
+                                    }
+                                } else {
+                                    showToast('Invalid location coordinates detected.', 'error');
+                                    setLoading(clockInBtn, false);
+                                    clockInBtn.innerHTML = originalHTML;
+                                }
+                            },
+                            function(error) {
+                                handleGeolocationError(error, clockInBtn, originalHTML);
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                timeout: 10000,
+                                maximumAge: 0
+                            }
+                        );
                     } else {
-                        alert('Geolocation is not supported by this browser.');
-                        clockInBtn.disabled = false;
-                        clockInBtn.innerHTML = '<h4 class="mb-1">Check In</h4><small class="text-white-50">Start your workday</small>';
+                        showToast('Geolocation is not supported by your browser.', 'error');
+                        setLoading(clockInBtn, false);
+                        clockInBtn.innerHTML = originalHTML;
                     }
                 });
             }
@@ -1058,29 +2471,51 @@
             if (clockOutBtn) {
                 clockOutBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    this.disabled = true;
-                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Clocking out...';
+                    const originalHTML = this.innerHTML;
+                    setLoading(this, true, 'Clocking out...');
 
                     // Get current location for clock out
                     if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(function(position) {
-                            document.getElementById('clockOutLat').value = position.coords.latitude;
-                            document.getElementById('clockOutLng').value = position.coords.longitude;
+                        navigator.geolocation.getCurrentPosition(
+                            function(position) {
+                                // Validate coordinates
+                                if (isValidCoordinates(position.coords.latitude, position.coords.longitude)) {
+                                    const clockOutLat = getElement('clockOutLat');
+                                    const clockOutLng = getElement('clockOutLng');
 
-                            // Stop all timers when clocking out
-                            stopWorkingTimer();
-                            stopBreakTimer();
+                                    if (clockOutLat && clockOutLng) {
+                                        clockOutLat.value = position.coords.latitude;
+                                        clockOutLng.value = position.coords.longitude;
 
-                            document.getElementById('clockOutForm').submit();
-                        }, function(error) {
-                            alert('Please enable location services to clock out.');
-                            clockOutBtn.disabled = false;
-                            clockOutBtn.innerHTML = '<h4 class="mb-1">Check Out</h4><small class="text-white-50">End your workday</small>';
-                        });
+                                        // Stop all timers when clocking out
+                                        stopWorkingTimer();
+                                        stopBreakTimer();
+
+                                        // Submit form
+                                        const clockOutForm = getElement('clockOutForm');
+                                        if (clockOutForm) {
+                                            clockOutForm.submit();
+                                        }
+                                    }
+                                } else {
+                                    showToast('Invalid location coordinates detected.', 'error');
+                                    setLoading(clockOutBtn, false);
+                                    clockOutBtn.innerHTML = originalHTML;
+                                }
+                            },
+                            function(error) {
+                                handleGeolocationError(error, clockOutBtn, originalHTML);
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                timeout: 10000,
+                                maximumAge: 0
+                            }
+                        );
                     } else {
-                        alert('Geolocation is not supported by this browser.');
-                        clockOutBtn.disabled = false;
-                        clockOutBtn.innerHTML = '<h4 class="mb-1">Check Out</h4><small class="text-white-50">End your workday</small>';
+                        showToast('Geolocation is not supported by your browser.', 'error');
+                        setLoading(clockOutBtn, false);
+                        clockOutBtn.innerHTML = originalHTML;
                     }
                 });
             }
@@ -1088,35 +2523,55 @@
             if (startBreakBtn) {
                 startBreakBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    this.disabled = true;
-                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Starting break...';
+                    const originalHTML = this.innerHTML;
+                    setLoading(this, true, 'Starting break...');
 
                     // Show temporary break state while form submits
                     startBreakTimerUI();
 
                     // Submit the form
-                    document.getElementById('startBreakForm').submit();
+                    const startBreakForm = getElement('startBreakForm');
+                    if (startBreakForm) {
+                        startBreakForm.submit();
+                    }
                 });
             }
 
             if (endBreakBtn) {
                 endBreakBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    this.disabled = true;
-                    this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Ending break...';
+                    const originalHTML = this.innerHTML;
+                    setLoading(this, true, 'Ending break...');
 
                     // Stop timer UI while form submits
                     stopBreakTimerUI();
 
                     // Submit the form
-                    document.getElementById('endBreakForm').submit();
+                    const endBreakForm = getElement('endBreakForm');
+                    if (endBreakForm) {
+                        endBreakForm.submit();
+                    }
                 });
             }
-        });
+        }
+
+        // ========== UTILITY FUNCTIONS ==========
+        function isValidCoordinates(latitude, longitude) {
+            return (
+                typeof latitude === 'number' &&
+                typeof longitude === 'number' &&
+                !isNaN(latitude) &&
+                !isNaN(longitude) &&
+                latitude >= -90 &&
+                latitude <= 90 &&
+                longitude >= -180 &&
+                longitude <= 180
+            );
+        }
 
         // ========== CLOCK FACE FUNCTIONS ==========
         function initializeClockFace() {
-            const svg = document.getElementById('analog-clock');
+            const svg = getElement('analog-clock');
             if (!svg) return;
 
             // Set proper viewBox for the SVG
@@ -1184,9 +2639,14 @@
 
         function updateAnalogClock() {
             const now = new Date();
+            const seconds = now.getSeconds();
+
+            // Only update if second has changed (performance optimization)
+            if (seconds === lastSecond) return;
+            lastSecond = seconds;
+
             const hours = now.getHours() % 12;
             const minutes = now.getMinutes();
-            const seconds = now.getSeconds();
             const milliseconds = now.getMilliseconds();
 
             // Calculate angles
@@ -1194,19 +2654,19 @@
             const minuteAngle = (minutes + seconds / 60) * 6;
             const hourAngle = (hours + minutes / 60) * 30;
 
-            // Apply rotation
-            const hourHand = document.getElementById('hour-hand');
-            const minuteHand = document.getElementById('minute-hand');
-            const secondHand = document.getElementById('second-hand');
+            // Apply rotation - cache elements
+            const hourHand = clockElements.hourHand || (clockElements.hourHand = getElement('hour-hand'));
+            const minuteHand = clockElements.minuteHand || (clockElements.minuteHand = getElement('minute-hand'));
+            const secondHand = clockElements.secondHand || (clockElements.secondHand = getElement('second-hand'));
 
             if (hourHand) hourHand.setAttribute('transform', `rotate(${hourAngle}, 100, 100)`);
             if (minuteHand) minuteHand.setAttribute('transform', `rotate(${minuteAngle}, 100, 100)`);
             if (secondHand) secondHand.setAttribute('transform', `rotate(${secondAngle}, 100, 100)`);
 
-            // Update digital display
-            const digitalTime = document.getElementById('digital-time');
-            const amPm = document.getElementById('am-pm');
-            const dateElement = document.getElementById('liveDateShort');
+            // Update digital display - cache elements
+            const digitalTime = clockElements.digitalTime || (clockElements.digitalTime = getElement('digital-time'));
+            const amPm = clockElements.amPm || (clockElements.amPm = getElement('am-pm'));
+            const dateElement = clockElements.dateElement || (clockElements.dateElement = getElement('liveDateShort'));
 
             if (digitalTime) {
                 const timeString = now.toLocaleTimeString('en-US', {
@@ -1249,7 +2709,7 @@
             }
         }
 
-        // UI function to show break started state (doesn't actually start timer)
+        // UI function to show break started state
         function startBreakTimerUI() {
             // Pause working timer when break starts
             stopWorkingTimer();
@@ -1257,17 +2717,17 @@
             breakStartTime = new Date();
 
             // Update UI to show break started time
-            const breakStartTimeElement = document.getElementById('breakStartTime');
+            const breakStartTimeElement = getElement('breakStartTime');
             if (breakStartTimeElement) {
                 breakStartTimeElement.textContent = breakStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             }
         }
 
-        // UI function to show break ended state (doesn't actually stop timer)
+        // UI function to show break ended state
         function stopBreakTimerUI() {
             // Resume working timer when break ends
-            const clockInBtn = document.getElementById('clockInBtn');
-            const clockOutBtn = document.getElementById('clockOutBtn');
+            const clockInBtn = getElement('clockInBtn');
+            const clockOutBtn = getElement('clockOutBtn');
 
             if (!workingTimer && !clockInBtn && clockOutBtn) {
                 startWorkingTimer();
@@ -1296,9 +2756,9 @@
             const minutes = Math.floor((workingSeconds % 3600) / 60);
             const seconds = workingSeconds % 60;
 
-            const workingHoursEl = document.getElementById('workingHours');
-            const workingMinutesEl = document.getElementById('workingMinutes');
-            const workingSecondsEl = document.getElementById('workingSeconds');
+            const workingHoursEl = clockElements.workingHours || (clockElements.workingHours = getElement('workingHours'));
+            const workingMinutesEl = clockElements.workingMinutes || (clockElements.workingMinutes = getElement('workingMinutes'));
+            const workingSecondsEl = clockElements.workingSeconds || (clockElements.workingSeconds = getElement('workingSeconds'));
 
             if (workingHoursEl) workingHoursEl.textContent = hours;
             if (workingMinutesEl) workingMinutesEl.textContent = minutes.toString().padStart(2, '0');
@@ -1310,9 +2770,9 @@
             const minutes = Math.floor((breakSeconds % 3600) / 60);
             const seconds = breakSeconds % 60;
 
-            const breakHoursEl = document.getElementById('breakHours');
-            const breakMinutesEl = document.getElementById('breakMinutes');
-            const breakSecondsEl = document.getElementById('breakSeconds');
+            const breakHoursEl = clockElements.breakHours || (clockElements.breakHours = getElement('breakHours'));
+            const breakMinutesEl = clockElements.breakMinutes || (clockElements.breakMinutes = getElement('breakMinutes'));
+            const breakSecondsEl = clockElements.breakSeconds || (clockElements.breakSeconds = getElement('breakSeconds'));
 
             if (breakHoursEl) breakHoursEl.textContent = hours;
             if (breakMinutesEl) breakMinutesEl.textContent = minutes.toString().padStart(2, '0');
@@ -1327,7 +2787,6 @@
                         try {
                             const now = new Date();
                             const todayStr = now.toISOString().split('T')[0];
-                            // Fix: Access the TimeSpan value and format it
                             const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
                             const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
 
@@ -1351,6 +2810,18 @@
                                             }
                                             </text>
                                 }
+                                // NEW: If user has taken break and ended it, show total break time
+                                else if (todayAttendance?.HasTakenBreak == true && todayAttendance?.TotalBreakTime != null)
+                                {
+                                            <text>
+                                            const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                            const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                            const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                            breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                            updateBreakTimeDisplay();
+                                            startWorkingTimer();
+                                            </text>
+                                }
                                 else
                                 {
                                             <text>
@@ -1360,6 +2831,7 @@
                             }
                         } catch (e) {
                             console.error('Error calculating elapsed time:', e);
+                            showToast('Error calculating elapsed time. Please refresh the page.', 'error');
                         }
                         </text>
             }
@@ -1368,7 +2840,6 @@
                         <text>
                         try {
                             const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
-                            // Fix: Access the TimeSpan values
                             const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
                             const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
 
@@ -1385,7 +2856,6 @@
                             @if (todayAttendance?.TotalBreakTime != null)
                             {
                                         <text>
-                                        // Fix: Format the TimeSpan properly
                                         const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
                                         const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
                                         const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
@@ -1395,12 +2865,500 @@
                             }
                         } catch (e) {
                             console.error('Error calculating completed time:', e);
+                            showToast('Error calculating completed time. Please refresh the page.', 'error');
                         }
                         </text>
             }
 
             updateWorkingTimeDisplay();
             updateBreakTimeDisplay();
+        }
+
+        // ========== EVENT LISTENER OPTIMIZATION ==========
+        // Use event delegation for better performance
+        document.addEventListener('click', function(e) {
+            // Handle pagination clicks
+            if (e.target.matches('.page-link') || e.target.closest('.page-link')) {
+                const pageLink = e.target.matches('.page-link') ? e.target : e.target.closest('.page-link');
+                if (pageLink && !pageLink.parentElement.classList.contains('disabled')) {
+                    // Add loading state to pagination
+                    const paginationContainer = pageLink.closest('.pagination-container');
+                    if (paginationContainer) {
+                        paginationContainer.style.opacity = '0.7';
+                        paginationContainer.style.pointerEvents = 'none';
+                    }
+                }
+            }
+
+            // Handle table sorting if implemented later
+            if (e.target.matches('.table th') || e.target.closest('.table th')) {
+                // Future table sorting implementation
+            }
+        });
+
+        // Handle window resize with debouncing
+        window.addEventListener('resize', debounce(function() {
+            // Update any responsive elements
+            updateResponsiveElements();
+        }, 250));
+
+        function updateResponsiveElements() {
+            // Future responsive updates
+        }
+
+        // ===== ATTENDANCE MODAL FUNCTIONS =====
+        function showAttendanceDetails(calendarDayElement) {
+            const date = calendarDayElement.dataset.date;
+            const attendanceId = calendarDayElement.dataset.attendanceId;
+
+            // Get modal element
+            const modalElement = document.getElementById('attendanceModal');
+
+            // Clean up any existing modal issues first
+            cleanupModalBackdrop();
+
+            // Set modal title
+            const modalTitle = document.getElementById('attendanceDate');
+            const dateObj = new Date(date);
+            modalTitle.innerHTML = `<i class="bi bi-calendar-check me-2"></i>${dateObj.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })}`;
+
+            // Show loading state
+            const detailsContainer = modalElement.querySelector('.attendance-details-container');
+            detailsContainer.innerHTML = `
+                <div class="loading-state">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading attendance details...</p>
+                    </div>
+                </div>
+            `;
+
+            // Initialize Bootstrap modal properly
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+
+            // Show modal
+            modal.show();
+
+            // Load attendance details after a short delay (to show loading state)
+            setTimeout(() => {
+                loadAttendanceDetails(date, attendanceId, calendarDayElement);
+            }, 100);
+        }
+
+        // Helper function to clean up modal backdrop
+        function cleanupModalBackdrop() {
+            // Remove all existing backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+
+            // Remove modal-open class
+            document.body.classList.remove('modal-open');
+
+            // Reset body style
+            document.body.style.paddingRight = '';
+            document.body.style.overflow = '';
+        }
+
+                function forceCloseModal() {
+            const modalElement = document.getElementById('attendanceModal');
+            if (modalElement) {
+                // Hide the modal
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
+
+                // Force cleanup
+                cleanupModalBackdrop();
+
+                // Remove the modal element from DOM (temporary)
+                modalElement.style.display = 'none';
+
+                // Show toast notification
+                showToast('Modal closed', 'info');
+            }
+        }
+
+        // You can bind this to ESC key or a hidden button for emergencies
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                forceCloseModal();
+            }
+        });
+
+        async function loadAttendanceDetails(date, attendanceId, calendarDayElement) {
+            try {
+                // Show loading state
+                const detailsContainer = document.querySelector('.attendance-details-container');
+                detailsContainer.innerHTML = `
+                    <div class="loading-state">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading attendance details...</p>
+                        </div>
+                    </div>
+                `;
+
+                // Fetch attendance details from API
+                const response = await fetch(`/Attendance/GetAttendanceDetails?date=${date}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to fetch attendance details');
+                }
+
+                if (!result.hasAttendance) {
+                    // No attendance record at all for this date
+                    const html = generateNoAttendanceHTML(date);
+                    detailsContainer.innerHTML = html;
+                    return;
+                }
+
+                const attendance = result.attendance;
+                const clockInTime = attendance.clockInTime;
+                const clockOutTime = attendance.clockOutTime;
+                const breakTime = attendance.totalBreakTime;
+                const workingHours = attendance.workingHours;
+                const status = attendance.status; // Get actual status from database
+
+                // Generate HTML with the fetched data (pass the actual status)
+                const html = generateAttendanceDetailsHTML(date, attendance.id, status, clockInTime, clockOutTime, breakTime, workingHours);
+                detailsContainer.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading attendance details:', error);
+                showErrorState(date, error.message);
+            }
+        }
+
+                function generateNoAttendanceHTML(date) {
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                weekday: 'long'
+            });
+
+            return `
+                <div class="attendance-details show">
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${formattedDate}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="status-badge status-absent">
+                            <i class="bi bi-x-circle me-1"></i> No Record
+                        </span>
+                    </div>
+
+                    <div class="empty-state mt-4">
+                        <div class="icon">
+                            <i class="bi bi-calendar-x"></i>
+                        </div>
+                        <h6>No Attendance Record</h6>
+                        <p>No attendance was recorded for this date.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateAttendanceDetailsHTML(date, attendanceId, status, clockInTime, clockOutTime, breakTime, workingHours) {
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                weekday: 'long'
+            });
+
+            // Determine status badge based on ACTUAL database status
+            let statusClass = 'status-absent';
+            let statusIcon = 'bi-x-circle';
+            let statusText = 'No Record';
+
+            if (status) {
+                // Use the actual status from database
+                statusText = status;
+
+                switch(status.toLowerCase()) {
+                    case 'present':
+                    case 'on time':
+                        statusClass = 'status-present';
+                        statusIcon = 'bi-check-circle';
+                        statusText = 'On Time';
+                        break;
+                    case 'late':
+                        statusClass = 'status-late';
+                        statusIcon = 'bi-clock-history';
+                        statusText = 'Late';
+                        break;
+                    case 'absent':
+                        statusClass = 'status-absent';
+                        statusIcon = 'bi-x-circle';
+                        statusText = 'Absent';
+                        break;
+                    case 'completed':
+                        statusClass = 'status-present';
+                        statusIcon = 'bi-check-circle';
+                        statusText = 'Completed';
+                        break;
+                    default:
+                        // Fallback logic if status is not recognized
+                        statusText = status; // Keep the original status text
+                        break;
+                }
+            } else {
+                // No status in database, but we have attendance record
+                // Check if it's a valid attendance (has clock in or clock out)
+                if (clockInTime || clockOutTime) {
+                    if (clockInTime && clockOutTime) {
+                        statusClass = 'status-present';
+                        statusIcon = 'bi-check-circle';
+                        statusText = 'On Time';
+                    } else if (clockInTime) {
+                        statusClass = 'status-incomplete';
+                        statusIcon = 'bi-clock';
+                        statusText = 'In Progress';
+                    } else if (clockOutTime) {
+                        statusClass = 'status-incomplete';
+                        statusIcon = 'bi-clock';
+                        statusText = 'Clock Out Only';
+                    }
+                } else {
+                    // No clock in or clock out - treat as no record
+                    statusClass = 'status-absent';
+                    statusIcon = 'bi-x-circle';
+                    statusText = 'No Record';
+                }
+            }
+
+            // Format break time
+            let breakTimeDisplay = '0 Hr 00 Mins 00 Secs';
+            if (breakTime) {
+                breakTimeDisplay = `${breakTime.hours} Hr ${breakTime.minutes.toString().padStart(2, '0')} Mins ${breakTime.seconds.toString().padStart(2, '0')} Secs`;
+            }
+
+            // Format working hours
+            let workingHoursDisplay = '-';
+            if (workingHours) {
+                workingHoursDisplay = `${workingHours.hours} Hr ${workingHours.minutes.toString().padStart(2, '0')} Mins ${workingHours.seconds.toString().padStart(2, '0')} Secs`;
+            }
+
+            // Check if we should show the "No Record" empty state
+            const shouldShowEmptyState = !clockInTime && !clockOutTime && (!status || status.toLowerCase() === 'absent');
+
+            return `
+                <div class="attendance-details show">
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${formattedDate}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="status-badge ${statusClass}">
+                            <i class="bi ${statusIcon} me-1"></i> ${statusText}
+                        </span>
+                    </div>
+
+                    ${clockInTime ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Clock In:</span>
+                            <span class="detail-value time-display">${formatTimeFromDatabase(clockInTime)}</span>
+                        </div>
+                    ` : ''}
+
+                    ${clockOutTime ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Clock Out:</span>
+                            <span class="detail-value time-display">${formatTimeFromDatabase(clockOutTime)}</span>
+                        </div>
+                    ` : ''}
+
+                    ${clockInTime || clockOutTime ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Break Time:</span>
+                            <span class="detail-value">${breakTimeDisplay}</span>
+                        </div>
+                    ` : ''}
+
+                    ${workingHoursDisplay !== '-' ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Working Hours:</span>
+                            <span class="detail-value">${workingHoursDisplay}</span>
+                        </div>
+                    ` : ''}
+
+                    ${shouldShowEmptyState ? `
+                        <div class="empty-state mt-4">
+                            <div class="icon">
+                                <i class="bi bi-calendar-x"></i>
+                            </div>
+                            <h6>No Attendance Record</h6>
+                            <p>No attendance was recorded for this date.</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Helper function to format time from database (HH:mm:ss format)
+        function formatTimeFromDatabase(timeStr) {
+            if (!timeStr) return 'N/A';
+
+            try {
+                // Parse HH:mm:ss format
+                const [hours, minutes, seconds] = timeStr.split(':');
+                const hourNum = parseInt(hours, 10);
+                const minuteNum = parseInt(minutes, 10);
+                const secondNum = parseInt(seconds, 10);
+
+                const date = new Date();
+                date.setHours(hourNum, minuteNum, secondNum);
+
+                // Format with AM/PM and include seconds
+                const ampm = hourNum >= 12 ? 'PM' : 'AM';
+                const hour12 = hourNum % 12 || 12;
+                return `${hour12}:${minuteNum.toString().padStart(2, '0')} ${ampm} ${secondNum.toString().padStart(2, '0')}s`;
+            } catch (e) {
+                return timeStr;
+            }
+        }
+
+        function formatTimeForDisplay(timeString) {
+            // Convert time like "09:15 AM" or "17:30" to proper format
+            if (!timeString) return 'N/A';
+
+            // If it's already in AM/PM format, return as is
+            if (timeString.includes('AM') || timeString.includes('PM')) {
+                return timeString;
+            }
+
+            // Try to parse as TimeSpan (HH:mm)
+            try {
+                const [hours, minutes] = timeString.split(':');
+                const hourNum = parseInt(hours, 10);
+                const minuteNum = parseInt(minutes, 10);
+
+                const date = new Date();
+                date.setHours(hourNum, minuteNum, 0);
+
+                return date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            } catch (e) {
+                return timeString;
+            }
+        }
+
+        function calculateWorkingHours(clockInStr, clockOutStr) {
+            try {
+                // Parse times with seconds support
+                const parseTime = (timeStr) => {
+                    // Clean the time string (remove AM/PM if present)
+                    let cleanTime = timeStr.replace(/\s*(AM|PM)/i, '').trim();
+
+                    // Split into hours, minutes, seconds
+                    const parts = cleanTime.split(':');
+                    let hours = parseInt(parts[0], 10);
+                    let minutes = parseInt(parts[1] || 0, 10);
+                    let seconds = parseInt(parts[2] || 0, 10);
+
+                    // Handle AM/PM conversion if original had it
+                    if (timeStr.toLowerCase().includes('pm') && hours < 12) {
+                        hours += 12;
+                    }
+                    if (timeStr.toLowerCase().includes('am') && hours === 12) {
+                        hours = 0;
+                    }
+
+                    return { hours, minutes, seconds };
+                };
+
+                const start = parseTime(clockInStr);
+                const end = parseTime(clockOutStr);
+
+                // Convert to total seconds
+                const startTotalSeconds = start.hours * 3600 + start.minutes * 60 + start.seconds;
+                const endTotalSeconds = end.hours * 3600 + end.minutes * 60 + end.seconds;
+
+                // Calculate difference
+                let diffSeconds = endTotalSeconds - startTotalSeconds;
+
+                // Handle negative (overnight) by adding 24 hours
+                if (diffSeconds < 0) {
+                    diffSeconds += 24 * 3600;
+                }
+
+                // Calculate hours, minutes, seconds
+                const hours = Math.floor(diffSeconds / 3600);
+                const minutes = Math.floor((diffSeconds % 3600) / 60);
+                const seconds = diffSeconds % 60;
+
+                // Format exactly like your summary boxes
+                return `${hours} Hr ${minutes.toString().padStart(2, '0')} Mins ${seconds.toString().padStart(2, '0')} Secs`;
+
+            } catch (e) {
+                console.error('Error calculating working hours:', e);
+                return '0 Hr 00 Mins 00 Secs';
+            }
+        }
+
+        function showErrorState(date) {
+            const detailsContainer = document.querySelector('.attendance-details-container');
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+
+            detailsContainer.innerHTML = `
+                <div class="attendance-details show">
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${formattedDate}</span>
+                    </div>
+                    <div class="empty-state mt-4">
+                        <div class="icon">
+                            <i class="bi bi-exclamation-triangle text-warning"></i>
+                        </div>
+                        <h6>Error Loading Data</h6>
+                        <p>Failed to load attendance details. Please try again.</p>
+                        <button class="btn btn-sm btn-outline-primary mt-3" onclick="retryLoadDetails('${date}')">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function retryLoadDetails(date) {
+            const calendarDay = document.querySelector(`.calendar-day[data-date="${date}"]`);
+            if (calendarDay) {
+                showAttendanceDetails(calendarDay);
+            }
         }
     </script>
 }
@@ -1413,7 +3371,7 @@
         return dateTime.ToString("hh:mm tt");
     }
 
-    // Optional: Overload for nullable TimeSpan
+    // Overload for nullable TimeSpan
     public string TimeSpanToString(TimeSpan? time)
     {
         if (time.HasValue)
@@ -1424,35 +3382,14 @@
         return "-";
     }
 
-    // Helper function for status badge classes
-    public string GetStatusBadgeClass(string status)
+    // NEW: Overload for DateTime (for BreakStartTime)
+    public string DateTimeToTimeString(DateTime? dateTime)
     {
-        return status?.ToLower() switch
+        if (dateTime.HasValue)
         {
-            "present" => "bg-success",
-            "late" => "bg-warning",
-            "absent" => "bg-danger",
-            "half day" => "bg-info",
-            "on leave" => "bg-secondary",
-            _ => "bg-secondary"
-        };
-    }
-
-    // Make this a regular function that accepts parameters
-    public int GetWorkingDaysInMonth(int year, int month)
-    {
-        int workingDays = 0;
-        var daysInMonth = DateTime.DaysInMonth(year, month);
-
-        for (int day = 1; day <= daysInMonth; day++)
-        {
-            var currentDate = new DateTime(year, month, day);
-            if (currentDate.DayOfWeek != DayOfWeek.Saturday && currentDate.DayOfWeek != DayOfWeek.Sunday)
-            {
-                workingDays++;
-            }
+            return dateTime.Value.ToString("hh:mm tt");
         }
-
-        return workingDays;
+        return "-";
     }
+
 }

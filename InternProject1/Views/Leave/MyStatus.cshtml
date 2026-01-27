@@ -2,24 +2,27 @@
 
 <div class="container-fluid py-4" style="background-color: #f4f7f9; min-height: 90vh;">
     <div class="card border-0 shadow-sm p-4 rounded-4 bg-white">
+
+        @* --- HEADER SECTION --- *@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h5 class="fw-bold m-0">My Leave Status History</h5>
-            <a asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-3">
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-3 px-3">
                 <i class="bi bi-arrow-left me-1"></i> Back to Menu
             </a>
         </div>
 
+        @* --- TABLE SECTION --- *@
         <div class="table-responsive">
-            <table class="table align-middle">
+            <table class="table align-middle" id="historyTable">
                 <thead class="text-secondary small border-bottom" style="background-color: #f8f9fa;">
                     <tr>
-                        <th class="py-3">Request ID</th>
+                        <th class="py-3 ps-3">Request ID</th>
                         <th class="py-3">Status</th>
                         <th class="py-3">Period</th>
                         <th class="py-3">Reason</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tableBody">
                     @if (!Model.Any())
                     {
                         <tr>
@@ -30,8 +33,8 @@
                     {
                         @foreach (var item in Model)
                         {
-                            <tr>
-                                <td class="py-3">
+                            <tr class="history-row">
+                                <td class="py-3 ps-3">
                                     <span class="fw-bold text-primary">REQ-@item.Leave_ID</span>
                                 </td>
                                 <td>
@@ -69,7 +72,20 @@
             </table>
         </div>
 
-        <div class="d-flex justify-content-end mt-4 gap-2">
+        @* --- PAGINATION CONTROLS --- *@
+        <div class="d-flex justify-content-between align-items-center mt-4 border-top pt-3">
+            <div class="small text-muted" id="pageInfo">
+                @* Info text injected by JS *@
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm m-0" id="paginationControls">
+                    @* Buttons injected by JS *@
+                </ul>
+            </nav>
+        </div>
+
+        @* --- EXPORT ACTION --- *@
+        <div class="d-flex justify-content-end mt-3">
             <a asp-controller="Leave" asp-action="ExportMyStatusExcel"
                class="btn btn-sm px-4 shadow-sm d-flex align-items-center"
                style="background-color: #DDE7F2; border-radius: 8px; border: none; font-weight: 600; font-size: 0.8rem; color: #333; text-decoration: none;">
@@ -78,3 +94,95 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Styling for the pagination look */
+    .pagination .page-link {
+        color: #555;
+        border: 1px solid #eee;
+        margin: 0 2px;
+        border-radius: 6px !important;
+        padding: 5px 12px;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        background-color: #f8f9fa;
+        color: #ccc;
+    }
+    /* Hide rows by default, JS will toggle them */
+    .history-row {
+        display: none;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const rowsPerPage = 10;
+            const rows = document.querySelectorAll('.history-row');
+            const paginationControls = document.getElementById('paginationControls');
+            const pageInfo = document.getElementById('pageInfo');
+            const pageCount = Math.ceil(rows.length / rowsPerPage);
+            let currentPage = 1;
+
+            function displayPage(page) {
+                if (page < 1) page = 1;
+                if (page > pageCount) page = pageCount;
+
+                currentPage = page;
+                const start = (page - 1) * rowsPerPage;
+                const end = start + rowsPerPage;
+
+                rows.forEach((row, index) => {
+                    row.style.display = (index >= start && index < end) ? 'table-row' : 'none';
+                });
+
+                updateControls();
+
+                const showingStart = rows.length === 0 ? 0 : start + 1;
+                const showingEnd = Math.min(end, rows.length);
+                pageInfo.innerText = `Showing ${showingStart} to ${showingEnd} of ${rows.length} entries`;
+            }
+
+            function updateControls() {
+                paginationControls.innerHTML = '';
+
+                // Previous Button
+                const prevLi = document.createElement('li');
+                prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+                prevLi.innerHTML = `<a class="page-link" href="javascript:void(0)">Previous</a>`;
+                prevLi.addEventListener('click', () => { if(currentPage > 1) displayPage(currentPage - 1); });
+                paginationControls.appendChild(prevLi);
+
+                // Page Numbers (Condensed logic)
+                for (let i = 1; i <= pageCount; i++) {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="javascript:void(0)">${i}</a>`;
+                    li.addEventListener('click', () => displayPage(i));
+                    paginationControls.appendChild(li);
+                }
+
+                // Next Button
+                const nextLi = document.createElement('li');
+                nextLi.className = `page-item ${currentPage === pageCount ? 'disabled' : ''}`;
+                nextLi.innerHTML = `<a class="page-link" href="javascript:void(0)">Next</a>`;
+                nextLi.addEventListener('click', () => { if(currentPage < pageCount) displayPage(currentPage + 1); });
+                paginationControls.appendChild(nextLi);
+            }
+
+            // Initialization
+            if (rows.length > 0) {
+                displayPage(1);
+            } else {
+                pageInfo.innerText = "No records available";
+            }
+        });
+    </script>
+}
