@@ -3,7 +3,6 @@ using InternProject1.Data;
 using InternProject1.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SelectPdf;
 
 namespace InternProject1.Controllers
 {

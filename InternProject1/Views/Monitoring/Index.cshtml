@@ -1326,7 +1326,7 @@
         // ======================
         // CHART 2: Weekly Attendance Bar Chart - REAL DATA ONLY
         // ======================
-        function createWeeklyAttendanceChart(filterType = 'current-week') {
+                function createWeeklyAttendanceChart(filterType = 'current-week') {
             const ctx = document.getElementById('weeklyChart');
 
             if (!ctx) {
@@ -1357,7 +1357,7 @@
                         days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         presentData = [0, 0, 0, 0, 0, 0, 0];
                         lateData = [0, 0, 0, 0, 0, 0, 0];
-                        absentData = [chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total];
+                        absentData = [0, 0, 0, 0, 0, 0, 0];
                         chartTitle = 'Current Week - No Data';
                     }
                     break;
@@ -1382,26 +1382,9 @@
                             days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                             presentData = [0, 0, 0, 0, 0, 0, 0];
                             lateData = [0, 0, 0, 0, 0, 0, 0];
-                            absentData = [chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total];
+                            absentData = [0, 0, 0, 0, 0, 0, 0];
                             chartTitle = 'Last Week - No Data';
                         }
-                    }
-                    break;
-
-                default:
-                    // Default to current week
-                    if (chartData.weeklyData && chartData.weeklyData.length > 0) {
-                        days = chartData.weeklyData.map(d => d.dayName);
-                        presentData = chartData.weeklyData.map(d => d.present);
-                        lateData = chartData.weeklyData.map(d => d.late);
-                        absentData = chartData.weeklyData.map(d => d.absent);
-                        chartTitle = 'Weekly Attendance';
-                    } else {
-                        days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                        presentData = [0, 0, 0, 0, 0, 0, 0];
-                        lateData = [0, 0, 0, 0, 0, 0, 0];
-                        absentData = [chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total, chartData.total];
-                        chartTitle = 'No Data Available';
                     }
                     break;
             }
@@ -1485,14 +1468,23 @@
                         y: {
                             beginAtZero: true,
                             stacked: false,
+
+                            // ALWAYS show from 0 to total employees
+                            max: chartData.total,
+
                             ticks: {
                                 font: {
                                     family: 'Poppins',
                                     size: 11
                                 },
                                 color: '#718096',
+
+                                // Simple: show 0, half, and total
                                 callback: function(value) {
-                                    return value;
+                                    if (value === 0) return 0;
+                                    if (value === Math.floor(chartData.total / 2)) return value;
+                                    if (value === chartData.total) return value;
+                                    return '';
                                 }
                             },
                             grid: {
@@ -1528,7 +1520,7 @@
             return window.weeklyChartInstance;
         }
 
-                // Initialize when page loads
+        // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing...');
 
