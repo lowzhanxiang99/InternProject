@@ -131,7 +131,7 @@ public class LeaveController : Controller
             HttpContext.Session.SetString("IsManager", "true");
             return RedirectToAction("Approval");
         }
-        ViewBag.Error = "Warning! Only Authorized Users Are Allowed To Log In.";
+        ViewBag.Error = "Warning ! Only Authorized Users Are Allowed To Log In.";
         return View();
     }
 

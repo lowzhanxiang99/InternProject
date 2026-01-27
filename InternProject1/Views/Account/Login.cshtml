@@ -9,6 +9,9 @@
     <title>Login - TimeVIA</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
     <style>
         body {
             background-color: #e3f2fd;
@@ -29,7 +32,6 @@
             padding: 5rem;
         }
 
-        /* Ensure the container takes full height */
         .h-100-vh {
             height: 100vh;
         }
@@ -62,15 +64,21 @@
                             <label class="form-label">Password</label>
                             <input name="password" type="password" class="form-control shadow-sm" placeholder="Password" required />
                         </div>
-                        <div class="d-flex justify-content-between mb-4">
+
+                        <div class="d-flex justify-content-between mb-3">
                             <div>
                                 <input type="checkbox" id="remember" />
                                 <label for="remember" class="small">Remember me</label>
                             </div>
-                            @* UPDATED: Points to ForgotPassword action in AccountController *@
                             <a asp-controller="Account" asp-action="ForgotPassword" class="text-decoration-none small">Forgot Password?</a>
                         </div>
+
+                        <div class="mb-4 d-flex justify-content-center">
+                            <div class="g-recaptcha" data-sitekey="6Lc_qFYsAAAAADvAy359xN_4ssK049bvoMUhIUQN"></div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">LOGIN</button>
+
                         <p class="mt-4 text-center small">
                             Don't you have account? <a asp-controller="Account" asp-action="Register" class="fw-bold text-decoration-none">Register here</a>
                         </p>

@@ -2,6 +2,9 @@
 using InternProject1.Data;
 using InternProject1.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using Newtonsoft.Json;
+using System.Net.Http;
 
 namespace InternProject1.Controllers;
 
@@ -29,19 +32,27 @@ public class AccountController : Controller
         return View(employee);
     }
 
-    // --- LOGIN (Fixed for Case-Sensitivity) ---
+    // --- LOGIN (Modified with reCAPTCHA & Case-Sensitivity) ---
     public IActionResult Login() => View();
 
     [HttpPost]
     public async Task<IActionResult> Login(string email, string password)
     {
-        // 1. Find the user by email only first. 
-        // SQL Server is usually case-insensitive for emails, which is standard.
+        // 1. Capture the reCAPTCHA response from the form
+        var captchaResponse = Request.Form["g-recaptcha-response"];
+
+        // 2. Perform Human Verification check
+        if (string.IsNullOrEmpty(captchaResponse) || !(await IsHuman(captchaResponse)))
+        {
+            ViewBag.ErrorMessage = "Please verify that you are not a robot.";
+            return View();
+        }
+
+        // 3. Find the user by email
         var user = await _context.Employees
             .FirstOrDefaultAsync(u => u.Employee_Email == email);
 
-        // 2. Perform a Case-Sensitive password check in C#
-        // C#'s '==' operator will correctly distinguish 'Z' from 'z'
+        // 4. Perform Case-Sensitive password check
         if (user != null && user.Password == password)
         {
             // Login successful: Save details to Session
@@ -53,6 +64,25 @@ public class AccountController : Controller
         // Login failed
         ViewBag.ErrorMessage = "Invalid email or password. Please check your credentials and try again.";
         return View();
+    }
+
+    // --- RECAPTCHA VERIFICATION HELPER ---
+    private async Task<bool> IsHuman(string token)
+    {
+        // Replace with your actual Secret Key from Google Admin Console
+        // Remember to use 'localhost' as the domain in Google settings for local testing
+        string secretKey = "6Lc_qFYsAAAAADkTqIKciPW0MMAdZmBF1sOHjd1k";
+
+        using var client = new HttpClient();
+        var response = await client.PostAsync($"https://www.google.com/recaptcha/api/siteverify?secret={secretKey}&response={token}", null);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var jsonString = await response.Content.ReadAsStringAsync();
+            dynamic result = JsonConvert.DeserializeObject(jsonString);
+            return result.success;
+        }
+        return false;
     }
 
     // --- FORGOT PASSWORD ---
@@ -81,7 +111,6 @@ public class AccountController : Controller
 
     public IActionResult EmailSent() => View();
 
-    // Reset Password GET: accessible via the simulated email link
     public IActionResult ResetPassword(string email, string token)
     {
         if (string.IsNullOrEmpty(token))
@@ -93,7 +122,6 @@ public class AccountController : Controller
         return View();
     }
 
-    // Update Password POST: strictly updates the record for the specific email
     [HttpPost]
     public async Task<IActionResult> UpdatePassword(string email, string newPassword)
     {
