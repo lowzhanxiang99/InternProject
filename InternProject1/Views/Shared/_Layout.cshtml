@@ -55,16 +55,23 @@
             object-fit: cover;
         }
 
+        .qr-sidebar-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+            border: 1px dashed #dee2e6;
+        }
     </style>
 </head>
 <body>
     <div class="d-flex" id="wrapper">
-        <div class="bg-white border-end shadow-sm" id="sidebar-wrapper" style="width: 280px; min-height: 100vh;">
+        <div class="bg-white border-end shadow-sm" id="sidebar-wrapper" style="width: 280px; min-height: 100vh; position: sticky; top: 0;">
             <div class="sidebar-heading p-4 text-primary fw-bold fs-3">TimeVIA</div>
 
             <div class="list-group list-group-flush px-3">
-                <div class="text-center py-4 mb-3">
-                    <div class="profile-pic-container mx-auto mb-2 shadow-sm" d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; border: 2px solid #f8f9fa;">
+                <div class="text-center py-4 mb-1">
+                    <div class="profile-pic-container mx-auto mb-2 shadow-sm" style="width: 80px; height: 80px; border: 2px solid #f8f9fa;">
                         @if (!string.IsNullOrEmpty(profilePicturePath))
                         {
                             <img src="@profilePicturePath" alt="Profile" class="profile-pic" />
@@ -75,6 +82,7 @@
                         }
                     </div>
                     <h6 class="fw-bold mb-0">@(Context.Session.GetString("UserName") ?? "Guest")</h6>
+                    <small class="text-muted">ID: @userId</small>
                 </div>
 
                 <a asp-controller="Home" asp-action="Index"
@@ -84,7 +92,7 @@
 
                 <a asp-controller="Attendance" asp-action="Index"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Attendance" ? "active" : "")">
-                    <i class="bi bi-qr-code-scan me-2"></i> Check-in & Out
+                    <i class="bi bi-clock-history me-2"></i> Check-in & Out
                 </a>
 
                 <a asp-controller="Leave" asp-action="Index"
@@ -98,7 +106,7 @@
                 </a>
 
                 <a asp-controller="Monitoring" asp-action="AdminLogin"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Monitoring" ? "active" : "")">
+                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Employee Attendance Monitoring" ? "active" : "")">
                     <i class="bi bi-people me-2"></i> Employee Attendance Monitoring
                 </a>
 
@@ -107,7 +115,21 @@
                     <i class="bi bi-person-circle me-2"></i> My Account
                 </a>
 
-                <a asp-controller="Account" asp-action="Logout" class="nav-link p-3 mt-4 text-danger border-top">
+                <hr />
+
+                @if (userId != null)
+                {
+                    <div class="qr-sidebar-card text-center">
+                        <p class="small fw-bold mb-2">My Clock-In Code</p>
+                        <img src="@Url.Action("Generate", "QRCode", new { employeeId = userId })"
+                             alt="QR Code" class="img-fluid rounded shadow-sm" style="max-width: 120px;" />
+                        <div class="mt-2">
+                            <small class="text-muted" style="font-size: 0.7rem;">Show to Tablet to Clock-In</small>
+                        </div>
+                    </div>
+                }
+
+                <a asp-controller="Account" asp-action="Logout" class="nav-link p-3 mt-3 text-danger border-top">
                     <i class="bi bi-box-arrow-left me-2"></i> Logout
                 </a>
             </div>
