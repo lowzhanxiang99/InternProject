@@ -45,7 +45,7 @@ namespace InternProject1.Controllers
             // Get all attendance records for the employee
             var allAttendance = await _context.Attendances
                 .Where(a => a.Employee_ID == employeeId)
-                .OrderByDescending(a => a.Date) // Default sorting for initial load
+                .OrderByDescending(a => a.Date)
                 .ToListAsync();
 
             ViewBag.SelectedMonth = month;
@@ -80,7 +80,7 @@ namespace InternProject1.Controllers
 
                 // Get all past attendance records for the employee
                 var allAttendance = await _context.Attendances
-                    .Where(a => a.Employee_ID == employeeId && a.Date.Date < DateTime.Today)
+                    .Where(a => a.Employee_ID == employeeId)
                     .ToListAsync();
 
                 // Apply sorting
@@ -349,7 +349,6 @@ namespace InternProject1.Controllers
             todayAttendance.IsOnBreak = false;
             todayAttendance.TotalBreakTime = (todayAttendance.TotalBreakTime ?? TimeSpan.Zero) + breakDuration;
             todayAttendance.HasTakenBreak = true;
-            todayAttendance.BreakStartTime = null; // Clear break start time
 
             await _context.SaveChangesAsync();
             TempData["Success"] = "Break ended successfully!";

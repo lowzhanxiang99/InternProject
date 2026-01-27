@@ -30,9 +30,7 @@
     }
 
     // Get all past attendance records
-    var allPastAttendance = Model?.Where(a => a.Date.Date < DateTime.Today)
-                                 .OrderByDescending(a => a.Date)
-                                 .ToList();
+    var allPastAttendance = Model?.OrderByDescending(a => a.Date).ToList();
 
     // Apply pagination
     var totalRecords = allPastAttendance?.Count ?? 0;
