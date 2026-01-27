@@ -706,6 +706,15 @@
         const editBtn = document.getElementById('editBtn');
         const cancelBtn = document.getElementById('cancelBtn');
         const profileForm = document.getElementById('profileForm');
+        // Store original values on page load
+        const originalValues = {
+            firstName: '@Html.Raw(Model.First_Name)',
+            lastName: '@Html.Raw(Model.Last_Name)',
+            email: '@Html.Raw(Model.Employee_Email)',
+            phone: '@Html.Raw(Model.Employee_Phone)',
+            dob: '@Model.Date_of_Birth.ToString("yyyy-MM-dd")',
+            gender: '@Html.Raw(Model.Gender)'
+        };
 
         editBtn.addEventListener('click', function() {
             viewMode.style.display = 'none';
@@ -716,24 +725,21 @@
             viewMode.style.display = 'block';
             editMode.classList.remove('active');
 
-            // Reset form values without using .reset() which might have side effects
-            const formControls = profileForm.querySelectorAll('input, select, textarea');
-            formControls.forEach(control => {
-                if (!control.disabled) {
-                    // Reset to original values or empty
-                    control.value = '';
-                }
-            });
+            // Restore original values
+            document.getElementById('First_Name').value = originalValues.firstName;
+            document.getElementById('Last_Name').value = originalValues.lastName;
+            document.getElementById('Employee_Email').value = originalValues.email;
+            document.getElementById('Employee_Phone').value = originalValues.phone;
+            document.getElementById('Date_of_Birth').value = originalValues.dob;
+            document.getElementById('Gender').value = originalValues.gender;
 
-            // ONLY clear validation messages within the form
-            const formTextDangers = profileForm.querySelectorAll('.text-danger');
-            formTextDangers.forEach(el => {
+            // ONLY clear validation messages WITHIN THE EDIT FORM
+            editMode.querySelectorAll('.text-danger').forEach(el => {
                 el.textContent = '';
             });
 
-            // ONLY clear validation classes within the form
-            const formFormControls = profileForm.querySelectorAll('.form-control');
-            formFormControls.forEach(el => {
+            // ONLY clear validation classes WITHIN THE FORM
+            profileForm.querySelectorAll('.form-control').forEach(el => {
                 el.classList.remove('is-invalid', 'is-valid');
             });
         });
@@ -857,70 +863,20 @@
             }
         });
 
-        function showError(input, message) {
+         function showError(input, message) {
             input.classList.add('is-invalid');
             input.classList.remove('is-valid');
 
-            // Search for error span in the parent's children
-            let errorSpan = null;
-            let nextEl = input.nextElementSibling;
-
-            // Look through next siblings to find the text-danger span
-            while (nextEl) {
-                if (nextEl.classList && nextEl.classList.contains('text-danger')) {
-                    errorSpan = nextEl;
-                    break;
-                }
-                nextEl = nextEl.nextElementSibling;
-            }
-
-            // If no error span exists, create one
-            if (!errorSpan) {
-                console.log('Creating new error span for:', input.id);
-                errorSpan = document.createElement('span');
-                errorSpan.className = 'text-danger';
-
-                // Insert after the input (or after small text if it exists)
-                let insertAfter = input.nextElementSibling;
-                if (insertAfter && insertAfter.tagName === 'SMALL') {
-                    // Insert after the small element
-                    if (insertAfter.nextSibling) {
-                        input.parentNode.insertBefore(errorSpan, insertAfter.nextSibling);
-                    } else {
-                        input.parentNode.appendChild(errorSpan);
-                    }
-                } else {
-                    // Insert right after input
-                    if (input.nextSibling) {
-                        input.parentNode.insertBefore(errorSpan, input.nextSibling);
-                    } else {
-                        input.parentNode.appendChild(errorSpan);
-                    }
+            // Find error span WITHIN the same form-group
+            const formGroup = input.closest('.form-group');
+            if (formGroup) {
+                const errorSpan = formGroup.querySelector('.text-danger');
+                if (errorSpan) {
+                    errorSpan.textContent = message;
+                    errorSpan.style.display = 'block';
                 }
             }
-
-            // Force all styles inline to ensure visibility
-            errorSpan.textContent = message;
-            errorSpan.style.cssText = `
-                display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                color: #dc3545 !important;
-                font-size: 13px !important;
-                margin-top: 4px !important;
-                line-height: 1.5 !important;
-                position: relative !important;
-                z-index: 9999 !important;
-                background: transparent !important;
-                width: 100% !important;
-                min-height: 18px !important;
-            `;
-
-            console.log('Error message displayed:', message, 'for input:', input.id);
-            console.log('Error span computed styles:', window.getComputedStyle(errorSpan).display);
-            console.log('Error span dimensions:', errorSpan.offsetWidth, 'x', errorSpan.offsetHeight);
         }
-
         function showSuccess(input) {
             input.classList.add('is-valid');
             input.classList.remove('is-invalid');
