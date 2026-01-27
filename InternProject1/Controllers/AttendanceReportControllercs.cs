@@ -42,7 +42,8 @@ public class AttendanceReportController : Controller
             return RedirectToAction("AdminLogin");
         }
 
-        if (string.IsNullOrEmpty(month)) month = "January 2026";
+        // Default to current actual month if no parameter is passed
+        if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
 
         var reportData = await GetReportData(month);
 
@@ -52,10 +53,16 @@ public class AttendanceReportController : Controller
             .ToListAsync();
 
         ViewBag.EmployeeList = allEmployees;
+        ViewBag.SelectedMonth = month;
+
+        // Generate month list for the dropdown (Months 1-12 of 2026)
+        var monthsList = Enumerable.Range(1, 12).Select(i => new DateTime(2026, i, 1).ToString("MMMM yyyy")).ToList();
+        ViewBag.MonthsList = monthsList;
+
         return View(reportData);
     }
 
-    public async Task<IActionResult> EmployeeDetails(int id)
+    public async Task<IActionResult> EmployeeDetails(int id, string month)
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
         {
@@ -64,6 +71,18 @@ public class AttendanceReportController : Controller
 
         var employee = await _context.Employees.FindAsync(id);
         if (employee == null) return NotFound();
+
+        // Default to January 2026 if no month provided for details
+        if (string.IsNullOrEmpty(month)) month = "January 2026";
+
+        DateTime parsedDate;
+        if (!DateTime.TryParseExact(month, "MMMM yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
+        {
+            parsedDate = new DateTime(2026, 1, 1);
+        }
+
+        var targetMonth = parsedDate.Month;
+        var targetYear = parsedDate.Year;
 
         var approvedLeaveDates = await _context.LeaveRequests
             .Where(l => l.Employee_ID == id && l.Status == "Approve")
@@ -74,12 +93,16 @@ public class AttendanceReportController : Controller
         {
             for (var dt = leave.Start_Date.Date; dt <= leave.End_Date.Date; dt = dt.AddDays(1))
             {
-                validDatesList.Add(dt);
+                // Only add leave dates that belong to the selected month
+                if (dt.Month == targetMonth && dt.Year == targetYear)
+                {
+                    validDatesList.Add(dt);
+                }
             }
         }
 
         var attendance = await _context.Attendances
-            .Where(a => a.Employee_ID == id)
+            .Where(a => a.Employee_ID == id && a.Date.Month == targetMonth && a.Date.Year == targetYear)
             .OrderByDescending(a => a.Date)
             .ToListAsync();
 
@@ -92,6 +115,9 @@ public class AttendanceReportController : Controller
         }
 
         ViewBag.EmployeeName = employee.First_Name + " " + employee.Last_Name;
+        ViewBag.SelectedMonth = month;
+        ViewBag.EmployeeId = id;
+
         return View(attendance);
     }
 
@@ -105,24 +131,31 @@ public class AttendanceReportController : Controller
 
         var targetMonth = parsedDate.Month;
         var targetYear = parsedDate.Year;
+
+        // Reference point for current time
         DateTime firstOfCurrentMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
 
         var monthStartDate = new DateTime(targetYear, targetMonth, 1);
         var monthEndDate = monthStartDate.AddMonths(1).AddDays(-1);
 
-        // Calculate work days up to today (if current month) or full month (if past/future)
+        // Logic for working days:
+        // If the month is in the past, count all work days.
+        // If the month is current, count work days up to today.
+        // If the month is in the future, work days to process is 0 (prevents massive negative absences).
         int workDaysToCount = 0;
-        int lastDayToProcess = (DateTime.Now.Year == targetYear && DateTime.Now.Month == targetMonth)
-            ? DateTime.Now.Day
-            : DateTime.DaysInMonth(targetYear, targetMonth);
+        int lastDayToProcess = 0;
+
+        if (parsedDate < firstOfCurrentMonth)
+            lastDayToProcess = DateTime.DaysInMonth(targetYear, targetMonth);
+        else if (parsedDate == firstOfCurrentMonth)
+            lastDayToProcess = DateTime.Now.Day;
+        else
+            lastDayToProcess = 0;
 
         for (int d = 1; d <= lastDayToProcess; d++)
         {
             DateTime current = new DateTime(targetYear, targetMonth, d);
-            if (current.DayOfWeek != DayOfWeek.Sunday)
-            {
-                workDaysToCount++;
-            }
+            if (current.DayOfWeek != DayOfWeek.Sunday) workDaysToCount++;
         }
 
         var employees = await _context.Employees.ToListAsync();
@@ -130,17 +163,14 @@ public class AttendanceReportController : Controller
 
         foreach (var emp in employees)
         {
-            // Future check: Don't fetch attendance data if the month hasn't started
-            var records = parsedDate > firstOfCurrentMonth
-                ? new List<Attendance>()
-                : await _context.Attendances
+            var records = await _context.Attendances
                     .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
                     .ToListAsync();
 
             int attCount = records.Count(a => a.ClockInTime.HasValue && a.Date.DayOfWeek != DayOfWeek.Sunday);
             int lateCount = records.Count(a => (a.Status == "Late" || a.Status == "late") && a.ClockInTime.HasValue && a.Date.DayOfWeek != DayOfWeek.Sunday);
 
-            // Fetch Leaves (This works for future months too)
+            // Calculate Approved Leaves for this specific month
             var approvedLeaves = await _context.LeaveRequests
                 .Where(l => l.Employee_ID == emp.Employee_ID &&
                             l.Status == "Approve" &&
@@ -164,13 +194,9 @@ public class AttendanceReportController : Controller
                 }
             }
 
-            // Calculation for Absents: only calculate for current or past months
-            int absentCount = 0;
-            if (parsedDate <= firstOfCurrentMonth)
-            {
-                absentCount = workDaysToCount - (attCount + leaveDaysThisMonth);
-                if (absentCount < 0) absentCount = 0;
-            }
+            // Calculation for Absents
+            int absentCount = workDaysToCount - (attCount + leaveDaysThisMonth);
+            if (absentCount < 0) absentCount = 0;
 
             reportData.Add(new StaffSummaryViewModel
             {

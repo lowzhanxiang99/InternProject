@@ -2,9 +2,9 @@
 @{
     ViewData["Title"] = "Employee Record";
 
-    // Logic: Strictly count how many rows have the "Leave" status
-    // This will result in 7 based on your current data.
+    // Strictly count how many rows in the current filtered list have "Leave" status
     var totalLeaveDays = Model?.Count(m => m.Status == "Leave") ?? 0;
+    var currentMonth = ViewBag.SelectedMonth ?? "January 2026";
 }
 
 <div class="container-fluid p-0" style="background-color: #f8f9fa; min-height: 100vh;">
@@ -15,24 +15,48 @@
     </div>
 
     <div class="px-4">
-        @* Quick Stats Cards - Corrected to show 7 *@
-        <div class="row g-3 mb-4 justify-content-start text-center">
+        @* Quick Stats & Month Selector *@
+        <div class="row g-3 mb-4 align-items-end">
             <div class="col-md-3">
                 <div class="p-2 shadow-sm border-0" style="background-color: #ffffff; border-radius: 10px; border-left: 4px solid #99CCFF !important;">
-                    <p class="small text-muted mb-0">Total Records of Leave</p>
+                    <p class="small text-muted mb-0">Total Leaves (@currentMonth)</p>
                     <h4 class="fw-bold m-0">@totalLeaveDays</h4>
+                </div>
+            </div>
+
+            @* Monthly Dropdown Selector *@
+            <div class="col-md-3">
+                <label class="small fw-bold text-muted mb-1">Select Month to View:</label>
+                <div class="dropdown">
+                    <button class="btn btn-white border shadow-sm dropdown-toggle w-100 text-start" type="button" id="monthDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 8px;">
+                        <i class="bi bi-calendar3 me-2 text-primary"></i> @currentMonth
+                    </button>
+                    <ul class="dropdown-menu shadow w-100" aria-labelledby="monthDropdown" style="max-height: 300px; overflow-y: auto;">
+                        @for (int i = 1; i <= 12; i++)
+                        {
+                            var monthOption = new DateTime(2026, i, 1).ToString("MMMM yyyy");
+                            <li>
+                                <a class="dropdown-item @(monthOption == currentMonth ? "active bg-primary" : "")"
+                                   href="@Url.Action("EmployeeDetails", new { id = ViewBag.EmployeeId, month = monthOption })">
+                                    @monthOption
+                                </a>
+                            </li>
+                        }
+                    </ul>
                 </div>
             </div>
         </div>
 
+        @* Search and Navigation *@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="col-md-4">
                 <div class="input-group shadow-sm">
-                    <span class="input-group-text bg-white border-0"><i class="bi bi-calendar-event"></i></span>
-                    <input type="text" id="historySearch" class="form-control border-0" placeholder="Filter by date or status...">
+                    <span class="input-group-text bg-white border-0"><i class="bi bi-search"></i></span>
+                    <input type="text" id="historySearch" class="form-control border-0" placeholder="Search in this month's logs...">
                 </div>
             </div>
-            <a asp-action="Index" class="btn btn-sm px-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 10px; font-weight: 500; color: black; text-decoration: none;">
+            @* Modified Back Link to keep the selected month context *@
+            <a href="@Url.Action("Index", "AttendanceReport", new { month = currentMonth })" class="btn btn-sm px-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 10px; font-weight: 500; color: black; text-decoration: none;">
                 <i class="bi bi-arrow-left"></i> Back to Report
             </a>
         </div>
@@ -54,9 +78,9 @@
                     {
                         @foreach (var log in Model)
                         {
-                            var isLate = log.Status == "Late";
-                            var isLeave = log.Status == "Leave";
-                            var isAbsent = log.Status == "Absent";
+                            var isLate = log.Status?.ToLower() == "late";
+                            var isLeave = log.Status?.ToLower() == "leave";
+                            var isAbsent = log.Status?.ToLower() == "absent";
                             var hasClockIn = log.ClockInTime.HasValue;
                             var hasClockedOut = log.ClockOutTime.HasValue;
 
@@ -71,8 +95,7 @@
                                 <td class="py-3 fw-semibold">@log.Date.ToString("dd MMM yyyy")</td>
 
                                 <td>
-                                    @* Show time ONLY if NOT on leave *@
-                                    @if (!isLeave && hasClockIn)
+                                    @if (!isLeave && !isAbsent && hasClockIn)
                                     {
                                         <span class="@(isLate ? "text-danger fw-bold" : "")">
                                             @DateTime.Today.Add(log.ClockInTime.Value).ToString("hh:mm tt")
@@ -85,8 +108,7 @@
                                 </td>
 
                                 <td>
-                                    @* Show time ONLY if NOT on leave *@
-                                    @if (!isLeave && hasClockedOut)
+                                    @if (!isLeave && !isAbsent && hasClockedOut)
                                     {
                                         <span>@DateTime.Today.Add(log.ClockOutTime.Value).ToString("hh:mm tt")</span>
                                     }
@@ -114,22 +136,23 @@
                                         <span class="badge" style="background-color: #4A77A5; color: white;">Present</span>
                                     }
 
-                                    @* Overtime logic ONLY for Present days *@
-                                    @if (!isLeave && hasClockedOut && hasClockIn && (log.ClockOutTime.Value - log.ClockInTime.Value).TotalHours > 9)
+                                    @if (!isLeave && !isAbsent && hasClockedOut && hasClockIn && (log.ClockOutTime.Value - log.ClockInTime.Value).TotalHours > 9)
                                     {
                                         <div class="small text-success mt-1"><i class="bi bi-plus-circle-fill"></i> Overtime</div>
                                     }
                                 </td>
 
-                                @* Duration ONLY for Present days *@
-                                <td class="text-secondary fw-bold">@((!isLeave && hasClockIn && hasClockedOut) ? duration : "--")</td>
+                                <td class="text-secondary fw-bold">@((!isLeave && !isAbsent && hasClockIn && hasClockedOut) ? duration : "--")</td>
                             </tr>
                         }
                     }
                     else
                     {
                         <tr>
-                            <td colspan="5" class="py-5 text-muted">No history records found for this employee.</td>
+                            <td colspan="5" class="py-5 text-muted">
+                                <i class="bi bi-info-circle d-block mb-2" style="font-size: 1.5rem;"></i>
+                                No records found for @currentMonth.
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -140,13 +163,17 @@
 
 @section Scripts {
     <script>
+        // Local Table Search Filter
         document.getElementById('historySearch').addEventListener('keyup', function() {
             let filter = this.value.toLowerCase();
             let rows = document.querySelectorAll('#historyTable tbody tr');
 
             rows.forEach(row => {
                 let text = row.textContent.toLowerCase();
-                row.style.display = text.includes(filter) ? "" : "none";
+                // Avoid hiding the "No records" row if it's the only one
+                if(!row.classList.contains('no-records-row')) {
+                    row.style.display = text.includes(filter) ? "" : "none";
+                }
             });
         });
     </script>
