@@ -254,6 +254,11 @@ namespace InternProject1.Controllers
                 return Json(new { success = false, message = "Passwords do not match" });
             }
 
+            if (request.NewPassword.Length < 6)
+            {
+                return Json(new { success = false, message = "Password must be at least 6 characters" });
+            }
+
             if (request.NewPassword == request.CurrentPassword)
             {
                 return Json(new { success = false, message = "New password must be different from current password" });
