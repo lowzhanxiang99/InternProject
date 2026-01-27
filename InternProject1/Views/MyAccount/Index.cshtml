@@ -382,7 +382,7 @@
                             <span class="detail-value">@Model.Employee_ID</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Email</span>
+                            <span class="detail-label">Email ID</span>
                             <span class="detail-value">@Model.Employee_Email</span>
                         </div>
                     </div>
@@ -463,7 +463,7 @@
                                 <input type="text" class="form-control" value="@Model.Employee_ID" disabled />
                             </div>
                             <div class="form-group">
-                                <label asp-for="Employee_Email" class="form-label required">Email</label>
+                                <label asp-for="Employee_Email" class="form-label required">Email ID</label>
                                 <input asp-for="Employee_Email" type="email" class="form-control" required />
                                 <span asp-validation-for="Employee_Email" class="text-danger"></span>
                             </div>
@@ -657,6 +657,9 @@
                                     <i class="bi bi-eye" id="newPasswordIcon"></i>
                                 </button>
                             </div>
+                            <small class="text-muted">
+                                Minimum 6 characters required
+                            </small>
                             <span class="text-danger" id="newPasswordError"></span>
                         </div>
 
@@ -1426,6 +1429,9 @@
             // Validate new password
             if (!newPassword) {
                 document.getElementById('newPasswordError').textContent = 'New password is required';
+                isValid = false;
+            } else if (newPassword.length < 6) {
+                document.getElementById('newPasswordError').textContent = 'Password must be at least 6 characters';
                 isValid = false;
             } else if (currentPassword === newPassword) {
                 document.getElementById('newPasswordError').textContent = 'New password must be different from current password';
