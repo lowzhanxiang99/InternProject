@@ -250,9 +250,7 @@ namespace InternProject1.Controllers
                     // ALSO check Attendance table status for leave
                     var onLeaveFromAttendance = dayAttendance
                         .Where(a => a.Status != null &&
-                               (a.Status.ToLower().Contains("leave") ||
-                                a.Status.ToLower() == "on leave" ||
-                                a.Status.ToLower() == "time off"))
+                               (a.Status.ToLower().Contains("leave")))
                         .Select(a => a.Employee_ID)
                         .Distinct()
                         .ToList();
