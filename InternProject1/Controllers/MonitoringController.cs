@@ -18,7 +18,7 @@ namespace InternProject1.Controllers
         // GET: Monitoring/AdminLogin
         public IActionResult AdminLogin()
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
 
             if (isAdmin == "true")
                 return RedirectToAction("Index");
@@ -39,7 +39,7 @@ namespace InternProject1.Controllers
 
             if (email == "admin@gmail.com" && password == "admin123")
             {
-                HttpContext.Session.SetString("IsAdmin", "true");
+                HttpContext.Session.SetString("IsAdminAuthenticated", "true");
                 return RedirectToAction("Index");
             }
 
@@ -50,7 +50,7 @@ namespace InternProject1.Controllers
         // GET: Monitoring/Index (Monitoring Dashboard)
         public async Task<IActionResult> Index()
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
 
             if (isAdmin != "true")
             {
@@ -385,11 +385,11 @@ namespace InternProject1.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAttendanceForDate(DateTime date)
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
 
             if (isAdmin != "true")
             {
-                return Json(new { success = false, message = "Unauthorized" });
+                return RedirectToAction("AdminLogin");
             }
 
             try
@@ -433,7 +433,8 @@ namespace InternProject1.Controllers
             int currentPage = 1)
         {
             // ADDED: Admin check
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
+
             if (isAdmin != "true")
             {
                 return RedirectToAction("AdminLogin");
@@ -614,7 +615,7 @@ namespace InternProject1.Controllers
     string sortOrder = "desc")
         {
             // ADDED: Admin check
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
             if (isAdmin != "true")
             {
                 return RedirectToAction("AdminLogin");
@@ -822,6 +823,7 @@ namespace InternProject1.Controllers
             // Get all records
             return await query.ToListAsync();
         }
+
     }
 
         public class DailyAttendance
