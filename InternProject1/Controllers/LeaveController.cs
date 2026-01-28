@@ -18,6 +18,19 @@ public class LeaveController : Controller
 
     public IActionResult Index() => View();
 
+    // NEW: AJAX helper to check for date overlaps before submission
+    [HttpGet]
+    public async Task<IActionResult> CheckDuplicateLeave(int employeeId, DateTime start, DateTime end)
+    {
+        // Check if any existing leave request for this employee overlaps with the selected range
+        bool isDuplicate = await _context.LeaveRequests.AnyAsync(l =>
+            l.Employee_ID == employeeId &&
+            l.Status != "Rejected" && // Only check against Pending or Approved leaves
+            start.Date <= l.End_Date.Date && end.Date >= l.Start_Date.Date);
+
+        return Json(new { isDuplicate = isDuplicate });
+    }
+
     // GET: Leave/Apply
     public async Task<IActionResult> Apply()
     {
@@ -43,12 +56,25 @@ public class LeaveController : Controller
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
+        // 1. Validation: Dates must not be in the past
         if (leave.Start_Date.Date < DateTime.Today || leave.End_Date.Date < DateTime.Today) return View("Error");
+
+        // 2. Server-side Duplicate Check (Security Layer)
+        bool isDuplicate = await _context.LeaveRequests.AnyAsync(l =>
+            l.Employee_ID == userId &&
+            l.Status != "Rejected" &&
+            leave.Start_Date.Date <= l.End_Date.Date && leave.End_Date.Date >= l.Start_Date.Date);
+
+        if (isDuplicate)
+        {
+            TempData["ErrorMessage"] = "You already have a leave record for these dates.";
+            return RedirectToAction(nameof(Apply));
+        }
 
         var employee = await _context.Employees.FindAsync(userId);
         if (employee == null) return View("Error");
 
-        int requestedDays = (leave.End_Date - leave.Start_Date).Days + 1;
+        int requestedDays = (leave.End_Date.Date - leave.Start_Date.Date).Days + 1;
         bool hasInsufficientBalance = false;
 
         if (leave.LeaveType != "Unpaid")
@@ -105,37 +131,31 @@ public class LeaveController : Controller
             HttpContext.Session.SetString("IsManager", "true");
             return RedirectToAction("Approval");
         }
-        ViewBag.Error = "Warning! Only Authorized Users Are Allowed To Log In.";
+        ViewBag.Error = "Warning ! Only Authorized Users Are Allowed To Log In.";
         return View();
     }
 
-    // MODIFIED: Employee list now follows ID sequence, and search/pagination logic is refined
     public async Task<IActionResult> Approval(string searchString, DateTime? fromDate, DateTime? toDate, int page = 1)
     {
         if (HttpContext.Session.GetString("IsManager") != "true") return RedirectToAction("ApprovalLogin");
 
-        // KEY CHANGE HERE: OrderBy(e => e.Employee_ID) ensures the dropdown follows numerical ID sequence
         ViewBag.EmployeeList = await _context.Employees.OrderBy(e => e.Employee_ID).ToListAsync();
 
-        // 1. Build the query with filters
         var requestsQuery = _context.LeaveRequests.Include(l => l.Employee).AsQueryable();
         requestsQuery = ApplyFilters(requestsQuery, searchString, fromDate, toDate);
 
-        // 2. Pagination Logic
         int pageSize = 10;
         int totalItems = await requestsQuery.CountAsync();
         int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
-        // Ensure page is within valid range
         page = page < 1 ? 1 : (totalPages > 0 && page > totalPages ? totalPages : page);
 
         var data = await requestsQuery
-            .OrderByDescending(s => s.Leave_ID) // Latest requests usually better at top for admins
+            .OrderByDescending(s => s.Leave_ID)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        // 3. Pass pagination and filter info to ViewBag
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.SearchString = searchString;
@@ -174,7 +194,7 @@ public class LeaveController : Controller
 
         if (request != null && status == "Approve" && request.Status != "Approve")
         {
-            int totalDays = (request.End_Date - request.Start_Date).Days + 1;
+            int totalDays = (request.End_Date.Date - request.Start_Date.Date).Days + 1;
 
             if (request.LeaveType == "Annual") request.Employee.AnnualLeaveDays -= totalDays;
             else if (request.LeaveType == "MC") request.Employee.MCDays -= totalDays;
@@ -210,8 +230,6 @@ public class LeaveController : Controller
         }
         return RedirectToAction(nameof(Approval));
     }
-
-    // --- ENTITLEMENT MANAGEMENT ---
 
     public async Task<IActionResult> EditEntitlements(int id)
     {

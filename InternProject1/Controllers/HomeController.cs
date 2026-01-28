@@ -15,15 +15,15 @@ public class HomeController : Controller
     }
 
     public async Task<IActionResult> Index()
-    {   
+    {
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
-         
+
         ViewBag.UserName = HttpContext.Session.GetString("UserName");
-                                                                                  
+
         var employee = await _context.Employees.FindAsync(userId);
         if (employee == null) return RedirectToAction("Login", "Account");
-                                                                         
+
         var userLeaves = await _context.LeaveRequests
             .Where(l => l.Employee_ID == userId && l.Status == "Approve")
             .ToListAsync();
@@ -35,36 +35,47 @@ public class HomeController : Controller
         int totalMaternity = employee.MaternityLeaveDays;
         int totalOther = employee.OtherLeaveDays;
 
-        // 2. Calculate USED days
-        int annualUsed = userLeaves.Where(l => l.LeaveType == "Annual" || l.LeaveType == "Annual Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
+        // 2. Calculate raw USED days from the database
+        int rawAnnualUsed = userLeaves.Where(l => l.LeaveType == "Annual" || l.LeaveType == "Annual Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
         int mcUsed = userLeaves.Where(l => l.LeaveType == "MC" || l.LeaveType == "Medical Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
         int compassionateUsed = userLeaves.Where(l => l.LeaveType == "Compassionate" || l.LeaveType == "Emergency").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
         int maternityUsed = userLeaves.Where(l => l.LeaveType == "Maternity" || l.LeaveType == "Maternity Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
-        int unpaidUsed = userLeaves.Where(l => l.LeaveType == "Unpaid" || l.LeaveType == "Unpaid Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
+        int rawUnpaidUsed = userLeaves.Where(l => l.LeaveType == "Unpaid" || l.LeaveType == "Unpaid Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
         int otherUsed = userLeaves.Where(l => l.LeaveType == "Other").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
 
-        // 3. Set ViewBag for Leave Cards
-        ViewBag.AnnualLeave = $"{annualUsed:D2}/{totalAnnual:D2}";
-        ViewBag.AnnualAvailable = totalAnnual - annualUsed;
-        ViewBag.AnnualUsed = annualUsed;
+        // 3. Logic Fix: Handle Overflow (prevent negative available balance)
+        // If Annual Used (7) > Total Annual (5), cap used at 5 and move 2 to unpaid.
+        int displayAnnualUsed = rawAnnualUsed > totalAnnual ? totalAnnual : rawAnnualUsed;
+        int annualOverflow = rawAnnualUsed > totalAnnual ? rawAnnualUsed - totalAnnual : 0;
 
+        // 4. Set ViewBag for Leave Cards
+        // Annual Leave Card
+        ViewBag.AnnualLeave = $"{displayAnnualUsed:D2}/{totalAnnual:D2}";
+        ViewBag.AnnualAvailable = totalAnnual - displayAnnualUsed; // Result: 00 instead of -02
+        ViewBag.AnnualUsed = rawAnnualUsed; // Keep actual total for reference if needed
+
+        // MC Leave Card
         ViewBag.MCLeave = $"{mcUsed:D2}/{totalMC:D2}";
-        ViewBag.MCAvailable = totalMC - mcUsed;
+        ViewBag.MCAvailable = Math.Max(0, totalMC - mcUsed);
         ViewBag.MCUsed = mcUsed;
 
+        // Compassionate Leave Card
         ViewBag.CompassionateLeave = $"{compassionateUsed:D2}/{totalCompassionate:D2}";
-        ViewBag.CompassionateAvailable = totalCompassionate - compassionateUsed;
+        ViewBag.CompassionateAvailable = Math.Max(0, totalCompassionate - compassionateUsed);
         ViewBag.CompassionateUsed = compassionateUsed;
 
+        // Maternity Leave Card
         ViewBag.MaternityLeave = $"{maternityUsed:D2}/{totalMaternity:D2}";
-        ViewBag.MaternityAvailable = totalMaternity - maternityUsed;
+        ViewBag.MaternityAvailable = Math.Max(0, totalMaternity - maternityUsed);
         ViewBag.MaternityUsed = maternityUsed;
 
+        // Other Leave Card
         ViewBag.OtherLeave = $"{otherUsed:D2}/{totalOther:D2}";
-        ViewBag.OtherAvailable = totalOther - otherUsed;
+        ViewBag.OtherAvailable = Math.Max(0, totalOther - otherUsed);
         ViewBag.OtherUsed = otherUsed;
 
-        ViewBag.UnpaidUsed = unpaidUsed;
+        // Unpaid Leave (Includes raw unpaid requests + overflow from annual leave)
+        ViewBag.UnpaidUsed = rawUnpaidUsed + annualOverflow;
 
         // Attendance Insights
         CalculateAttendanceInsights(userId.Value);

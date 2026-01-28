@@ -10,6 +10,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
+using System.Globalization;
+
+namespace InternProject1.Controllers;
 
 public class AttendanceReportController : Controller
 {
@@ -20,10 +23,7 @@ public class AttendanceReportController : Controller
         _context = context;
     }
 
-    public IActionResult AdminLogin()
-    {
-        return View();
-    }
+    public IActionResult AdminLogin() => View();
 
     [HttpPost]
     public IActionResult VerifyAdmin(string email, string password)
@@ -33,19 +33,20 @@ public class AttendanceReportController : Controller
             HttpContext.Session.SetString("IsAdminAuthenticated", "true");
             return RedirectToAction("Index");
         }
-
         ViewBag.Error = "Invalid Admin Credentials";
         return View("AdminLogin");
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string month)
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
         {
             return RedirectToAction("AdminLogin");
         }
 
-        var reportData = await GetReportData();
+        if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
+
+        var reportData = await GetReportData(month);
 
         var allEmployees = await _context.Employees
             .OrderBy(e => e.First_Name)
@@ -53,11 +54,15 @@ public class AttendanceReportController : Controller
             .ToListAsync();
 
         ViewBag.EmployeeList = allEmployees;
+        ViewBag.SelectedMonth = month;
+
+        var monthsList = Enumerable.Range(1, 12).Select(i => new DateTime(2026, i, 1).ToString("MMMM yyyy")).ToList();
+        ViewBag.MonthsList = monthsList;
 
         return View(reportData);
     }
 
-    public async Task<IActionResult> EmployeeDetails(int id)
+    public async Task<IActionResult> EmployeeDetails(int id, string month)
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
         {
@@ -67,50 +72,128 @@ public class AttendanceReportController : Controller
         var employee = await _context.Employees.FindAsync(id);
         if (employee == null) return NotFound();
 
-        var attendance = await _context.Attendances
-            .Where(a => a.Employee_ID == id)
+        if (string.IsNullOrEmpty(month)) month = "January 2026";
+
+        DateTime parsedDate;
+        if (!DateTime.TryParseExact(month, "MMMM yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
+        {
+            parsedDate = new DateTime(2026, 1, 1);
+        }
+
+        var targetMonth = parsedDate.Month;
+        var targetYear = parsedDate.Year;
+        DateTime today = DateTime.Now.Date;
+
+        var approvedLeaveDates = await _context.LeaveRequests
+            .Where(l => l.Employee_ID == id && l.Status == "Approve")
+            .ToListAsync();
+
+        var validDatesList = new HashSet<DateTime>();
+        foreach (var leave in approvedLeaveDates)
+        {
+            for (var dt = leave.Start_Date.Date; dt <= leave.End_Date.Date; dt = dt.AddDays(1))
+            {
+                if (dt.Month == targetMonth && dt.Year == targetYear)
+                {
+                    validDatesList.Add(dt);
+                }
+            }
+        }
+
+        // MODIFY: Pull all records, then filter in memory to keep future Leaves but hide future Presence
+        var allRecords = await _context.Attendances
+            .Where(a => a.Employee_ID == id && a.Date.Month == targetMonth && a.Date.Year == targetYear)
             .OrderByDescending(a => a.Date)
             .ToListAsync();
 
+        var filteredAttendance = allRecords.Where(a =>
+            a.Date.Date <= today || (a.Date.Date > today && a.Status == "Leave")
+        ).ToList();
+
+        foreach (var log in filteredAttendance)
+        {
+            if (log.Status == "Leave" && !validDatesList.Contains(log.Date.Date))
+            {
+                log.Status = "Absent";
+            }
+        }
+
         ViewBag.EmployeeName = employee.First_Name + " " + employee.Last_Name;
-        return View(attendance);
+        ViewBag.SelectedMonth = month;
+        ViewBag.EmployeeId = id;
+
+        return View(filteredAttendance);
     }
 
-    // UPDATED: Logic to connect real database records to the Summary
-    private async Task<List<StaffSummaryViewModel>> GetReportData()
+    private async Task<List<StaffSummaryViewModel>> GetReportData(string monthName)
     {
-        // Define the target period (matching your view: Jan 2026)
-        var targetMonth = 1;
-        var targetYear = 2026;
+        DateTime parsedDate;
+        if (!DateTime.TryParseExact(monthName, "MMMM yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
+        {
+            parsedDate = new DateTime(2026, 1, 1);
+        }
 
-        // Calculate total days passed in the month for Absent calculation
-        int daysToCount = (DateTime.Now.Year == targetYear && DateTime.Now.Month == targetMonth)
-            ? DateTime.Now.Day
-            : DateTime.DaysInMonth(targetYear, targetMonth);
+        var targetMonth = parsedDate.Month;
+        var targetYear = parsedDate.Year;
+        DateTime today = DateTime.Now.Date;
+
+        var monthStartDate = new DateTime(targetYear, targetMonth, 1);
+        var monthEndDate = monthStartDate.AddMonths(1).AddDays(-1);
+
+        int workDaysToCount = 0;
+        int lastDayToProcess = 0;
+
+        if (parsedDate.Year < today.Year || (parsedDate.Year == today.Year && parsedDate.Month < today.Month))
+            lastDayToProcess = DateTime.DaysInMonth(targetYear, targetMonth);
+        else if (parsedDate.Year == today.Year && parsedDate.Month == today.Month)
+            lastDayToProcess = today.Day;
+        else
+            lastDayToProcess = 0;
+
+        for (int d = 1; d <= lastDayToProcess; d++)
+        {
+            DateTime current = new DateTime(targetYear, targetMonth, d);
+            if (current.DayOfWeek != DayOfWeek.Sunday) workDaysToCount++;
+        }
 
         var employees = await _context.Employees.ToListAsync();
         var reportData = new List<StaffSummaryViewModel>();
 
         foreach (var emp in employees)
         {
-            // Fetch all attendance for this employee in the specific month
             var records = await _context.Attendances
-                .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
+                    .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
+                    .ToListAsync();
+
+            // Only count Attendance/Late if Date <= Today
+            int attCount = records.Count(a => a.Date.Date <= today && a.ClockInTime.HasValue && a.Date.DayOfWeek != DayOfWeek.Sunday);
+            int lateCount = records.Count(a => a.Date.Date <= today && (a.Status != null && a.Status.ToLower() == "late") && a.ClockInTime.HasValue);
+
+            var approvedLeaves = await _context.LeaveRequests
+                .Where(l => l.Employee_ID == emp.Employee_ID &&
+                            l.Status == "Approve" &&
+                            l.Start_Date <= monthEndDate &&
+                            l.End_Date >= monthStartDate)
                 .ToListAsync();
 
-            // 1. Attendance Count: Total times they actually clocked in (On Time + Late)
-            int attCount = records.Count(a => a.Status == "On Time" || a.Status == "Late");
+            int leaveDaysThisMonth = 0;
+            foreach (var leave in approvedLeaves)
+            {
+                for (var date = leave.Start_Date.Date; date <= leave.End_Date.Date; date = date.AddDays(1))
+                {
+                    if (date >= monthStartDate && date <= monthEndDate && date.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        // Future leaves are allowed to be counted in the total
+                        bool workedOnThisDay = records.Any(r => r.Date.Date == date.Date && r.ClockInTime.HasValue && r.Date.Date <= today);
+                        if (!workedOnThisDay)
+                        {
+                            leaveDaysThisMonth++;
+                        }
+                    }
+                }
+            }
 
-            // 2. Late Count: Specifically records marked as "Late"
-            int lateCount = records.Count(a => a.Status == "Late");
-
-            // 3. Leave Count: Approved leave requests
-            int leaveCount = await _context.LeaveRequests
-                .CountAsync(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve");
-
-            // 4. Absent Count: Logic: Potential days minus (Attended + On Leave)
-            int absentCount = daysToCount - (attCount + leaveCount);
-            if (absentCount < 0) absentCount = 0;
+            int absentCount = Math.Max(0, workDaysToCount - (attCount + records.Count(r => r.Date.Date <= today && r.Status == "Leave")));
 
             reportData.Add(new StaffSummaryViewModel
             {
@@ -118,18 +201,19 @@ public class AttendanceReportController : Controller
                 Name = emp.First_Name + " " + emp.Last_Name,
                 AttendanceCount = attCount,
                 LateCount = lateCount,
-                LeaveCount = leaveCount,
-                AbsentCount = absentCount,
-                OvertimeCount = records.Count(a => a.Status == "Overtime")
+                LeaveCount = leaveDaysThisMonth,
+                AbsentCount = absentCount
             });
         }
 
         return reportData;
     }
 
-    public async Task<IActionResult> ExportToExcel()
+    public async Task<IActionResult> ExportToExcel(string month)
     {
-        var data = await GetReportData();
+        if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
+        var data = await GetReportData(month);
+
         using (var workbook = new XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Attendance Report");
@@ -139,7 +223,6 @@ public class AttendanceReportController : Controller
             worksheet.Cell(currentRow, 3).Value = "Late";
             worksheet.Cell(currentRow, 4).Value = "Leave";
             worksheet.Cell(currentRow, 5).Value = "Absent";
-            worksheet.Cell(currentRow, 6).Value = "Overtime";
 
             foreach (var item in data)
             {
@@ -149,26 +232,25 @@ public class AttendanceReportController : Controller
                 worksheet.Cell(currentRow, 3).Value = item.LateCount;
                 worksheet.Cell(currentRow, 4).Value = item.LeaveCount;
                 worksheet.Cell(currentRow, 5).Value = item.AbsentCount;
-                worksheet.Cell(currentRow, 6).Value = item.OvertimeCount;
             }
             worksheet.Columns().AdjustToContents();
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
-                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Attendance_Report_Jan2026.xlsx");
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Attendance_Report_{month.Replace(" ", "")}.xlsx");
             }
         }
     }
 
-    public async Task<IActionResult> ExportToPdf()
+    public async Task<IActionResult> ExportToPdf(string month)
     {
-        var data = await GetReportData();
+        if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
+        var data = await GetReportData(month);
 
         int totalAtt = data.Sum(x => x.AttendanceCount);
         int totalLate = data.Sum(x => x.LateCount);
         int totalLeave = data.Sum(x => x.LeaveCount);
         int totalAbs = data.Sum(x => x.AbsentCount);
-        int totalOt = data.Sum(x => x.OvertimeCount);
 
         string htmlContent = $@"
         <html>
@@ -180,27 +262,23 @@ public class AttendanceReportController : Controller
                 table {{ width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }}
                 th {{ background-color: #4A77A5; color: white; padding: 12px 5px; font-size: 13px; text-align: center; }}
                 td {{ border: 1px solid #ddd; padding: 10px 5px; text-align: center; font-size: 12px; }}
-                .col-name {{ width: 25%; text-align: left; padding-left: 10px; }}
-                .col-data {{ width: 15%; }} 
                 tr:nth-child(even) {{ background-color: #f9f9f9; }}
                 .total-row {{ background-color: #eee !important; font-weight: bold; border-top: 2px solid #4A77A5; }}
-                .footer {{ margin-top: 30px; font-size: 10px; text-align: right; color: #777; font-style: italic; }}
             </style>
         </head>
         <body>
             <div class='header'>
                 <h2>Attendance Analytics Report</h2>
-                <p>Generated for the month of January 2026</p>
+                <p>Generated for the month of {month}</p>
             </div>
             <table>
                 <thead>
                     <tr>
-                        <th class='col-name'>Employee Name</th>
-                        <th class='col-data'>Attendance</th>
-                        <th class='col-data'>Late</th>
-                        <th class='col-data'>Leave</th>
-                        <th class='col-data'>Absent</th>
-                        <th class='col-data'>Overtime</th>
+                        <th style='width: 25%; text-align: left; padding-left: 10px;'>Employee Name</th>
+                        <th>Attendance</th>
+                        <th>Late</th>
+                        <th>Leave</th>
+                        <th>Absent</th>
                     </tr>
                 </thead>
                 <tbody>";
@@ -214,7 +292,6 @@ public class AttendanceReportController : Controller
                         <td>{item.LateCount}</td>
                         <td>{item.LeaveCount}</td>
                         <td>{item.AbsentCount}</td>
-                        <td>{item.OvertimeCount}</td>
                     </tr>";
         }
 
@@ -225,29 +302,18 @@ public class AttendanceReportController : Controller
                         <td>{totalLate}</td>
                         <td>{totalLeave}</td>
                         <td>{totalAbs}</td>
-                        <td>{totalOt}</td>
                     </tr>
                 </tbody>
             </table>
-            <div class='footer'>
-                Record Summary | Generated on: {DateTime.Now:dd-MM-yyyy HH:mm}
-            </div>
         </body>
         </html>";
 
         HtmlToPdf converter = new HtmlToPdf();
-        converter.Options.PdfPageSize = PdfPageSize.A4;
-        converter.Options.PdfPageOrientation = PdfPageOrientation.Portrait;
-        converter.Options.MarginTop = 30;
-        converter.Options.MarginBottom = 30;
-        converter.Options.MarginLeft = 20;
-        converter.Options.MarginRight = 20;
-
         PdfDocument doc = converter.ConvertHtmlString(htmlContent);
         byte[] pdfFile = doc.Save();
         doc.Close();
 
-        return File(pdfFile, "application/pdf", "Attendance_Report_Jan2026.pdf");
+        return File(pdfFile, "application/pdf", $"Attendance_Report_{month.Replace(" ", "")}.pdf");
     }
 
     public IActionResult Logout()
