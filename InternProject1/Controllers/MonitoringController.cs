@@ -18,7 +18,7 @@ namespace InternProject1.Controllers
         // GET: Monitoring/AdminLogin
         public IActionResult AdminLogin()
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
+            var isAdmin = HttpContext.Session.GetString("IsAdmin");
 
             if (isAdmin == "true")
                 return RedirectToAction("Index");

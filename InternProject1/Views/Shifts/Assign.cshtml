@@ -1,0 +1,361 @@
+﻿@* Views/Shifts/Assign.cshtml *@
+@model AssignShiftsViewModel
+@{
+    ViewData["Title"] = "Assign Shifts to Employees";
+}
+
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>
+                <i class="bi bi-people text-success"></i>
+                Assign Shifts to Employees
+            </h2>
+            <p class="text-muted">Assign or change shifts for employees</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-warning bg-opacity-10 border-warning">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-exclamation-triangle text-warning"></i>
+                        Need Assignment
+                    </h5>
+                    <h2 class="text-warning">@Model.UnassignedEmployees.Count</h2>
+                    <p class="mb-0">employees without shifts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-primary bg-opacity-10 border-primary">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-clock text-primary"></i>
+                        Available Shifts
+                    </h5>
+                    <h2 class="text-primary">@Model.Shifts.Count</h2>
+                    <p class="mb-0">shifts to choose from</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success bg-opacity-10 border-success">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-check-circle text-success"></i>
+                        Assigned
+                    </h5>
+                    <h2 class="text-success">@(Model.AllEmployees.Count - Model.UnassignedEmployees.Count)</h2>
+                    <p class="mb-0">employees with shifts</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" id="assignTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="unassigned-tab" data-bs-toggle="tab"
+                    data-bs-target="#unassigned" type="button" role="tab">
+                <i class="bi bi-exclamation-circle me-1"></i>
+                Unassigned Employees (@Model.UnassignedEmployees.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="all-tab" data-bs-toggle="tab"
+                    data-bs-target="#all" type="button" role="tab">
+                <i class="bi bi-people-fill me-1"></i>
+                All Employees (@Model.AllEmployees.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="bulk-tab" data-bs-toggle="tab"
+                    data-bs-target="#bulk" type="button" role="tab">
+                <i class="bi bi-collection me-1"></i>
+                Bulk Assignment
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="assignTabsContent">
+        <!-- Tab 1: Unassigned Employees -->
+        <div class="tab-pane fade show active" id="unassigned" role="tabpanel">
+            @if (!Model.UnassignedEmployees.Any())
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i>
+                    All employees have shifts assigned!
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Employee</th>
+                                <th>Department</th>
+                                <th>Email</th>
+                                <th>Assign Shift</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var emp in Model.UnassignedEmployees)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@emp.FullName</strong><br>
+                                        <small class="text-muted">ID: @emp.Employee_ID</small>
+                                    </td>
+                                    <td>@emp.Department?.Department_Name</td>
+                                    <td>@emp.Employee_Email</td>
+                                    <td width="250">
+                                        <select class="form-select shift-select"
+                                                data-employee-id="@emp.Employee_ID">
+                                            <option value="">-- Select Shift --</option>
+                                            @foreach (var shift in Model.Shifts)
+                                            {
+                                                <option value="@shift.Shift_ID">
+                                                    @shift.Shift_Name (@shift.Start_Time.ToString(@"hh\:mm") - @shift.End_Time.ToString(@"hh\:mm"))
+                                                </option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary assign-btn"
+                                                data-employee-id="@emp.Employee_ID">
+                                            <i class="bi bi-check-lg"></i> Assign
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <!-- Tab 2: All Employees -->
+        <div class="tab-pane fade" id="all" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th>Current Shift</th>
+                            <th>Change Shift</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var emp in Model.AllEmployees)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@emp.FullName</strong><br>
+                                    <small class="text-muted">ID: @emp.Employee_ID</small>
+                                </td>
+                                <td>@emp.Department?.Department_Name</td>
+                                <td>
+                                    @if (emp.Shift != null)
+                                    {
+                                        <span class="badge bg-info">
+                                            @emp.Shift.Shift_Name
+                                            (@emp.Shift.Start_Time.ToString(@"hh\:mm")-@emp.Shift.End_Time.ToString(@"hh\:mm"))
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">No Shift</span>
+                                    }
+                                </td>
+                                <td width="250">
+                                    <select class="form-select shift-select"
+                                            data-employee-id="@emp.Employee_ID">
+                                        <option value="">-- No Shift --</option>
+                                        @foreach (var shift in Model.Shifts)
+                                        {
+                                            <option value="@shift.Shift_ID"
+                                                    selected="@(emp.Shift_ID == shift.Shift_ID)">
+                                                @shift.Shift_Name (@shift.Start_Time.ToString(@"hh\:mm")-@shift.End_Time.ToString(@"hh\:mm"))
+                                            </option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm @(emp.Shift_ID == null ? "btn-primary" : "btn-warning") assign-btn"
+                                            data-employee-id="@emp.Employee_ID">
+                                        <i class="bi @(emp.Shift_ID == null ? "bi-check-lg" : "bi-arrow-repeat")"></i>
+                                        @(emp.Shift_ID == null ? "Assign" : "Update")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 3: Bulk Assignment -->
+        <div class="tab-pane fade" id="bulk" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-collection me-2"></i>Bulk Shift Assignment</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Select Shift</label>
+                                <select id="bulkShiftSelect" class="form-select">
+                                    <option value="">-- Choose Shift --</option>
+                                    @foreach (var shift in Model.Shifts)
+                                    {
+                                        <option value="@shift.Shift_ID">
+                                            @shift.Shift_Name (@shift.Start_Time.ToString(@"hh\:mm")-@shift.End_Time.ToString(@"hh\:mm"))
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Select Employees</label>
+                                <select id="bulkEmployeeSelect" class="form-select" multiple>
+                                    @foreach (var emp in Model.AllEmployees)
+                                    {
+                                        <option value="@emp.Employee_ID">
+                                            @emp.FullName - @emp.Department?.Department_Name
+                                        </option>
+                                    }
+                                </select>
+                                <small class="text-muted">Hold Ctrl to select multiple employees</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button id="bulkAssignBtn" class="btn btn-success">
+                            <i class="bi bi-check-all me-2"></i>Assign Shift to Selected Employees
+                        </button>
+                        <button id="clearAllShiftsBtn" class="btn btn-danger ms-2">
+                            <i class="bi bi-x-circle me-2"></i>Remove Shifts from Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Messages Container -->
+<div id="messageContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1050;"></div>
+
+@section Scripts {
+    <script>
+        // Single assignment
+        document.querySelectorAll('.assign-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const employeeId = this.getAttribute('data-employee-id');
+                const select = document.querySelector(`.shift-select[data-employee-id="${employeeId}"]`);
+                const shiftId = select.value;
+
+                if (!shiftId) {
+                    showMessage('Please select a shift first', 'warning');
+                    return;
+                }
+
+                assignShift(employeeId, shiftId);
+            });
+        });
+
+        // Bulk assignment
+        document.getElementById('bulkAssignBtn').addEventListener('click', function() {
+            const shiftId = document.getElementById('bulkShiftSelect').value;
+            const employeeSelect = document.getElementById('bulkEmployeeSelect');
+            const selectedEmployees = Array.from(employeeSelect.selectedOptions).map(opt => opt.value);
+
+            if (!shiftId || selectedEmployees.length === 0) {
+                showMessage('Please select both a shift and employees', 'warning');
+                return;
+            }
+
+            selectedEmployees.forEach(employeeId => {
+                assignShift(employeeId, shiftId);
+            });
+
+            showMessage(`Shift assigned to ${selectedEmployees.length} employee(s)`, 'success');
+        });
+
+        // Clear shifts
+        document.getElementById('clearAllShiftsBtn').addEventListener('click', function() {
+            const employeeSelect = document.getElementById('bulkEmployeeSelect');
+            const selectedEmployees = Array.from(employeeSelect.selectedOptions).map(opt => opt.value);
+
+            if (selectedEmployees.length === 0) {
+                showMessage('Please select employees first', 'warning');
+                return;
+            }
+
+            if (!confirm(`Remove shifts from ${selectedEmployees.length} employee(s)?`)) return;
+
+            selectedEmployees.forEach(employeeId => {
+                assignShift(employeeId, '');
+            });
+
+            showMessage(`Shifts removed from ${selectedEmployees.length} employee(s)`, 'info');
+        });
+
+        // AJAX function
+        function assignShift(employeeId, shiftId) {
+            fetch('@Url.Action("AssignShiftToEmployee", "Shifts")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ employeeId, shiftId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    // Refresh after 1.5 seconds
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showMessage(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                showMessage('Error assigning shift', 'danger');
+                console.error(error);
+            });
+        }
+
+        // Show toast message
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            container.appendChild(alert);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+    </script>
+}
