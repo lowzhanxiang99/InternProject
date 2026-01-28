@@ -18,7 +18,7 @@ namespace InternProject1.Controllers
         // GET: Monitoring/AdminLogin
         public IActionResult AdminLogin()
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
 
             if (isAdmin == "true")
                 return RedirectToAction("Index");
@@ -39,7 +39,7 @@ namespace InternProject1.Controllers
 
             if (email == "admin@gmail.com" && password == "admin123")
             {
-                HttpContext.Session.SetString("IsAdmin", "true");
+                HttpContext.Session.SetString("IsAdminAuthenticated", "true");
                 return RedirectToAction("Index");
             }
 
@@ -50,7 +50,7 @@ namespace InternProject1.Controllers
         // GET: Monitoring/Index (Monitoring Dashboard)
         public async Task<IActionResult> Index()
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
 
             if (isAdmin != "true")
             {
@@ -197,7 +197,7 @@ namespace InternProject1.Controllers
                     .Distinct()
                     .Count();
 
-                // FIXED: Absent = Total - Present - On Leave
+                // Absent = Total - Present - On Leave
                 var absent = totalEmployees - uniquePresentEmployees - allOnLeaveThisDay.Count;
 
                 // If it's Sunday, set absent = 0
@@ -281,7 +281,7 @@ namespace InternProject1.Controllers
                         absent = 0;
                     }
                 }
-                // Future dates: all values remain at defaults (0 present, 0 late, all absent)
+                // Future dates: all values remain at defaults (0 present, 0 late, 0 absent)
 
                 currentWeekData.Add(new DailyAttendance
                 {
@@ -385,11 +385,11 @@ namespace InternProject1.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAttendanceForDate(DateTime date)
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
 
             if (isAdmin != "true")
             {
-                return Json(new { success = false, message = "Unauthorized" });
+                return RedirectToAction("AdminLogin");
             }
 
             try
@@ -433,7 +433,8 @@ namespace InternProject1.Controllers
             int currentPage = 1)
         {
             // ADDED: Admin check
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
+
             if (isAdmin != "true")
             {
                 return RedirectToAction("AdminLogin");
@@ -614,7 +615,7 @@ namespace InternProject1.Controllers
     string sortOrder = "desc")
         {
             // ADDED: Admin check
-            var isAdmin = HttpContext.Session.GetString("IsAdmin");
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
             if (isAdmin != "true")
             {
                 return RedirectToAction("AdminLogin");
@@ -697,8 +698,7 @@ namespace InternProject1.Controllers
 
                     using (var stream = new MemoryStream())
                     {
-                        workbook.SaveAs(stream);
-                        // Simple filename like your friend's
+                        workbook.SaveAs(stream);                      
                         var fileName = $"Attendance_Report_{DateTime.Now:yyyyMMdd}.xlsx";
                         return File(stream.ToArray(),
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -823,6 +823,7 @@ namespace InternProject1.Controllers
             // Get all records
             return await query.ToListAsync();
         }
+
     }
 
         public class DailyAttendance
