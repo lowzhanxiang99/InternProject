@@ -281,15 +281,17 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> RemoveProfilePicture()
         {
+            var employeeId = HttpContext.Session.GetInt32("UserID");
+
+            if (employeeId == null)
+            {
+                return Json(new { success = false, message = "Session expired" });
+            }
+
             try
             {
-                var employeeId = HttpContext.Session.GetInt32("UserID");
-                if (employeeId == null)
-                {
-                    return Json(new { success = false, message = "Not authenticated" });
-                }
-
                 var employee = await _context.Employees.FindAsync(employeeId.Value);
+
                 if (employee == null)
                 {
                     return Json(new { success = false, message = "Employee not found" });
@@ -298,22 +300,27 @@ namespace InternProject1.Controllers
                 // Delete the physical file if it exists
                 if (!string.IsNullOrEmpty(employee.ProfilePicturePath))
                 {
-                    var oldFilePath = Path.Combine(_webHostEnvironment.WebRootPath, employee.ProfilePicturePath.TrimStart('/'));
-                    if (System.IO.File.Exists(oldFilePath))
+                    var filePath = Path.Combine(_webHostEnvironment.WebRootPath,
+                        employee.ProfilePicturePath.TrimStart('/'));
+
+                    if (System.IO.File.Exists(filePath))
                     {
-                        System.IO.File.Delete(oldFilePath);
+                        System.IO.File.Delete(filePath);
                     }
                 }
 
-                // Clear the profile picture path in database
+                // Clear the database field
                 employee.ProfilePicturePath = null;
                 await _context.SaveChangesAsync();
 
-                return Json(new { success = true });
+                // Clear session
+                HttpContext.Session.Remove("ProfilePicture");
+
+                return Json(new { success = true, message = "Profile picture removed" });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { success = false, message = "Error removing picture: " + ex.Message });
             }
         }
 
