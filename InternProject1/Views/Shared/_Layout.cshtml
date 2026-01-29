@@ -120,7 +120,12 @@
                 <a asp-controller="Monitoring" asp-action="AdminLogin"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Monitoring" ? "active" : "")">
                     <i class="bi bi-people me-2"></i> Employee Attendance Monitoring
-                </a>
+				</a>
+                
+                <a asp-controller="Shifts" asp-action="Index"
+				    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Shifts" ? "active" : "")">
+					<i class="bi bi-clock"></i> Manage Shifts
+				</a>
 
                 <a asp-controller="MyAccount" asp-action="Index"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "MyAccount" ? "active" : "")">
