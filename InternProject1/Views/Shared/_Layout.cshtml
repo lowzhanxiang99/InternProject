@@ -21,7 +21,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - TimeVIA</title>
+    @* UPDATED TITLE *@
+    <title>@ViewData["Title"] - Alpine Software Solutions</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -62,12 +63,23 @@
             margin-top: 20px;
             border: 1px dashed #dee2e6;
         }
+
+        /* Added style to ensure the logo fits nicely */
+        .sidebar-logo {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="d-flex" id="wrapper">
         <div class="bg-white border-end shadow-sm" id="sidebar-wrapper" style="width: 280px; min-height: 100vh; position: sticky; top: 0;">
-            <div class="sidebar-heading p-4 text-primary fw-bold fs-3">TimeVIA</div>
+
+            @* UPDATED SIDEBAR HEADING WITH LOGO *@
+            <div class="sidebar-heading p-4">
+                <img src="~/images/Alpine Logo.png" alt="Alpine Software Solutions" class="sidebar-logo" />
+            </div>
 
             <div class="list-group list-group-flush px-3">
                 <div class="text-center py-4 mb-1">
