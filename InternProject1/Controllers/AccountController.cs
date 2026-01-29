@@ -70,18 +70,30 @@ public class AccountController : Controller
     }
 
     // --- QR SCANNER VIEW ---
-    // This action simply returns the Scan.cshtml view you created
     public IActionResult Scan()
     {
         return View();
     }
 
-    // --- QR CODE AUTO-LOGIN & CLOCK-IN ---
+    // --- UPDATED: QR CODE AUTO-LOGIN & CLOCK-IN WITH 5-MINUTE ROTATION ---
     public async Task<IActionResult> AutoLogin(int empId, string secret)
     {
-        // Security Check: Pulls secret from appsettings.json
-        string validSecret = _configuration["QRCodeSettings:SecretPassphrase"] ?? "TimeVIA123";
-        if (secret != validSecret) return Unauthorized();
+        // 1. Get Base Secret from configuration
+        string baseSecret = _configuration["QRCodeSettings:SecretPassphrase"] ?? "AlpineSolution2026";
+
+        // 2. Calculate the current 5-minute time block (Unix Time / 300 seconds)
+        long currentTimeStep = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds / 300;
+
+        // 3. Generate the expected secrets for the Current and Previous time blocks
+        // Checking "currentTimeStep - 1" provides a buffer for codes generated right before the flip.
+        string expectedSecretNow = $"{baseSecret}_{currentTimeStep}";
+        string expectedSecretPrev = $"{baseSecret}_{currentTimeStep - 1}";
+
+        // 4. Validate the incoming secret
+        if (secret != expectedSecretNow && secret != expectedSecretPrev)
+        {
+            return Unauthorized("This QR code has expired or is invalid. Please refresh your code.");
+        }
 
         var user = await _context.Employees.FindAsync(empId);
         if (user == null) return NotFound();
@@ -118,7 +130,6 @@ public class AccountController : Controller
     // --- RECAPTCHA VERIFICATION HELPER ---
     private async Task<bool> IsHuman(string token)
     {
-        // Pulls Secret Key from appsettings.json
         string secretKey = _configuration["ReCaptcha:SecretKey"];
 
         using var client = new HttpClient();

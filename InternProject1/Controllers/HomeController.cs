@@ -19,6 +19,16 @@ public class HomeController : Controller
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
+        // Get current user claims to show in the Dashboard "My Claims" section
+        var userClaims = await _context.Claims
+            .Where(c => c.Employee_ID == userId)
+            .ToListAsync();
+
+        // Fetch Claim Counts
+        ViewBag.PendingClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Pending");
+        ViewBag.ApprovedClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Approved");
+        ViewBag.RejectedClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Rejected");
+
         ViewBag.UserName = HttpContext.Session.GetString("UserName");
 
         var employee = await _context.Employees.FindAsync(userId);

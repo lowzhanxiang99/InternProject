@@ -1,0 +1,115 @@
+﻿@model InternProject1.Models.Shift
+@{
+    ViewData["Title"] = "Delete Shift";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Delete Shift Confirmation
+                    </h4>
+                </div>
+
+                <div class="card-body">
+                    @if (ViewBag.ErrorMessage != null)
+                    {
+                        <div class="alert alert-danger">
+                            <h5><i class="bi bi-x-circle"></i> @ViewBag.ErrorMessage</h5>
+
+                            @if (ViewBag.Employees != null)
+                            {
+                                <div class="mt-3">
+                                    <h6>Assigned Employees:</h6>
+                                    <ul class="list-group">
+                                        @foreach (var emp in ViewBag.Employees)
+                                        {
+                                            <li class="list-group-item">
+                                                @emp.First_Name @emp.Last_Name
+                                                <span class="badge bg-secondary float-end">ID: @emp.Employee_ID</span>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mt-3">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to List
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <h5>Are you sure you want to delete this shift?</h5>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Warning:</strong> This action cannot be undone.
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5>Shift Details</h5>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Shift Name:</dt>
+                                    <dd class="col-sm-8">
+                                        <strong>@Model.Shift_Name</strong>
+                                        @if (Model.Is_Default)
+                                        {
+                                            <span class="badge bg-success ms-2">Default</span>
+                                        }
+                                    </dd>
+
+                                    <dt class="col-sm-4">Time Range:</dt>
+                                    <dd class="col-sm-8">@Model.Start_Time.ToString(@"hh\:mm") - @Model.End_Time.ToString(@"hh\:mm")</dd>
+
+                                    <dt class="col-sm-4">Start Time:</dt>
+                                    <dd class="col-sm-8">@Model.Start_Time.ToString(@"hh\:mm")</dd>
+
+                                    <dt class="col-sm-4">End Time:</dt>
+                                    <dd class="col-sm-8">@Model.End_Time.ToString(@"hh\:mm")</dd>
+
+                                    @if (!string.IsNullOrEmpty(Model.Description))
+                                    {
+                                        <dt class="col-sm-4">Description:</dt>
+                                        <dd class="col-sm-8">@Model.Description</dd>
+                                    }
+
+                                    <dt class="col-sm-4">Employees Assigned:</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.Employees != null && Model.Employees.Any())
+                                        {
+                                            <span class="badge bg-warning">@Model.Employees.Count employee(s)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">No employees assigned</span>
+                                        }
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <form asp-action="Delete" method="post">
+                            <input type="hidden" asp-for="Shift_ID" />
+
+                            <div class="form-group mt-4">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash"></i> Yes, Delete This Shift
+                                </button>
+                                <a asp-action="Index" class="btn btn-secondary ms-2">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,106 @@
+﻿@model IEnumerable<InternProject1.Models.Shift>
+@{
+    ViewData["Title"] = "Manage Shifts";
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle"></i> @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Shift Management</h2>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create New Shift
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Shift Name</th>
+                        <th>Time Range</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Default</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@item.Shift_Name</strong>
+                                @if (!string.IsNullOrEmpty(item.Description))
+                                {
+                                    <br />
+                                    <small class="text-muted">@item.Description</small>
+                                }
+                            </td>
+                            <td>@item.Start_Time.ToString(@"hh\:mm") - @item.End_Time.ToString(@"hh\:mm")</td>
+                            <td>@item.Start_Time.ToString(@"hh\:mm")</td>
+                            <td>@item.End_Time.ToString(@"hh\:mm")</td>
+                            <td>
+                                @if (item.Is_Default)
+                                {
+                                    <span class="badge bg-success">Default</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-action="Edit" asp-route-id="@item.Shift_ID" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                @if (!item.Is_Default)
+                                {
+                                    <a asp-action="Delete" asp-route-id="@item.Shift_ID"
+                                       class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" disabled
+                                            title="Cannot delete default shift">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Confirm before deleting
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteButtons = document.querySelectorAll('a[title="Delete"]');
+
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    if (!confirm('Are you sure you want to delete this shift?')) {
+                        e.preventDefault();
+                    }
+                });
+            });
+        });
+    </script>
+}

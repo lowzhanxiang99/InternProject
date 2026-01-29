@@ -1,0 +1,29 @@
+﻿@{
+    ViewData["Title"] = "Admin Verification";
+}
+
+<div class="d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="card shadow-sm border-0 p-4" style="width: 400px;">
+        <div class="text-center mb-4">
+            <h5 class="fw-bold">Claim Admin Verification</h5>
+            <small class="text-muted">Please enter admin credentials to manage claims</small>
+        </div>
+
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-danger small p-2">@ViewBag.Error</div>
+        }
+
+        <form asp-action="AdminLogin" method="post">
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Admin Email</label>
+                <input type="email" name="email" class="form-control" required placeholder="admin@gmail.com" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Password</label>
+                <input type="password" name="password" class="form-control" required />
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Access Admin Approval</button>
+        </form>
+    </div>
+</div>
