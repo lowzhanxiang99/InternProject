@@ -1,51 +1,82 @@
 ﻿@model IEnumerable<InternProject1.Models.StaffSummaryViewModel>
 
 @{
+    // 1. Get the current month from the URL or default to January 2026
+    var selectedMonthLabel = Context.Request.Query["month"].ToString();
+    if (string.IsNullOrEmpty(selectedMonthLabel)) { selectedMonthLabel = "January 2026"; }
+
+    // 2. Data Logic
+    // Since the ViewModel is a summary, we assume the Controller already filtered the list.
+    // If the list is empty, it means no data exists for the selected month.
     var totalAttendance = Model?.Sum(s => s.AttendanceCount) ?? 0;
     var totalLate = Model?.Sum(s => s.LateCount) ?? 0;
     var totalLeave = Model?.Sum(s => s.LeaveCount) ?? 0;
     var totalAbsent = Model?.Sum(s => s.AbsentCount) ?? 0;
+
+    bool hasData = Model != null && Model.Any();
 }
 
 <div class="container-fluid p-0" style="background-color: #f4f7f6; min-height: 100vh;">
-    @* Optimized Header: Less padding to save vertical space *@
+    @* Header with Month Selection *@
     <div class="text-center py-3 mb-3 shadow-sm" style="background: linear-gradient(135deg, #BDD2E7 0%, #9bbad9 100%);">
         <h5 class="fw-bold m-0 text-dark">ATTENDANCE ANALYTICS</h5>
-        <div class="badge bg-white text-dark mt-1 px-3 py-1 shadow-sm" style="border-radius: 20px; font-size: 0.75rem;">
-            <i class="bi bi-calendar3 me-1"></i> January 2026
+
+        <div class="dropdown mt-1">
+            <button class="btn btn-white btn-sm dropdown-toggle shadow-sm px-3 py-1 border-0"
+                    type="button" id="dateDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                    style="border-radius: 20px; font-size: 0.75rem; background-color: white;">
+                <i class="bi bi-calendar3 me-1"></i> <span id="currentSelection">@selectedMonthLabel</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-center shadow border-0" aria-labelledby="dateDropdown" style="font-size: 0.8rem; border-radius: 12px;">
+                <li><a class="dropdown-item" href="javascript:void(0)" onclick="filterByMonth('January 2026')">January 2026</a></li>
+                <li><a class="dropdown-item" href="javascript:void(0)" onclick="filterByMonth('February 2026')">February 2026</a></li>
+                <li><a class="dropdown-item" href="javascript:void(0)" onclick="filterByMonth('March 2026')">March 2026</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-primary fw-bold" href="#">View More...</a></li>
+            </ul>
         </div>
     </div>
 
-    @* Changed to standard 'container' to keep width at 100% of standard screens *@
     <div class="container">
-
-        @* Summary Statistics Cards: Smaller padding and border-radius *@
+        @* Summary Cards *@
         <div class="row g-3 mb-4 justify-content-center">
             @foreach (var item in new[] {
-                        new { Title = "Attendance", Count = totalAttendance, Color = "#4A77A5" },
-                        new { Title = "Late", Count = totalLate, Color = "#FFCC00" },
-                        new { Title = "Leave", Count = totalLeave, Color = "#99CCFF" },
-                        new { Title = "Absent", Count = totalAbsent, Color = "#FF6666" }
+                        new { Title = "Attendance", Count = totalAttendance, Color = "#4A77A5", Desc = "Present Work", Icon = "bi-person-check-fill" },
+                        new { Title = "Late", Count = totalLate, Color = "#FFCC00", Desc = "Late Arrived", Icon = "bi-clock-history" },
+                        new { Title = "Leave", Count = totalLeave, Color = "#99CCFF", Desc = "On Leave", Icon = "bi-calendar-check" },
+                        new { Title = "Absent", Count = totalAbsent, Color = "#FF6666", Desc = "Total absent days", Icon = "bi-exclamation-triangle" }
                         })
             {
                 <div class="col-6 col-md-3">
-                    <div class="p-3 border-0 text-center shadow-sm" style="background-color: white; border-radius: 15px; border-bottom: 4px solid @item.Color !important;">
+                    <div class="p-3 border-0 text-center shadow-sm h-100" style="background-color: white; border-radius: 15px; border-bottom: 4px solid @item.Color !important;">
                         <p class="text-uppercase mb-1 text-muted" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">@item.Title</p>
                         <h3 class="fw-bold m-0" style="color: #333;">@item.Count</h3>
+                        <div class="d-flex align-items-center justify-content-center mt-1 fw-semibold" style="color: @item.Color; font-size: 0.7rem;">
+                            <i class="bi @item.Icon me-1"></i> @item.Desc
+                        </div>
                     </div>
                 </div>
             }
         </div>
 
-        @* Company Overall Chart: Fixed height to ensure it renders *@
+        @* Chart Section with Empty State Overlay *@
         <div class="card border-0 shadow-sm mb-4 p-3" style="border-radius: 15px; background: white;">
             <p class="fw-bold text-muted mb-2 small" style="font-size: 0.8rem;"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Overall Summary</p>
             <div style="height: 260px; width: 100%; position: relative;">
-                <canvas id="attendanceBarChart"></canvas>
+
+                @if (!hasData)
+                {
+                    <div class="position-absolute top-50 start-50 translate-middle text-center w-100" style="z-index: 10;">
+                        <i class="bi bi-clipboard2-x text-muted" style="font-size: 3rem; opacity: 0.3;"></i>
+                        <p class="text-muted fw-bold mt-2">No records found for @selectedMonthLabel</p>
+                    </div>
+                }
+
+                <canvas id="attendanceBarChart" style="@(hasData ? "" : "opacity: 0.1;")"></canvas>
             </div>
         </div>
 
-        @* Employee Search Card: Clean and Centered *@
+        @* Employee Search *@
         <div class="row justify-content-center mb-4">
             <div class="col-lg-9">
                 <div class="card border-0 shadow-sm p-4 text-center" style="border-radius: 20px; background: white;">
@@ -77,12 +108,12 @@
             </div>
         </div>
 
-        @* Compact Export Section *@
+        @* Export Buttons *@
         <div class="d-flex justify-content-center gap-2 pb-5">
-            <a asp-action="ExportToExcel" class="btn btn-outline-secondary btn-sm px-3" style="border-radius: 8px; font-size: 0.75rem;">
+            <a asp-action="ExportToExcel" asp-route-month="@selectedMonthLabel" class="btn btn-outline-secondary btn-sm px-3" style="border-radius: 8px; font-size: 0.75rem;">
                 <i class="bi bi-file-earmark-excel me-1"></i>Excel
             </a>
-            <a asp-action="ExportToPdf" class="btn btn-outline-secondary btn-sm px-3" style="border-radius: 8px; font-size: 0.75rem;">
+            <a asp-action="ExportToPdf" asp-route-month="@selectedMonthLabel" class="btn btn-outline-secondary btn-sm px-3" style="border-radius: 8px; font-size: 0.75rem;">
                 <i class="bi bi-file-earmark-pdf me-1"></i>PDF
             </a>
         </div>
@@ -94,18 +125,15 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
     <script>
         $(document).ready(function() {
-            // Initialize Select2 with improved styling
             $('#employeeSelect').select2({
                 placeholder: "Search for an employee...",
                 allowClear: true,
                 width: '100%'
             });
 
-            // FIXED: Chart initialization inside document ready
             const canvas = document.getElementById('attendanceBarChart');
             if (canvas) {
                 const ctx = canvas.getContext('2d');
@@ -126,11 +154,7 @@
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: '#f0f0f0' },
-                                ticks: { stepSize: 1, font: { size: 10 } }
-                            },
+                            y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { stepSize: 1, font: { size: 10 } } },
                             x: { grid: { display: false }, ticks: { font: { size: 11 } } }
                         }
                     }
@@ -138,10 +162,14 @@
             }
         });
 
+        function filterByMonth(monthYear) {
+            // This reloads the page with the selected month in the URL
+            window.location.href = window.location.pathname + '?month=' + encodeURIComponent(monthYear);
+        }
+
         function goToDetails() {
             var id = $('#employeeSelect').val();
             if (id) {
-                // Ensure this URL matches your controller route
                 window.location.href = '/AttendanceReport/EmployeeDetails/' + id;
             } else {
                 alert("Please select an employee name first.");

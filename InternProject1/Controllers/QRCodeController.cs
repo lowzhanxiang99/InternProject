@@ -9,7 +9,6 @@ namespace InternProject1.Controllers
     {
         public IActionResult Generate(int employeeId)
         {
-
             var host = Request.Host.Value;
             var scheme = Request.Scheme;
 

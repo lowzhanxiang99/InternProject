@@ -22,7 +22,6 @@ public class ClaimController : Controller
         int? userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        // Use CreatedAt or Claim_Date (ensure this matches what's in your Model)
         var claims = await _context.Claims
             .Where(c => c.Employee_ID == userId)
             .OrderByDescending(c => c.CreatedAt)

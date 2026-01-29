@@ -1,6 +1,6 @@
-﻿@{
-    ViewData["Title"] = "Dashboard";
-    Layout = "_Layout";
+﻿﻿@{
+ViewData["Title"] = "Dashboard";
+Layout = "_Layout";
 }
 
 <style>
@@ -20,7 +20,6 @@
 
     <p class="text-secondary fw-bold mb-3">Leave Balance</p>
     <div class="row row-cols-1 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
-
         @* Annual *@
         <div class="col">
             <div class="card border-0 shadow-sm p-3 text-center h-100">
@@ -104,7 +103,6 @@
                     <div>
                         <h2 class="fw-bold text-primary mb-1">@(ViewBag.OnTimePercentage ?? "0")%</h2>
                         @{
-
                             var onTimeChange = ViewBag.OnTimeChange ?? 0;
                         }
                         @if (onTimeChange > 0)
@@ -134,7 +132,6 @@
                     <div>
                         <h2 class="fw-bold text-info mb-1">@(ViewBag.LatePercentage ?? "0")%</h2>
                         @{
-
                             var lateChange = ViewBag.LateChange ?? 0;
                         }
                         @if (lateChange > 0)
@@ -164,7 +161,6 @@
                     <div>
                         <h5 class="fw-bold mb-1">@(ViewBag.TotalBreakHours ?? "00 Hours 00 Minutes 00 Seconds")</h5>
                         @{
-
                             var breakChange = ViewBag.BreakChange ?? 0;
                         }
                         @if (breakChange > 0)
@@ -194,7 +190,6 @@
                     <div>
                         <h5 class="fw-bold mb-1">@(ViewBag.TotalWorkingHours ?? "00 Hours 00 Minutes 00 Seconds")</h5>
                         @{
-
                             var workChange = ViewBag.WorkChange ?? 0;
                         }
                         @if (workChange > 0)

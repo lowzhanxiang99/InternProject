@@ -70,7 +70,6 @@ public class AccountController : Controller
     }
 
     // --- QR SCANNER VIEW ---
-
     public IActionResult Scan()
     {
         return View();
@@ -131,7 +130,6 @@ public class AccountController : Controller
     // --- RECAPTCHA VERIFICATION HELPER ---
     private async Task<bool> IsHuman(string token)
     {
-
         string secretKey = _configuration["ReCaptcha:SecretKey"];
 
         using var client = new HttpClient();
