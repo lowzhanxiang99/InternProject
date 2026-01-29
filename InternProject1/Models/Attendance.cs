@@ -24,6 +24,11 @@ namespace InternProject1.Models
 
         [DataType(DataType.Time)]
         public TimeSpan? ClockOutTime { get; set; }
+        public TimeSpan? Expected_Start { get; set; }      // What time they were supposed to start
+        public TimeSpan? Expected_End { get; set; }        // What time they were supposed to end
+        public string? Shift_Used { get; set; }            // Which shift name they used
+        public int? Shift_ID_Used { get; set; }            // Which shift ID they used
+        public bool Used_Default_Shift { get; set; } = false; // Was it a default shift?
 
         [StringLength(100)]
         public string? Location_Lat_Long { get; set; }

@@ -208,22 +208,102 @@ namespace InternProject1.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // Get employee with shift
+            var employee = await _context.Employees
+                .Include(e => e.Shift)
+                .FirstOrDefaultAsync(e => e.Employee_ID == employeeId);
+
+            if (employee == null)
+            {
+                TempData["Error"] = "Employee not found!";
+                return RedirectToAction(nameof(Index));
+            }
+
+            Shift shiftToUse;
+            bool usingDefaultShift = false;
+
+            // Check if employee has assigned shift
+            if (employee.Shift != null)
+            {
+                shiftToUse = employee.Shift;
+                usingDefaultShift = employee.UsingDefaultShift;
+            }
+            else
+            {
+                // Get default shift from database
+                shiftToUse = await _context.Shifts
+                    .FirstOrDefaultAsync(s => s.Is_Default);
+
+                // If no default exists, create one
+                if (shiftToUse == null)
+                {
+                    shiftToUse = new Shift
+                    {
+                        Shift_Name = "Standard Office Hours",
+                        Start_Time = new TimeSpan(9, 0, 0),
+                        End_Time = new TimeSpan(18, 0, 0),
+                        Is_Default = true,
+                        Description = "System-generated default shift"
+                    };
+                    _context.Shifts.Add(shiftToUse);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Auto-assign default shift to employee
+                employee.Shift_ID = shiftToUse.Shift_ID;
+                employee.UsingDefaultShift = true;
+                employee.ShiftAssignedDate = null;
+                usingDefaultShift = true;
+
+                _context.Employees.Update(employee);
+            }
+
+            // SHIFT-BASED ON TIME/LATE LOGIC
+            TimeSpan currentTime = DateTime.Now.TimeOfDay;
+            string status = currentTime <= shiftToUse.Start_Time ? "On Time" : "Late";
+
+            // CREATE ATTENDANCE RECORD
             var attendance = new Attendance
             {
                 Employee_ID = employeeId,
                 Date = DateTime.Today,
-                ClockInTime = DateTime.Now.TimeOfDay,
+                ClockInTime = currentTime,
                 Location_Lat_Long = $"{latitude},{longitude}",
-                Status = DateTime.Now.TimeOfDay.Hours >= 9 ? "Late" : "On Time",
+                Status = status,
                 IsOnBreak = false,
                 HasTakenBreak = false,
-                TotalBreakTime = TimeSpan.Zero
+                TotalBreakTime = TimeSpan.Zero,
+                Expected_Start = shiftToUse.Start_Time,
+                Expected_End = shiftToUse.End_Time,
+                Shift_Used = shiftToUse.Shift_Name,
+                Shift_ID_Used = shiftToUse.Shift_ID,  // IMPORTANT: ADD THIS
+                Used_Default_Shift = usingDefaultShift
             };
 
             _context.Attendances.Add(attendance);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Successfully clocked in!";
+            // Show message
+            string timeMessage = $"Clocked in at {currentTime:hh\\:mm\\:ss}";
+            string shiftMessage = $"{shiftToUse.Shift_Name} ({shiftToUse.Start_Time:hh\\:mm}-{shiftToUse.End_Time:hh\\:mm})";
+
+            if (status == "Late")
+            {
+                TimeSpan lateBy = currentTime - shiftToUse.Start_Time;
+                TempData["Warning"] = $"{timeMessage}. ⚠️ LATE by {lateBy:mm} minutes. Shift: {shiftMessage}";
+            }
+            else
+            {
+                TempData["Success"] = $"{timeMessage}. ✅ ON TIME. Shift: {shiftMessage}";
+            }
+
+            if (usingDefaultShift)
+            {
+                if (TempData["Warning"] != null)
+                    TempData["Warning"] += " (Using default shift)";
+                else if (TempData["Success"] != null)
+                    TempData["Success"] += " (Using default shift)";
+            }
 
             return RedirectToAction(nameof(Index));
         }
