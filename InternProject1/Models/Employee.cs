@@ -44,4 +44,5 @@ public class Employee
     public int OtherLeaveDays { get; set; } = 0;
 
     public int MaternityLeaveDays { get; set; } = 90;
+    public DateTime Joining_Date { get; set; }
 }

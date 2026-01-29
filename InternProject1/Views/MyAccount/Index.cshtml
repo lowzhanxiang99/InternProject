@@ -56,11 +56,17 @@
         object-fit: cover;
     }
 
-    .camera-icon {
+    .profile-actions {
         position: absolute;
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+    }
+
+    .camera-icon,
+    .remove-icon {
         width: 32px;
         height: 32px;
         background: #E3F3FD;
@@ -72,9 +78,17 @@
         transition: all 0.3s;
     }
 
-    .camera-icon:hover {
-        background: #d0e9f9;
+        .camera-icon:hover {
+            background: #d0e9f9;
+        }
+
+    .remove-icon {
+        background: #ffe6e6;
     }
+
+        .remove-icon:hover {
+            background: #ffcccc;
+        }
 
     .profile-name-section {
         text-align: center;
@@ -355,8 +369,16 @@
                     {
                         <i class="bi bi-person text-secondary" style="font-size: 5rem;"></i>
                     }
-                    <div class="camera-icon" onclick="document.getElementById('profilePictureInput').click()">
-                        <i class="bi bi-camera" style="color: #1F4062; font-size: 16px;"></i>
+                    <div class="profile-actions">
+                        <div class="camera-icon" onclick="document.getElementById('profilePictureInput').click()" title="Upload Photo">
+                            <i class="bi bi-camera" style="color: #1F4062; font-size: 16px;"></i>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.ProfilePicturePath))
+                        {
+                            <div class="remove-icon" onclick="removeProfilePicture()" title="Remove Photo">
+                                <i class="bi bi-trash" style="color: #dc3545; font-size: 16px;"></i>
+                            </div>
+                        }
                     </div>
                 </div>
                 
@@ -691,6 +713,31 @@
         </div>
     </div>
 
+<!-- Remove Photo Confirmation Modal -->
+<div class="modal fade" id="removePhotoConfirmModal" tabindex="-1" aria-labelledby="removePhotoConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(92.21deg, #FFE6E6 16.95%, #FFCCCC 88.66%);">
+                <h5 class="modal-title" id="removePhotoConfirmLabel" style="color: #721c24; font-weight: 600;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Remove Profile Picture
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Are you sure you want to remove your profile picture? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmRemovePhoto()">
+                    <i class="bi bi-trash me-2"></i>Remove Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
@@ -1010,6 +1057,68 @@
                 viewMode.style.display = 'none';
                 editMode.classList.add('active');
             }
+
+                // Remove Profile Picture Function
+        async function removeProfilePicture() {
+            // Show Bootstrap confirmation modal instead of browser confirm
+            const confirmModal = new bootstrap.Modal(document.getElementById('removePhotoConfirmModal'));
+            confirmModal.show();
+        }
+
+        // Actual remove function after confirmation
+        async function confirmRemovePhoto() {
+            // Hide the modal
+            const confirmModal = bootstrap.Modal.getInstance(document.getElementById('removePhotoConfirmModal'));
+            confirmModal.hide();
+
+            try {
+                const response = await fetch('@Url.Action("RemoveProfilePicture", "MyAccount")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Replace image with default icon
+                    const container = document.querySelector('.profile-picture-container');
+                    const cameraIcon = container.querySelector('.profile-actions');
+
+                    container.innerHTML = `
+                        <i class="bi bi-person text-secondary" style="font-size: 5rem;"></i>
+                    `;
+                    container.appendChild(cameraIcon);
+
+                    // Remove the remove button
+                    const removeIcon = document.querySelector('.remove-icon');
+                    if (removeIcon) {
+                        removeIcon.remove();
+                    }
+
+                    // Show success message
+                    const successAlert = document.createElement('div');
+                    successAlert.className = 'alert alert-success alert-dismissible fade show mx-4 mb-4';
+                    successAlert.innerHTML = '<i class="bi bi-check-circle me-2"></i>Profile picture removed successfully!<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    document.querySelector('.container-fluid').insertBefore(successAlert, document.querySelector('.profile-card'));
+
+                    setTimeout(() => {
+                        successAlert.classList.remove('show');
+                        setTimeout(() => successAlert.remove(), 150);
+                    }, 3000);
+
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    alert('Failed to remove profile picture: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Remove error:', error);
+                alert('Failed to remove profile picture. Please try again.');
+            }
+        }
 
         // Image Cropping Functionality
         let cropper;
