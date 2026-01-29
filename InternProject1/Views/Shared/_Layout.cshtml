@@ -21,7 +21,6 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    @* UPDATED TITLE *@
     <title>@ViewData["Title"] - Alpine Software Solutions</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -37,6 +36,18 @@
             background-color: #f8f9fa;
             border-radius: 8px;
         }
+
+        /* Styling for nested sub-menu items */
+        .nav-submenu {
+            padding-left: 3rem !important;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+            .nav-submenu.active-sub {
+                color: #0d6efd !important;
+                font-weight: bold;
+            }
 
         .profile-pic-container {
             width: 100px;
@@ -64,7 +75,6 @@
             border: 1px dashed #dee2e6;
         }
 
-        /* Added style to ensure the logo fits nicely */
         .sidebar-logo {
             max-width: 100%;
             height: auto;
@@ -76,7 +86,6 @@
     <div class="d-flex" id="wrapper">
         <div class="bg-white border-end shadow-sm" id="sidebar-wrapper" style="width: 280px; min-height: 100vh; position: sticky; top: 0;">
 
-            @* UPDATED SIDEBAR HEADING WITH LOGO *@
             <div class="sidebar-heading p-4">
                 <img src="~/images/Alpine Logo.png" alt="Alpine Software Solutions" class="sidebar-logo" />
             </div>
@@ -98,9 +107,16 @@
                 </div>
 
                 <a asp-controller="Home" asp-action="Index"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
                     <i class="bi bi-grid-fill me-2"></i> Dashboard
                 </a>
+
+                <a asp-controller="Claim" asp-action="Index"
+                   class="nav-link nav-submenu py-2 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" ? "active-sub" : "")">
+                    <i class="bi bi-cash-stack me-2"></i> Claim Application
+                </a>
+
+                <hr class="my-2 opacity-25" />
 
                 <a asp-controller="Attendance" asp-action="Index"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Attendance" ? "active" : "")">
@@ -120,12 +136,12 @@
                 <a asp-controller="Monitoring" asp-action="AdminLogin"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Monitoring" ? "active" : "")">
                     <i class="bi bi-people me-2"></i> Employee Attendance Monitoring
-				</a>
-                
+                </a>
+
                 <a asp-controller="Shifts" asp-action="Index"
-				    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Shifts" ? "active" : "")">
-					<i class="bi bi-clock"></i> Manage Shifts
-				</a>
+                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Shifts" ? "active" : "")">
+                    <i class="bi bi-clock me-2"></i> Manage Shifts
+                </a>
 
                 <a asp-controller="MyAccount" asp-action="Index"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "MyAccount" ? "active" : "")">

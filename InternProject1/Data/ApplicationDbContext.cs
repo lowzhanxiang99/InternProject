@@ -19,4 +19,5 @@ public class ApplicationDbContext : DbContext
     public DbSet<Attendance> Attendances { get; set; }
     public DbSet<LeaveRequest> LeaveRequests { get; set; }
     public DbSet<Report> Reports { get; set; }
+    public DbSet<Claim> Claims { get; set; }
 }

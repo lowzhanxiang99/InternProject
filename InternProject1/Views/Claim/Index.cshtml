@@ -1,0 +1,94 @@
+﻿@model IEnumerable<InternProject1.Models.Claim>
+
+<div class="container-fluid py-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold">Claim History</h4>
+            <p class="text-muted small">View and track all your submitted expense claims</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> New Claim Application
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Receipt</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Applied On</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                    No claims found. Click "New Claim" to start.
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="ps-4 fw-bold">@item.Claim_Date.ToString("dd MMM yyyy")</td>
+                                <td>
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">
+                                        @item.Claim_Type
+                                    </span>
+                                </td>
+                                <td class="text-truncate" style="max-width: 250px;">@item.Description</td>
+                                <td class="fw-bold text-dark">RM @item.Amount.ToString("N2")</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.ReceiptPath))
+                                    {
+                                        <a href="@item.ReceiptPath" target="_blank" class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-file-earmark-image"></i> View
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">No file</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.Status == "Pending")
+                                    {
+                                        <span class="badge rounded-pill bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i> Pending</span>
+                                    }
+                                    else if (item.Status == "Approved")
+                                    {
+                                        <span class="badge rounded-pill bg-success"><i class="bi bi-check-lg me-1"></i> Approved</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge rounded-pill bg-danger"><i class="bi bi-x-lg me-1"></i> Rejected</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4 text-muted small">
+                                    @item.CreatedAt.ToString("g")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
