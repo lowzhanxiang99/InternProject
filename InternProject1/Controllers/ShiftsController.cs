@@ -1,5 +1,4 @@
-﻿// In Controllers/ShiftsController.cs
-using InternProject1.Data;
+﻿using InternProject1.Data;
 using InternProject1.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,33 +14,32 @@ namespace InternProject1.Controllers
             _context = context;
         }
 
-        // GET: Shifts
+        // GET: Shifts/Index (Dashboard)
         public async Task<IActionResult> Index()
         {
             ViewBag.TotalShifts = await _context.Shifts.CountAsync();
             ViewBag.AssignedEmployees = await _context.Employees.CountAsync(e => e.Shift_ID != null);
             ViewBag.UnassignedCount = await _context.Employees.CountAsync(e => e.Shift_ID == null);
+            ViewBag.UsingDefaultCount = await _context.Employees.CountAsync(e => e.UsingDefaultShift);
 
             return View();
         }
 
-        // Manage)
+        // GET: Shifts/Manage (CRUD for shifts)
         public async Task<IActionResult> Manage()
         {
             var shifts = await _context.Shifts.ToListAsync();
             return View(shifts);
         }
 
-        // Assign shifts to employees
+        // GET: Shifts/Assign (Assign shifts to employees)
         public async Task<IActionResult> Assign()
         {
-            // Get employees without shifts
             var unassignedEmployees = await _context.Employees
                 .Where(e => e.Shift_ID == null)
                 .Include(e => e.Department)
                 .ToListAsync();
 
-            // Get all employees for bulk assignment
             var allEmployees = await _context.Employees
                 .Include(e => e.Department)
                 .Include(e => e.Shift)
@@ -49,7 +47,6 @@ namespace InternProject1.Controllers
                 .ThenBy(e => e.First_Name)
                 .ToListAsync();
 
-            // Get all shifts
             var shifts = await _context.Shifts.ToListAsync();
 
             var viewModel = new AssignShiftsViewModel
@@ -62,7 +59,7 @@ namespace InternProject1.Controllers
             return View(viewModel);
         }
 
-        // API to assign shift
+        // POST: Shifts/AssignShiftToEmployee
         [HttpPost]
         public async Task<IActionResult> AssignShiftToEmployee(int employeeId, int shiftId)
         {
@@ -71,18 +68,58 @@ namespace InternProject1.Controllers
                 return Json(new { success = false, message = "Employee not found" });
 
             var shift = await _context.Shifts.FindAsync(shiftId);
-            if (shift == null)
+            if (shift == null && shiftId != 0)
                 return Json(new { success = false, message = "Shift not found" });
 
-            employee.Shift_ID = shiftId;
+            // Update with tracking
+            employee.Shift_ID = shiftId == 0 ? null : shiftId;
+            employee.UsingDefaultShift = false;
+            employee.ShiftAssignedDate = DateTime.Now;
+
             await _context.SaveChangesAsync();
+
+            string employeeName = $"{employee.First_Name} {employee.Last_Name}";
+            string shiftName = shiftId == 0 ? "No Shift" : shift.Shift_Name;
 
             return Json(new
             {
                 success = true,
-                message = $"Shift assigned: {employee.FullName} → {shift.Shift_Name}"
+                message = $"Shift updated: {employeeName} → {shiftName}"
             });
         }
+
+        // POST: Shifts/SetAsDefault
+        [HttpPost]
+        public async Task<IActionResult> SetAsDefault(int shiftId)
+        {
+            var shift = await _context.Shifts.FindAsync(shiftId);
+            if (shift == null)
+            {
+                TempData["Error"] = "Shift not found";
+                return RedirectToAction(nameof(Manage));  // Fixed
+            }
+
+            // Remove default from others
+            var currentDefault = await _context.Shifts
+                .Where(s => s.Is_Default && s.Shift_ID != shiftId)
+                .ToListAsync();
+
+            foreach (var s in currentDefault)
+            {
+                s.Is_Default = false;
+                _context.Update(s);
+            }
+
+            // Set new default
+            shift.Is_Default = true;
+            _context.Update(shift);
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"'{shift.Shift_Name}' is now the default shift";
+            return RedirectToAction(nameof(Manage));  // Fixed
+        }
+
         // GET: Shifts/Create
         public IActionResult Create()
         {
@@ -98,7 +135,7 @@ namespace InternProject1.Controllers
             {
                 _context.Add(shift);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Manage));  // Fixed
             }
             return View(shift);
         }
@@ -135,28 +172,22 @@ namespace InternProject1.Controllers
                     else
                         throw;
                 }
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Manage));  // Fixed
             }
             return View(shift);
         }
 
+        // GET: Shifts/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
             var shift = await _context.Shifts
-                .Include(s => s.Employees)  // Check if employees use this shift
+                .Include(s => s.Employees)
                 .FirstOrDefaultAsync(m => m.Shift_ID == id);
 
-            if (shift == null)
-            {
-                return NotFound();
-            }
+            if (shift == null) return NotFound();
 
-            // Check if any employees are assigned to this shift
             if (shift.Employees != null && shift.Employees.Any())
             {
                 ViewBag.ErrorMessage = $"Cannot delete this shift because {shift.Employees.Count} employee(s) are assigned to it.";
@@ -175,30 +206,27 @@ namespace InternProject1.Controllers
                 .Include(s => s.Employees)
                 .FirstOrDefaultAsync(s => s.Shift_ID == id);
 
-            if (shift == null)
-            {
-                return NotFound();
-            }
+            if (shift == null) return NotFound();
 
             // Prevent deletion if employees are assigned
             if (shift.Employees != null && shift.Employees.Any())
             {
                 TempData["Error"] = $"Cannot delete '{shift.Shift_Name}' because {shift.Employees.Count} employee(s) are assigned to it.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Manage));  // Fixed
             }
 
             // Prevent deletion if this is the default shift
             if (shift.Is_Default)
             {
                 TempData["Error"] = $"Cannot delete '{shift.Shift_Name}' because it is set as the default shift.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Manage));  // Fixed
             }
 
             _context.Shifts.Remove(shift);
             await _context.SaveChangesAsync();
 
             TempData["Success"] = $"Shift '{shift.Shift_Name}' deleted successfully.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Manage));  // Fixed
         }
 
         private bool ShiftExists(int id)

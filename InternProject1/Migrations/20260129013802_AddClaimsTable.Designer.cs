@@ -4,6 +4,7 @@ using InternProject1.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129013802_AddClaimsTable")]
+    partial class AddClaimsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,12 +48,6 @@ namespace InternProject1.Migrations
                     b.Property<int>("Employee_ID")
                         .HasColumnType("int");
 
-                    b.Property<TimeSpan?>("Expected_End")
-                        .HasColumnType("time");
-
-                    b.Property<TimeSpan?>("Expected_Start")
-                        .HasColumnType("time");
-
                     b.Property<bool>("HasTakenBreak")
                         .HasColumnType("bit");
 
@@ -61,12 +58,6 @@ namespace InternProject1.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("Shift_ID_Used")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Shift_Used")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -74,59 +65,11 @@ namespace InternProject1.Migrations
                     b.Property<TimeSpan?>("TotalBreakTime")
                         .HasColumnType("time");
 
-                    b.Property<bool>("Used_Default_Shift")
-                        .HasColumnType("bit");
-
                     b.HasKey("Attendance_ID");
 
                     b.HasIndex("Employee_ID");
 
                     b.ToTable("Attendances");
-                });
-
-            modelBuilder.Entity("InternProject1.Models.Claim", b =>
-                {
-                    b.Property<int>("Claim_ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Claim_ID"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("Claim_Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Claim_Type")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("Date_Submitted")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Employee_ID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReceiptPath")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Claim_ID");
-
-                    b.HasIndex("Employee_ID");
-
-                    b.ToTable("Claims");
                 });
 
             modelBuilder.Entity("InternProject1.Models.Department", b =>
@@ -193,9 +136,6 @@ namespace InternProject1.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("Joining_Date")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Last_Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -223,14 +163,8 @@ namespace InternProject1.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("ShiftAssignedDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<int?>("Shift_ID")
                         .HasColumnType("int");
-
-                    b.Property<bool>("UsingDefaultShift")
-                        .HasColumnType("bit");
 
                     b.HasKey("Employee_ID");
 
@@ -362,17 +296,6 @@ namespace InternProject1.Migrations
                 });
 
             modelBuilder.Entity("InternProject1.Models.Attendance", b =>
-                {
-                    b.HasOne("InternProject1.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("Employee_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("InternProject1.Models.Claim", b =>
                 {
                     b.HasOne("InternProject1.Models.Employee", "Employee")
                         .WithMany()

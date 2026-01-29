@@ -33,6 +33,8 @@ public class Employee
     public int? Shift_ID { get; set; }
     [ForeignKey("Shift_ID")]
     public virtual Shift? Shift { get; set; }
+    public bool UsingDefaultShift { get; set; } = false;  // True if using default shift
+    public DateTime? ShiftAssignedDate { get; set; }
     public string? Employee_Name { get; internal set; }
     [NotMapped]
     public string FullName => $"{First_Name} {Last_Name}";
