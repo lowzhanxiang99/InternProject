@@ -1,6 +1,6 @@
-﻿﻿@{
-ViewData["Title"] = "Dashboard";
-Layout = "_Layout";
+﻿@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_Layout";
 }
 
 <style>
@@ -11,6 +11,16 @@ Layout = "_Layout";
     .bg-purple {
         background-color: #6f42c1 !important;
     }
+
+    /* Smooth hover effect for cards */
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        }
 </style>
 
 <div class="container-fluid py-4 px-4">
@@ -213,36 +223,36 @@ Layout = "_Layout";
         </div>
     </div>
 
-    @* CLAIM SECTION (NEW) *@
+    @* CLAIM SECTION *@
     <p class="text-secondary fw-bold mb-3">Claim Management</p>
-    <div class="row g-4">
+    <div class="row g-4 mb-5">
         <div class="col-md-6">
-            <div class="card border-0 shadow-sm p-4">
+            <div class="card border-0 shadow-sm p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h5 class="fw-bold mb-0">My Claims</h5>
                         <small class="text-muted">Status summary for your expense claims</small>
                     </div>
-                    <a asp-controller="Claim" asp-action="Create" class="btn btn-primary btn-sm">
+                    <a asp-controller="Claim" asp-action="Create" class="btn btn-primary btn-sm rounded-pill px-3">
                         <i class="bi bi-plus-lg me-1"></i> New Claim
                     </a>
                 </div>
 
                 <div class="row g-3 text-center">
                     <div class="col-4">
-                        <div class="p-3 border rounded bg-light">
+                        <div class="p-3 border rounded-3 bg-light h-100">
                             <h3 class="fw-bold mb-0">@(ViewBag.PendingClaims ?? "0")</h3>
                             <small class="text-warning fw-bold">Pending</small>
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="p-3 border rounded bg-light">
+                        <div class="p-3 border rounded-3 bg-light h-100">
                             <h3 class="fw-bold mb-0">@(ViewBag.ApprovedClaims ?? "0")</h3>
                             <small class="text-success fw-bold">Approved</small>
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="p-3 border rounded bg-light">
+                        <div class="p-3 border rounded-3 bg-light h-100">
                             <h3 class="fw-bold mb-0">@(ViewBag.RejectedClaims ?? "0")</h3>
                             <small class="text-danger fw-bold">Rejected</small>
                         </div>
@@ -256,16 +266,60 @@ Layout = "_Layout";
             </div>
         </div>
 
-        @* Quick Link Card for Alpine Solutions *@
+        @* Quick Link Card *@
         <div class="col-md-6">
-            <div class="card border-0 shadow-sm p-4 h-100 bg-primary text-white">
+            <div class="card border-0 shadow-sm p-4 h-100 bg-primary text-white rounded-4">
                 <div class="d-flex flex-column h-100 justify-content-center py-2">
                     <h5 class="fw-bold">Need help with your Claim?</h5>
-                    <p class="small opacity-75">Ensure all receipts are clearly photographed and uploaded as JPEG or PDF for faster approval by the Finance team.</p>
+                    <p class="small opacity-75">Ensure all receipts are clearly photographed and uploaded as JPEG or PDF for faster approval by the Admins team.</p>
                     <div class="mt-auto">
-                        <button class="btn btn-light btn-sm fw-bold px-4">Read Guidelines</button>
+                        <button type="button"
+                                class="btn btn-light btn-sm fw-bold px-4 shadow-sm rounded-pill"
+                                data-bs-toggle="modal"
+                                data-bs-target="#guidelinesModal">
+                            <i class="bi bi-book-half me-1"></i> Read Guidelines
+                        </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="guidelinesModal" tabindex="-1" aria-labelledby="guidelinesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-primary text-white border-0 py-3">
+                <h5 class="modal-title fw-bold" id="guidelinesModalLabel">
+                    <i class="bi bi-info-circle me-2"></i>Claim Guidelines
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-dark">
+                <div class="d-flex align-items-start mb-3">
+                    <i class="bi bi-1-circle-fill text-primary me-3 fs-5"></i>
+                    <div>
+                        <strong>File Formats:</strong>
+                        <p class="text-muted small mb-0">Only JPEG, PNG, or PDF files are accepted.</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start mb-3">
+                    <i class="bi bi-2-circle-fill text-primary me-3 fs-5"></i>
+                    <div>
+                        <strong>Photo Quality:</strong>
+                        <p class="text-muted small mb-0">Receipts must be clear and readable. Blurry images will be rejected.</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-3-circle-fill text-primary me-3 fs-5"></i>
+                    <div>
+                        <strong>Timeframe:</strong>
+                        <p class="text-muted small mb-0">Please submit claims within 10 days of the expense date.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-primary w-100 fw-bold rounded-pill" data-bs-dismiss="modal">I Understand</button>
             </div>
         </div>
     </div>
