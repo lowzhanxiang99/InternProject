@@ -19,6 +19,16 @@ public class HomeController : Controller
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
+        // Get current user claims to show in the Dashboard "My Claims" section
+        var userClaims = await _context.Claims
+            .Where(c => c.Employee_ID == userId)
+            .ToListAsync();
+
+        // Fetch Claim Counts
+        ViewBag.PendingClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Pending");
+        ViewBag.ApprovedClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Approved");
+        ViewBag.RejectedClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Rejected");
+
         ViewBag.UserName = HttpContext.Session.GetString("UserName");
 
         var employee = await _context.Employees.FindAsync(userId);
@@ -183,7 +193,8 @@ public class HomeController : Controller
         // Calculate working hours from ClockInTime to ClockOutTime
         TimeSpan currentMonthWorkTotal = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
-            .Select(a => {
+            .Select(a =>
+            {
                 // Calculate work duration (excluding breaks)
                 TimeSpan workDuration = a.ClockOutTime.Value - a.ClockInTime.Value;
 
@@ -200,7 +211,8 @@ public class HomeController : Controller
 
         TimeSpan previousMonthWorkTotal = previousMonthAttendances
             .Where(a => a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
-            .Select(a => {
+            .Select(a =>
+            {
                 TimeSpan workDuration = a.ClockOutTime.Value - a.ClockInTime.Value;
                 if (a.TotalBreakTime.HasValue)
                 {

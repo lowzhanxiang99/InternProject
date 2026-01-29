@@ -21,7 +21,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - TimeVIA</title>
+    <title>@ViewData["Title"] - Alpine Software Solutions</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -36,6 +36,18 @@
             background-color: #f8f9fa;
             border-radius: 8px;
         }
+
+        /* Styling for nested sub-menu items */
+        .nav-submenu {
+            padding-left: 3rem !important;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+            .nav-submenu.active-sub {
+                color: #0d6efd !important;
+                font-weight: bold;
+            }
 
         .profile-pic-container {
             width: 100px;
@@ -62,12 +74,21 @@
             margin-top: 20px;
             border: 1px dashed #dee2e6;
         }
+
+        .sidebar-logo {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="d-flex" id="wrapper">
         <div class="bg-white border-end shadow-sm" id="sidebar-wrapper" style="width: 280px; min-height: 100vh; position: sticky; top: 0;">
-            <div class="sidebar-heading p-4 text-primary fw-bold fs-3">TimeVIA</div>
+
+            <div class="sidebar-heading p-4">
+                <img src="~/images/Alpine Logo.png" alt="Alpine Software Solutions" class="sidebar-logo" />
+            </div>
 
             <div class="list-group list-group-flush px-3">
                 <div class="text-center py-4 mb-1">
@@ -86,9 +107,21 @@
                 </div>
 
                 <a asp-controller="Home" asp-action="Index"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
                     <i class="bi bi-grid-fill me-2"></i> Dashboard
                 </a>
+
+                <a asp-controller="Claim" asp-action="Index"
+                   class="nav-link nav-submenu py-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active-sub" : "")">
+                    <i class="bi bi-cash-stack me-2"></i> Claim Application
+                </a>
+
+                <a asp-controller="Claim" asp-action="AdminLogin"
+                   class="nav-link nav-submenu py-2 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" && (ViewContext.RouteData.Values["Action"]?.ToString() == "AdminLogin" || ViewContext.RouteData.Values["Action"]?.ToString() == "AdminApproval") ? "active-sub" : "")">
+                    <i class="bi bi-shield-lock me-2"></i> Admin Claim Approval
+                </a>
+
+                <hr class="my-2 opacity-25" />
 
                 <a asp-controller="Attendance" asp-action="Index"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Attendance" ? "active" : "")">
@@ -108,12 +141,12 @@
                 <a asp-controller="Monitoring" asp-action="AdminLogin"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Monitoring" ? "active" : "")">
                     <i class="bi bi-people me-2"></i> Employee Attendance Monitoring
-				</a>
-                
+                </a>
+
                 <a asp-controller="Shifts" asp-action="Index"
-				    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Shifts" ? "active" : "")">
-					<i class="bi bi-clock"></i> Manage Shifts
-				</a>
+                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Shifts" ? "active" : "")">
+                    <i class="bi bi-clock me-2"></i> Manage Shifts
+                </a>
 
                 <a asp-controller="MyAccount" asp-action="Index"
                    class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "MyAccount" ? "active" : "")">
@@ -152,4 +185,3 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
-</html>
