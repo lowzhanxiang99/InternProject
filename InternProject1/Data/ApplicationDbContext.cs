@@ -1,5 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using InternProject1.Models;
+﻿using InternProject1.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace InternProject1.Data;
 

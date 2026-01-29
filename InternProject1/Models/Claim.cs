@@ -8,28 +8,22 @@ public class Claim
     [Key]
     public int Claim_ID { get; set; }
 
-    [Required]
+    // This is the line you are likely missing!
     public int Employee_ID { get; set; }
 
-    [Required]
-    public string Claim_Type { get; set; } = string.Empty; // Travel, Meal, Medical, etc.
-
-    [Required]
-    public DateTime Claim_Date { get; set; }
-
-    [Required]
-    [Column(TypeName = "decimal(18, 2)")]
+    public string Claim_Type { get; set; } // e.g., Medical, Travel
+    [Column(TypeName = "decimal(18,2)")] // Fixes the truncation warning
     public decimal Amount { get; set; }
+    public DateTime Claim_Date { get; set; } = DateTime.Now;
+    public DateTime Date_Submitted { get; set; }
 
-    [Required]
-    public string Description { get; set; } = string.Empty;
-
-    public string? ReceiptPath { get; set; } // Path to the uploaded image/PDF
-
-    public string Status { get; set; } = "Pending"; // Pending, Approved, Rejected
-
+    // Add these missing properties:
+    public string Description { get; set; }
+    public string Status { get; set; } = "Pending";
+    public string? ReceiptPath { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+    // Navigation property to the Employee model
     [ForeignKey("Employee_ID")]
-    public virtual Employee? Employee { get; set; }
+    public Employee? Employee { get; set; }
 }

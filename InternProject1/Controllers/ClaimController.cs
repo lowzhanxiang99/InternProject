@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using InternProject1.Data;
-using InternProject1.Models;
+// Using an alias to fix the 'Ambiguous Reference' error permanently
+using MyClaim = InternProject1.Models.Claim;
 using Microsoft.EntityFrameworkCore;
 
 namespace InternProject1.Controllers;
@@ -16,7 +17,6 @@ public class ClaimController : Controller
         _environment = environment;
     }
 
-    // List of claims for the logged-in user
     public async Task<IActionResult> Index()
     {
         int? userId = HttpContext.Session.GetInt32("UserID");
@@ -30,15 +30,17 @@ public class ClaimController : Controller
         return View(claims);
     }
 
-    // Show the Application Form
     public IActionResult Create() => View();
 
-    // Process the Application Form
     [HttpPost]
-    public async Task<IActionResult> Create(Claim claim, IFormFile? receiptFile)
+    public async Task<IActionResult> Create(MyClaim claim, IFormFile? receiptFile)
     {
         int? userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
+
+        // We remove Status and CreatedAt from validation because we set them manually below
+        ModelState.Remove("Status");
+        ModelState.Remove("CreatedAt");
 
         if (ModelState.IsValid)
         {
@@ -60,6 +62,8 @@ public class ClaimController : Controller
             claim.Employee_ID = userId.Value;
             claim.Status = "Pending";
             claim.CreatedAt = DateTime.Now;
+            // If you added Claim_Date to the model, set it here too:
+            // claim.Claim_Date = DateTime.Now; 
 
             _context.Claims.Add(claim);
             await _context.SaveChangesAsync();
@@ -87,7 +91,6 @@ public class ClaimController : Controller
         return View();
     }
 
-    // Log out specifically from Admin mode
     public IActionResult AdminLogout()
     {
         HttpContext.Session.Remove("IsClaimAdmin");
@@ -102,7 +105,7 @@ public class ClaimController : Controller
         }
 
         var allPendingClaims = await _context.Claims
-            .Include(c => c.Employee) // Ensure 'public Employee Employee { get; set; }' exists in Claim model
+            .Include(c => c.Employee)
             .Where(c => c.Status == "Pending")
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
