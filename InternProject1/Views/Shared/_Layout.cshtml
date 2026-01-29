@@ -112,8 +112,13 @@
                 </a>
 
                 <a asp-controller="Claim" asp-action="Index"
-                   class="nav-link nav-submenu py-2 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" ? "active-sub" : "")">
+                   class="nav-link nav-submenu py-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active-sub" : "")">
                     <i class="bi bi-cash-stack me-2"></i> Claim Application
+                </a>
+
+                <a asp-controller="Claim" asp-action="AdminLogin"
+                   class="nav-link nav-submenu py-2 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" && (ViewContext.RouteData.Values["Action"]?.ToString() == "AdminLogin" || ViewContext.RouteData.Values["Action"]?.ToString() == "AdminApproval") ? "active-sub" : "")">
+                    <i class="bi bi-shield-lock me-2"></i> Admin Claim Approval
                 </a>
 
                 <hr class="my-2 opacity-25" />

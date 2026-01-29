@@ -42,7 +42,6 @@ public class ClaimController : Controller
 
         if (ModelState.IsValid)
         {
-            // Handle File Upload
             if (receiptFile != null && receiptFile.Length > 0)
             {
                 string folder = Path.Combine(_environment.WebRootPath, "uploads/receipts");
@@ -69,5 +68,60 @@ public class ClaimController : Controller
             return RedirectToAction("Index");
         }
         return View(claim);
+    }
+
+    // --- ADMIN SECTION ---
+
+    public IActionResult AdminLogin() => View();
+
+    [HttpPost]
+    public IActionResult AdminLogin(string email, string password)
+    {
+        if (email == "admin@gmail.com" && password == "admin123")
+        {
+            HttpContext.Session.SetString("IsClaimAdmin", "true");
+            return RedirectToAction("AdminApproval");
+        }
+
+        ViewBag.Error = "Invalid Admin Credentials";
+        return View();
+    }
+
+    // Log out specifically from Admin mode
+    public IActionResult AdminLogout()
+    {
+        HttpContext.Session.Remove("IsClaimAdmin");
+        return RedirectToAction("Index", "Home");
+    }
+
+    public async Task<IActionResult> AdminApproval()
+    {
+        if (HttpContext.Session.GetString("IsClaimAdmin") != "true")
+        {
+            return RedirectToAction("AdminLogin");
+        }
+
+        var allPendingClaims = await _context.Claims
+            .Include(c => c.Employee) // Ensure 'public Employee Employee { get; set; }' exists in Claim model
+            .Where(c => c.Status == "Pending")
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+
+        return View(allPendingClaims);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ApproveOrReject(int claimId, string status)
+    {
+        if (HttpContext.Session.GetString("IsClaimAdmin") != "true") return Unauthorized();
+
+        var claim = await _context.Claims.FindAsync(claimId);
+        if (claim != null)
+        {
+            claim.Status = status;
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Claim has been {status}.";
+        }
+        return RedirectToAction("AdminApproval");
     }
 }
