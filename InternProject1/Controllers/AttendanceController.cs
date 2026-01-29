@@ -133,7 +133,7 @@ namespace InternProject1.Controllers
                         clockOutTime = a.ClockOutTime.HasValue ?
                             FormatTime(a.ClockOutTime.Value) : "-",
                         breakTime = a.TotalBreakTime.HasValue ?
-                            FormatDuration(a.TotalBreakTime.Value) : "0 Hr 00 Mins 00 Secs",
+                            FormatDuration(a.TotalBreakTime.Value) : "-",
                         workingTime = CalculateWorkingTime(a),
                         status = a.Status
                     })

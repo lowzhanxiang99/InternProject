@@ -4,6 +4,7 @@ using InternProject1.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260128040410_AddJoiningDateToEmployee")]
+    partial class AddJoiningDateToEmployee
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -67,51 +70,6 @@ namespace InternProject1.Migrations
                     b.HasIndex("Employee_ID");
 
                     b.ToTable("Attendances");
-                });
-
-            modelBuilder.Entity("InternProject1.Models.Claim", b =>
-                {
-                    b.Property<int>("Claim_ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Claim_ID"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("Claim_Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Claim_Type")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("Date_Submitted")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Employee_ID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReceiptPath")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Claim_ID");
-
-                    b.HasIndex("Employee_ID");
-
-                    b.ToTable("Claims");
                 });
 
             modelBuilder.Entity("InternProject1.Models.Department", b =>
@@ -319,18 +277,8 @@ namespace InternProject1.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Shift_ID"));
 
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<TimeSpan>("End_Time")
                         .HasColumnType("time");
-
-                    b.Property<bool>("Is_Default")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Shift_Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<TimeSpan>("Start_Time")
                         .HasColumnType("time");
@@ -341,17 +289,6 @@ namespace InternProject1.Migrations
                 });
 
             modelBuilder.Entity("InternProject1.Models.Attendance", b =>
-                {
-                    b.HasOne("InternProject1.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("Employee_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("InternProject1.Models.Claim", b =>
                 {
                     b.HasOne("InternProject1.Models.Employee", "Employee")
                         .WithMany()
