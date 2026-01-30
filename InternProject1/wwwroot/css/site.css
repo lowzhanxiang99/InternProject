@@ -37,31 +37,34 @@ body {
 }
 
 /* Sidebar Links (Nav-pills style) */
-@@ -33,93 +42,154 @@ font-weight: 500;
-padding: 12px 20px !important;
-transition: 0.3s ease;
-border: 1px solid transparent;
-display: flex;
-align-items: center;
-margin: 4px 15px;
+.nav-link {
+    color: #6c757d;
+    font-weight: 500;
+    padding: 12px 20px !important;
+    transition: 0.3s ease;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    margin: 4px 15px;
 }
 
-.nav-link i {
-    margin-right: 12px;
-    font-size: 1.1rem;
-}
+    .nav-link i {
+        margin-right: 12px;
+        font-size: 1.1rem;
+    }
 
-.nav-link:hover {
-    background-color: #f8fbff;
-    color: #0d6efd;
-    border-radius: 10px;
-}
+    .nav-link:hover {
+        background-color: #f8fbff;
+        color: #0d6efd;
+        border-radius: 10px;
+    }
 
-.nav-link.active {
-    background-color: #0d6efd !important; /* Royal Blue from your screenshot */
-    color: #ffffff !important;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+    .nav-link.active {
+        background-color: #0d6efd !important; /* Royal Blue from your screenshot */
+        color: #ffffff !important;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+    }
 }
 
 /* ==========================================================
@@ -131,18 +134,12 @@ margin: 4px 15px;
     padding: 15px 25px;
 }
 
-
 .overview-card {
     background-color: #DDE7F2 !important;
     border-radius: 12px !important;
     border: none !important;
     transition: transform 0.2s ease;
 }
-
-
-
-
-
 
 .table-report thead {
     background-color: #4A77A5 !important; /* Dark blue from your style */
@@ -163,7 +160,6 @@ margin: 4px 15px;
     transition: 0.2s ease;
 }
 
-
 .btn-report-action {
     background-color: #DDE7F2;
     color: #333;
@@ -182,7 +178,6 @@ margin: 4px 15px;
 /* ==========================================================
    Custom Scrollbar
    ========================================================== */
-
 ::-webkit-scrollbar {
     width: 8px;
 }
