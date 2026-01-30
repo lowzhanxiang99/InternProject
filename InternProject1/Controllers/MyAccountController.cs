@@ -25,7 +25,6 @@ namespace InternProject1.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            // ⭐️ INCLUDE Shift and Department navigation properties
             var employee = await _context.Employees
                 .Include(e => e.Shift)
                 .Include(e => e.Department)
@@ -44,7 +43,8 @@ namespace InternProject1.Controllers
                     ProfilePicturePath = e.ProfilePicturePath,
                     Department_ID = e.Department_ID,
                     Shift_ID = e.Shift_ID,
-                    DepartmentName = e.Department != null ? e.Department.Department_Name : "N/A",
+                    // Use the actual department name from database
+                    DepartmentName = e.Department != null ? e.Department.Department_Name : "",
                     ShiftTime = e.Shift != null ? $"{e.Shift.Start_Time:hh\\:mm} - {e.Shift.End_Time:hh\\:mm}" : "N/A"
                 })
                 .FirstOrDefaultAsync();
@@ -140,12 +140,12 @@ namespace InternProject1.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            // Remove validation for fields that shouldn't be validated
+            // Remove validation for non-editable fields
             ModelState.Remove("Role");
-            ModelState.Remove("Branch");
             ModelState.Remove("ProfilePicturePath");
-            ModelState.Remove("Department_ID");
             ModelState.Remove("Shift_ID");
+            ModelState.Remove("ShiftTime");
+            ModelState.Remove("Department_ID");
 
             // Custom age validation
             if (!model.IsValidAge())
@@ -163,6 +163,8 @@ namespace InternProject1.Controllers
             {
                 // Reload employee data for display
                 var currentEmployee = await _context.Employees
+                    .Include(e => e.Shift)
+                    .Include(e => e.Department)
                     .Where(e => e.Employee_ID == employeeId.Value)
                     .FirstOrDefaultAsync();
 
@@ -170,10 +172,11 @@ namespace InternProject1.Controllers
                 {
                     model.Employee_ID = currentEmployee.Employee_ID;
                     model.Role = currentEmployee.Role;
-                    model.Branch = currentEmployee.Branch;
                     model.ProfilePicturePath = currentEmployee.ProfilePicturePath;
-                    model.Department_ID = currentEmployee.Department_ID;
                     model.Shift_ID = currentEmployee.Shift_ID;
+                    model.Department_ID = currentEmployee.Department_ID;
+                    model.ShiftTime = currentEmployee.Shift != null ?
+                        $"{currentEmployee.Shift.Start_Time:hh\\:mm} - {currentEmployee.Shift.End_Time:hh\\:mm}" : "N/A";
                 }
 
                 TempData["ErrorMessage"] = "Please correct the errors and try again.";
@@ -181,6 +184,7 @@ namespace InternProject1.Controllers
             }
 
             var employee = await _context.Employees
+                .Include(e => e.Department)
                 .FirstOrDefaultAsync(e => e.Employee_ID == employeeId.Value);
 
             if (employee == null)
@@ -197,7 +201,6 @@ namespace InternProject1.Controllers
             {
                 ModelState.AddModelError("Employee_Email", "This email is already in use by another employee");
                 model.Role = employee.Role;
-                model.Branch = employee.Branch;
                 model.ProfilePicturePath = employee.ProfilePicturePath;
                 TempData["ErrorMessage"] = "Email is already in use.";
                 return View("Index", model);
@@ -210,6 +213,56 @@ namespace InternProject1.Controllers
             employee.Employee_Phone = model.Employee_Phone.Trim();
             employee.Date_of_Birth = model.Date_of_Birth;
             employee.Gender = model.Gender;
+            employee.Branch = model.Branch.Trim();
+
+            // Handle Department - check if it exists or create new
+            // In your UpdateProfile method:
+            var departmentName = model.DepartmentName.Trim();
+
+            if (string.IsNullOrEmpty(departmentName))
+            {
+                employee.Department_ID = null;
+            }
+            else
+            {
+                // Check if department exists in database
+                var existingDepartment = await _context.Departments
+                    .FirstOrDefaultAsync(d => d.Department_Name.ToLower() == departmentName.ToLower());
+
+                if (existingDepartment != null)
+                {
+                    // Use existing department
+                    employee.Department_ID = existingDepartment.Department_ID;
+                }
+                else
+                {
+                    // FIRST: Find or create a manager
+                    var manager = await _context.Managers.FirstOrDefaultAsync();
+
+                    if (manager == null)
+                    {
+                        // Create a default manager
+                        manager = new Manager
+                        {
+                            Manager_Name = "System Manager"
+                        };
+                        _context.Managers.Add(manager);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    // NOW create department with the manager ID
+                    var newDepartment = new Department
+                    {
+                        Department_Name = departmentName,
+                        Manager_ID = manager.Manager_ID  // <-- MUST set this value
+                    };
+
+                    _context.Departments.Add(newDepartment);
+                    await _context.SaveChangesAsync();
+
+                    employee.Department_ID = newDepartment.Department_ID;
+                }
+            }
 
             try
             {
@@ -222,9 +275,8 @@ namespace InternProject1.Controllers
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Failed to update profile. Please try again.";
+                TempData["ErrorMessage"] = $"Failed to update profile. Error: {ex.Message}";
                 model.Role = employee.Role;
-                model.Branch = employee.Branch;
                 model.ProfilePicturePath = employee.ProfilePicturePath;
                 return View("Index", model);
             }

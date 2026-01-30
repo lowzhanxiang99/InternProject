@@ -35,6 +35,8 @@ namespace InternProject1.Models
 
         public string Role { get; set; }
 
+        [Required(ErrorMessage = "Branch is required")]
+        [StringLength(100, ErrorMessage = "Branch cannot exceed 100 characters")]
         public string Branch { get; set; }
 
         public string? ProfilePicturePath { get; set; }
@@ -43,9 +45,14 @@ namespace InternProject1.Models
 
         public int? Shift_ID { get; set; }
 
-        public string FullName => $"{First_Name} {Last_Name}";
+        [Required(ErrorMessage = "Department is required")]
+        [StringLength(100, ErrorMessage = "Department cannot exceed 100 characters")]
         public string DepartmentName { get; set; }
+
         public string ShiftTime { get; set; }
+
+        public string FullName => $"{First_Name} {Last_Name}";
+
         public bool IsValidAge()
         {
             var age = DateTime.Today.Year - Date_of_Birth.Year;
