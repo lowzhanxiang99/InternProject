@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260129022637_CreateClaimsTableFresh")]
-    partial class CreateClaimsTableFresh
+    [Migration("20260129032929_UpdateEmployee")]
+    partial class UpdateEmployee
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -48,6 +48,12 @@ namespace InternProject1.Migrations
                     b.Property<int>("Employee_ID")
                         .HasColumnType("int");
 
+                    b.Property<TimeSpan?>("Expected_End")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("Expected_Start")
+                        .HasColumnType("time");
+
                     b.Property<bool>("HasTakenBreak")
                         .HasColumnType("bit");
 
@@ -58,12 +64,21 @@ namespace InternProject1.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("Shift_ID_Used")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Shift_Used")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<TimeSpan?>("TotalBreakTime")
                         .HasColumnType("time");
+
+                    b.Property<bool>("Used_Default_Shift")
+                        .HasColumnType("bit");
 
                     b.HasKey("Attendance_ID");
 
@@ -181,6 +196,9 @@ namespace InternProject1.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("Joining_Date")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Last_Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -208,8 +226,14 @@ namespace InternProject1.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("ShiftAssignedDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("Shift_ID")
                         .HasColumnType("int");
+
+                    b.Property<bool>("UsingDefaultShift")
+                        .HasColumnType("bit");
 
                     b.HasKey("Employee_ID");
 

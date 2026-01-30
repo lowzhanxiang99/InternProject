@@ -438,14 +438,14 @@
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Shift Time</span>
-                            <span class="detail-value">@(Model.Shift_ID != null ? "09:00:00 - 18:00:00" : "N/A")</span>
+                            <span class="detail-value">@Model.ShiftTime</span>
                         </div>
                     </div>
 
                     <div class="details-row">
                         <div class="detail-item">
-                            <span class="detail-label">Role</span>
-                            <span class="detail-value">@Model.Role</span>
+                            <span class="detail-label">Department</span>
+                            <span class="detail-value">@Model.DepartmentName</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Branch</span>
@@ -531,16 +531,20 @@
                                 <span asp-validation-for="Employee_Phone" class="text-danger"></span>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Shift</label>
-                                <input type="text" class="form-control" value="@(Model.Shift_ID != null ? "09:00:00 - 18:00:00" : "N/A")" disabled />
+                                <label class="form-label">Shift Time</label>
+                                <input type="text" class="form-control"
+                                       value="@Model.ShiftTime"
+                                       disabled />
                             </div>
                         </div>
 
-                        <!-- Row 5: Shift and Branch -->
+                        <!-- Row 5: Department and Branch -->
                         <div class="details-row">
                             <div class="form-group">
-                                <label class="form-label">Role</label>
-                                <input type="text" class="form-control" value="@Model.Role" disabled />
+                                <label class="form-label">Department</label>
+                                <input type="text" class="form-control"
+                                       value="@Model.DepartmentName"
+                                       disabled />
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Branch</label>
