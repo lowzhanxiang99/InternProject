@@ -2,7 +2,6 @@
 
 @{
     ViewData["Title"] = "Admin Login";
-    Layout = "_Layout";
 }
 
 <div class="container mt-5">
@@ -10,7 +9,7 @@
         <div class="col-md-4 card p-4 shadow-sm">
             <h4 class="text-center mb-4">Admin Verification</h4>
 
-            <form asp-controller="Monitoring" asp-action="AdminLogin" method="post">
+            <form asp-controller="Shifts" asp-action="AdminLogin" method="post">
                 @Html.AntiForgeryToken()
 
                 <div class="mb-3">
@@ -33,7 +32,7 @@
                     </div>
                 }
 
-                <button type="submit" class="btn btn-primary w-100">Access Employee Attendance Monitoring</button>
+                <button type="submit" class="btn btn-primary w-100">Access Shifts Management</button>
             </form>
         </div>
     </div>

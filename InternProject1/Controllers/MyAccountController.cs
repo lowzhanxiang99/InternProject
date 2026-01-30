@@ -25,7 +25,10 @@ namespace InternProject1.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
+            // ⭐️ INCLUDE Shift and Department navigation properties
             var employee = await _context.Employees
+                .Include(e => e.Shift)
+                .Include(e => e.Department)
                 .Where(e => e.Employee_ID == employeeId.Value)
                 .Select(e => new EmployeeProfileViewModel
                 {
@@ -40,7 +43,9 @@ namespace InternProject1.Controllers
                     Branch = e.Branch,
                     ProfilePicturePath = e.ProfilePicturePath,
                     Department_ID = e.Department_ID,
-                    Shift_ID = e.Shift_ID
+                    Shift_ID = e.Shift_ID,
+                    DepartmentName = e.Department != null ? e.Department.Department_Name : "N/A",
+                    ShiftTime = e.Shift != null ? $"{e.Shift.Start_Time:hh\\:mm} - {e.Shift.End_Time:hh\\:mm}" : "N/A"
                 })
                 .FirstOrDefaultAsync();
 

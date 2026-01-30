@@ -94,20 +94,3 @@
         </div>
     </div>
 </div>
-
-@section Scripts {
-    <script>
-        // Confirm before deleting
-        document.addEventListener('DOMContentLoaded', function() {
-            const deleteButtons = document.querySelectorAll('a[title="Delete"]');
-
-            deleteButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    if (!confirm('Are you sure you want to delete this shift?')) {
-                        e.preventDefault();
-                    }
-                });
-            });
-        });
-    </script>
-}

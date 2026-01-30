@@ -14,9 +14,48 @@ namespace InternProject1.Controllers
             _context = context;
         }
 
+        // GET: Shifts/AdminLogin
+        public IActionResult AdminLogin()
+        {
+            var isAdmin = HttpContext.Session.GetString("IsAdminAuth");
+
+            if (isAdmin == "true")
+                return RedirectToAction("Index");
+
+            return View();
+        }
+
+        // POST: Shifts/AdminLogin
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult AdminLogin(string email, string password)
+        {
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+            {
+                ModelState.AddModelError("", "Email and password are required.");
+                return View();
+            }
+
+            if (email == "admin@gmail.com" && password == "admin123")
+            {
+                HttpContext.Session.SetString("IsShiftsAdmin", "true");
+                return RedirectToAction("Index");
+            }
+
+            ModelState.AddModelError("", "Invalid admin credentials or insufficient permissions.");
+            return View();
+        }
+
         // GET: Shifts/Index (Dashboard)
         public async Task<IActionResult> Index()
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             ViewBag.TotalShifts = await _context.Shifts.CountAsync();
             ViewBag.AssignedEmployees = await _context.Employees.CountAsync(e => e.Shift_ID != null);
             ViewBag.UnassignedCount = await _context.Employees.CountAsync(e => e.Shift_ID == null);
@@ -28,6 +67,13 @@ namespace InternProject1.Controllers
         // GET: Shifts/Manage (CRUD for shifts)
         public async Task<IActionResult> Manage()
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             var shifts = await _context.Shifts.ToListAsync();
             return View(shifts);
         }
@@ -35,6 +81,13 @@ namespace InternProject1.Controllers
         // GET: Shifts/Assign (Assign shifts to employees)
         public async Task<IActionResult> Assign()
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             var unassignedEmployees = await _context.Employees
                 .Where(e => e.Shift_ID == null)
                 .Include(e => e.Department)
@@ -61,25 +114,48 @@ namespace InternProject1.Controllers
 
         // POST: Shifts/AssignShiftToEmployee
         [HttpPost]
-        public async Task<IActionResult> AssignShiftToEmployee(int employeeId, int shiftId)
+        public async Task<IActionResult> AssignShiftToEmployee([FromBody] AssignShiftRequest request)
         {
-            var employee = await _context.Employees.FindAsync(employeeId);
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return Json(new { success = false, message = "Unauthorized" });
+            }
+
+            var employee = await _context.Employees.FindAsync(request.EmployeeId);
             if (employee == null)
                 return Json(new { success = false, message = "Employee not found" });
 
-            var shift = await _context.Shifts.FindAsync(shiftId);
-            if (shift == null && shiftId != 0)
+            // Handle "No Shift" (clear shift)
+            if (request.ShiftId == 0)
+            {
+                employee.Shift_ID = null;
+                employee.UsingDefaultShift = false;
+                employee.ShiftAssignedDate = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+
+                return Json(new
+                {
+                    success = true,
+                    message = $"Shift removed: {employee.First_Name} {employee.Last_Name}"
+                });
+            }
+
+            var shift = await _context.Shifts.FindAsync(request.ShiftId);
+            if (shift == null)
                 return Json(new { success = false, message = "Shift not found" });
 
-            // Update with tracking
-            employee.Shift_ID = shiftId == 0 ? null : shiftId;
+            // Update employee shift
+            employee.Shift_ID = request.ShiftId;
             employee.UsingDefaultShift = false;
             employee.ShiftAssignedDate = DateTime.Now;
 
             await _context.SaveChangesAsync();
 
             string employeeName = $"{employee.First_Name} {employee.Last_Name}";
-            string shiftName = shiftId == 0 ? "No Shift" : shift.Shift_Name;
+            string shiftName = shift.Shift_Name;
 
             return Json(new
             {
@@ -92,6 +168,13 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> SetAsDefault(int shiftId)
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             var shift = await _context.Shifts.FindAsync(shiftId);
             if (shift == null)
             {
@@ -123,6 +206,13 @@ namespace InternProject1.Controllers
         // GET: Shifts/Create
         public IActionResult Create()
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             return View();
         }
 
@@ -131,11 +221,31 @@ namespace InternProject1.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Shift shift)
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             if (ModelState.IsValid)
             {
+                // If setting as default, remove default from others
+                if (shift.Is_Default)
+                {
+                    var currentDefault = await _context.Shifts
+                        .FirstOrDefaultAsync(s => s.Is_Default);
+
+                    if (currentDefault != null)
+                    {
+                        currentDefault.Is_Default = false;
+                        _context.Update(currentDefault);
+                    }
+                }
+
                 _context.Add(shift);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Manage));  // Fixed
+                return RedirectToAction(nameof(Manage));
             }
             return View(shift);
         }
@@ -143,6 +253,13 @@ namespace InternProject1.Controllers
         // GET: Shifts/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             if (id == null) return NotFound();
 
             var shift = await _context.Shifts.FindAsync(id);
@@ -156,12 +273,33 @@ namespace InternProject1.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Shift shift)
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             if (id != shift.Shift_ID) return NotFound();
 
             if (ModelState.IsValid)
             {
                 try
                 {
+                    // If setting as default, remove default from others
+                    if (shift.Is_Default)
+                    {
+                        var currentDefault = await _context.Shifts
+                            .Where(s => s.Shift_ID != id)  // Exclude current shift
+                            .FirstOrDefaultAsync(s => s.Is_Default);
+
+                        if (currentDefault != null)
+                        {
+                            currentDefault.Is_Default = false;
+                            _context.Update(currentDefault);
+                        }
+                    }
+
                     _context.Update(shift);
                     await _context.SaveChangesAsync();
                 }
@@ -172,7 +310,7 @@ namespace InternProject1.Controllers
                     else
                         throw;
                 }
-                return RedirectToAction(nameof(Manage));  // Fixed
+                return RedirectToAction(nameof(Manage));
             }
             return View(shift);
         }
@@ -180,6 +318,13 @@ namespace InternProject1.Controllers
         // GET: Shifts/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             if (id == null) return NotFound();
 
             var shift = await _context.Shifts
@@ -202,6 +347,13 @@ namespace InternProject1.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
+
+            if (isAdmin != "true")
+            {
+                return RedirectToAction("AdminLogin");
+            }
+
             var shift = await _context.Shifts
                 .Include(s => s.Employees)
                 .FirstOrDefaultAsync(s => s.Shift_ID == id);
@@ -233,5 +385,11 @@ namespace InternProject1.Controllers
         {
             return _context.Shifts.Any(e => e.Shift_ID == id);
         }
+    }
+
+    public class AssignShiftRequest
+    {
+        public int EmployeeId { get; set; }
+        public int ShiftId { get; set; }
     }
 }
