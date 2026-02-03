@@ -108,6 +108,8 @@
         background: #f8f9fa !important;
         min-height: 100vh;
         padding: 0;
+        margin-left: -40px !important; /* Compensate for parent container's margin-left */
+        width: calc(100% + 40px) !important; /* Extend width to fill space */
     }
 
     /* ===== HEADER SECTION ===== */
@@ -192,7 +194,7 @@
     .calendar-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        gap: 8px;
+        gap: 7px;
     }
 
     .calendar-day {
@@ -2783,91 +2785,91 @@
             // If user is already clocked in today, calculate elapsed time
             @if (todayAttendance?.ClockInTime != null && todayAttendance?.ClockOutTime == null)
             {
-                            <text>
-                            try {
-                                const now = new Date();
-                                const todayStr = now.toISOString().split('T')[0];
-                                const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
-                                const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+                                <text>
+                                try {
+                                    const now = new Date();
+                                    const todayStr = now.toISOString().split('T')[0];
+                                    const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                                    const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
 
-                                if (!isNaN(clockInDateTime.getTime())) {
-                                    const elapsedSeconds = Math.floor((now - clockInDateTime) / 1000);
-                                    workingSeconds = Math.max(0, elapsedSeconds);
+                                    if (!isNaN(clockInDateTime.getTime())) {
+                                        const elapsedSeconds = Math.floor((now - clockInDateTime) / 1000);
+                                        workingSeconds = Math.max(0, elapsedSeconds);
 
-                                    // If user is on break, calculate break time
-                                    @if (todayAttendance?.IsOnBreak == true && todayAttendance?.BreakStartTime != null)
-                                    {
-                                                    <text>
-                                                    const breakStartStr = '@todayAttendance.BreakStartTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")';
-                                                    const breakStartDateTime = new Date(breakStartStr);
+                                        // If user is on break, calculate break time
+                                        @if (todayAttendance?.IsOnBreak == true && todayAttendance?.BreakStartTime != null)
+                                        {
+                                                            <text>
+                                                            const breakStartStr = '@todayAttendance.BreakStartTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")';
+                                                            const breakStartDateTime = new Date(breakStartStr);
 
-                                                    if (!isNaN(breakStartDateTime.getTime())) {
-                                                        const breakElapsedSeconds = Math.floor((now - breakStartDateTime) / 1000);
-                                                        breakSeconds = Math.max(0, breakElapsedSeconds);
-                                                        startBreakTimer(); // Start the actual timer
-                                                    } else {
-                                                        startWorkingTimer();
-                                                    }
-                                                    </text>
+                                                            if (!isNaN(breakStartDateTime.getTime())) {
+                                                                const breakElapsedSeconds = Math.floor((now - breakStartDateTime) / 1000);
+                                                                breakSeconds = Math.max(0, breakElapsedSeconds);
+                                                                startBreakTimer(); // Start the actual timer
+                                                            } else {
+                                                                startWorkingTimer();
+                                                            }
+                                                            </text>
+                                        }
+                                        // NEW: If user has taken break and ended it, show total break time
+                                        else if (todayAttendance?.HasTakenBreak == true && todayAttendance?.TotalBreakTime != null)
+                                        {
+                                                            <text>
+                                                            const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                                            const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                                            const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                                            breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                                            updateBreakTimeDisplay();
+                                                            startWorkingTimer();
+                                                            </text>
+                                        }
+                                        else
+                                        {
+                                                            <text>
+                                                            startWorkingTimer();
+                                                            </text>
+                                        }
                                     }
-                                    // NEW: If user has taken break and ended it, show total break time
-                                    else if (todayAttendance?.HasTakenBreak == true && todayAttendance?.TotalBreakTime != null)
-                                    {
-                                                    <text>
-                                                    const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
-                                                    const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
-                                                    const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
-                                                    breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
-                                                    updateBreakTimeDisplay();
-                                                    startWorkingTimer();
-                                                    </text>
-                                    }
-                                    else
-                                    {
-                                                    <text>
-                                                    startWorkingTimer();
-                                                    </text>
-                                    }
+                                } catch (e) {
+                                    console.error('Error calculating elapsed time:', e);
+                                    showToast('Error calculating elapsed time. Please refresh the page.', 'error');
                                 }
-                            } catch (e) {
-                                console.error('Error calculating elapsed time:', e);
-                                showToast('Error calculating elapsed time. Please refresh the page.', 'error');
-                            }
-                            </text>
+                                </text>
             }
             else if (todayAttendance?.ClockOutTime != null)
             {
-                            <text>
-                            try {
-                                const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
-                                const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
-                                const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
+                                <text>
+                                try {
+                                    const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
+                                    const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                                    const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
 
-                                const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
-                                const clockOutDateTime = new Date(todayStr + 'T' + clockOutTimeStr);
+                                    const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+                                    const clockOutDateTime = new Date(todayStr + 'T' + clockOutTimeStr);
 
-                                if (!isNaN(clockInDateTime.getTime()) && !isNaN(clockOutDateTime.getTime())) {
-                                    const totalSeconds = Math.floor((clockOutDateTime - clockInDateTime) / 1000);
-                                    workingSeconds = Math.max(0, totalSeconds);
-                                    updateWorkingTimeDisplay();
+                                    if (!isNaN(clockInDateTime.getTime()) && !isNaN(clockOutDateTime.getTime())) {
+                                        const totalSeconds = Math.floor((clockOutDateTime - clockInDateTime) / 1000);
+                                        workingSeconds = Math.max(0, totalSeconds);
+                                        updateWorkingTimeDisplay();
+                                    }
+
+                                    // Calculate break time if any
+                                    @if (todayAttendance?.TotalBreakTime != null)
+                                    {
+                                                        <text>
+                                                        const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                                        const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                                        const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                                        breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                                        updateBreakTimeDisplay();
+                                                        </text>
+                                    }
+                                } catch (e) {
+                                    console.error('Error calculating completed time:', e);
+                                    showToast('Error calculating completed time. Please refresh the page.', 'error');
                                 }
-
-                                // Calculate break time if any
-                                @if (todayAttendance?.TotalBreakTime != null)
-                                {
-                                                <text>
-                                                const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
-                                                const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
-                                                const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
-                                                breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
-                                                updateBreakTimeDisplay();
-                                                </text>
-                                }
-                            } catch (e) {
-                                console.error('Error calculating completed time:', e);
-                                showToast('Error calculating completed time. Please refresh the page.', 'error');
-                            }
-                            </text>
+                                </text>
             }
 
             updateWorkingTimeDisplay();
