@@ -44,6 +44,8 @@ namespace InternProject1.Models
         public int? Shift_ID { get; set; }
 
         public string FullName => $"{First_Name} {Last_Name}";
+        public string DepartmentName { get; set; }
+        public string ShiftTime { get; set; }
         public bool IsValidAge()
         {
             var age = DateTime.Today.Year - Date_of_Birth.Year;

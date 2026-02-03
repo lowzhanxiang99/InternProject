@@ -3,6 +3,79 @@
 @{
     ViewData["Title"] = "Assign Shifts to Employees";
 }
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<style>
+    .nav-tabs {
+        margin-bottom: 0 !important;
+    }
+
+        .nav-tabs .nav-link {
+            border: 1px solid #dee2e6;
+            border-bottom: none;
+            margin-bottom: -1px !important; /* Negative margin to overlap */
+            border-radius: 0.375rem 0.375rem 0 0 !important;
+        }
+
+            .nav-tabs .nav-link.active {
+                border-bottom-color: white !important; /* Match panel background */
+                position: relative;
+                z-index: 2; /* Bring active tab in front */
+            }
+
+    .tab-content .tab-pane {
+        border: 1px solid #dee2e6;
+        border-top: 1px solid #dee2e6 !important; /* Add top border back */
+        padding: 1.5rem;
+        border-radius: 0 0 0.375rem 0.375rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Consistent button sizing */
+    .assign-button-wrapper .assign-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 90px;
+        height: 32px;
+        padding: 6px 12px;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.5;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: inherit;
+        text-decoration: none;
+        vertical-align: middle;
+        user-select: none;
+        transition: all 0.15s ease-in-out;
+    }
+
+        .assign-button-wrapper .assign-btn.assign {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+
+        .assign-button-wrapper .assign-btn.update {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #000;
+        }
+
+        .assign-button-wrapper .assign-btn:hover.assign {
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+
+        .assign-button-wrapper .assign-btn:hover.update {
+            background-color: #ffca2c;
+            border-color: #ffc720;
+        }
+</style>
 
 <div class="container-fluid mt-4">
     <!-- Header -->
@@ -76,10 +149,10 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="bulk-tab" data-bs-toggle="tab"
-                    data-bs-target="#bulk" type="button" role="tab">
+            <button class="nav-link" id="batch-tab" data-bs-toggle="tab"
+                    data-bs-target="#batch" type="button" role="tab">
                 <i class="bi bi-collection me-1"></i>
-                Bulk Assignment
+                Batch Assignment
             </button>
         </li>
     </ul>
@@ -97,15 +170,15 @@
             }
             else
             {
-                <div class="table-responsive">
-                    <table class="table table-hover">
+                <div class="table-responsive border rounded">
+                    <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Employee</th>
-                                <th>Department</th>
-                                <th>Email</th>
-                                <th>Assign Shift</th>
-                                <th>Action</th>
+                                <th style="min-width: 180px;">Employee</th>
+                                <th style="min-width: 120px;">Department</th>
+                                <th style="min-width: 180px;">Email</th>
+                                <th style="min-width: 220px;">Assign Shift</th>
+                                <th style="min-width: 100px;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -118,8 +191,8 @@
                                     </td>
                                     <td>@emp.Department?.Department_Name</td>
                                     <td>@emp.Employee_Email</td>
-                                    <td width="250">
-                                        <select class="form-select shift-select"
+                                    <td class="pe-3">
+                                        <select class="form-select shift-select w-100"
                                                 data-employee-id="@emp.Employee_ID">
                                             <option value="">-- Select Shift --</option>
                                             @foreach (var shift in Model.Shifts)
@@ -146,15 +219,15 @@
 
         <!-- Tab 2: All Employees -->
         <div class="tab-pane fade" id="all" role="tabpanel">
-            <div class="table-responsive">
-                <table class="table table-hover">
+            <div class="table-responsive border rounded">
+                <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Employee</th>
-                            <th>Department</th>
-                            <th>Current Shift</th>
-                            <th>Change Shift</th>
-                            <th>Action</th>
+                            <th style="min-width: 180px;">Employee</th>
+                            <th style="min-width: 120px;">Department</th>
+                            <th style="min-width: 150px;">Current Shift</th>
+                            <th style="min-width: 220px;">Change Shift</th>
+                            <th style="min-width: 100px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -179,8 +252,8 @@
                                         <span class="badge bg-warning">No Shift</span>
                                     }
                                 </td>
-                                <td width="250">
-                                    <select class="form-select shift-select"
+                                <td class="pe-3">
+                                    <select class="form-select shift-select w-100"
                                             data-employee-id="@emp.Employee_ID">
                                         <option value="">-- No Shift --</option>
                                         @foreach (var shift in Model.Shifts)
@@ -193,11 +266,13 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm @(emp.Shift_ID == null ? "btn-primary" : "btn-warning") assign-btn"
-                                            data-employee-id="@emp.Employee_ID">
-                                        <i class="bi @(emp.Shift_ID == null ? "bi-check-lg" : "bi-arrow-repeat")"></i>
-                                        @(emp.Shift_ID == null ? "Assign" : "Update")
-                                    </button>
+                                    <div class="assign-button-wrapper">
+                                        <button class="assign-btn @(emp.Shift_ID == null ? "assign" : "update")"
+                                                data-employee-id="@emp.Employee_ID">
+                                            <i class="bi @(emp.Shift_ID == null ? "bi-person-plus" : "bi-arrow-repeat")"></i>
+                                            @(emp.Shift_ID == null ? "Assign" : "Update")
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -206,51 +281,185 @@
             </div>
         </div>
 
-        <!-- Tab 3: Bulk Assignment -->
-        <div class="tab-pane fade" id="bulk" role="tabpanel">
+        <!-- Tab 3: Batch Assignment -->
+        <div class="tab-pane fade" id="batch" role="tabpanel">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-collection me-2"></i>Bulk Shift Assignment</h5>
+                    <h5 class="mb-0"><i class="bi bi-collection me-2"></i>Batch Shift Assignment</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
+                        <!-- LEFT COLUMN: Shift Selection (33% width) -->
+                        <div class="col-md-4">
                             <div class="form-group mb-3">
                                 <label class="form-label">Select Shift</label>
-                                <select id="bulkShiftSelect" class="form-select">
+                                <select id="batchShiftSelect" class="form-select">
                                     <option value="">-- Choose Shift --</option>
                                     @foreach (var shift in Model.Shifts)
                                     {
-                                        <option value="@shift.Shift_ID">
+                                        <option value="@shift.Shift_ID"
+                                                data-start="@shift.Start_Time.ToString(@"hh\:mm")"
+                                                data-end="@shift.End_Time.ToString(@"hh\:mm")"
+                                                data-is-default="@shift.Is_Default"
+                                                data-employee-count="@(shift.Employees?.Count ?? 0)">
                                             @shift.Shift_Name (@shift.Start_Time.ToString(@"hh\:mm")-@shift.End_Time.ToString(@"hh\:mm"))
                                         </option>
                                     }
                                 </select>
+
+                                <!-- Shift Preview Section -->
+                                <div class="mt-3">
+                                    <!-- Initial message (shown when no shift selected) -->
+                                    <div id="shiftNoSelection" class="text-muted small">
+                                        <i class="bi bi-info-circle"></i>
+                                        <span>Select a shift to see details</span>
+                                    </div>
+
+                                    <!-- Shift Details Preview (hidden initially) -->
+                                    <div id="shiftPreview" class="border rounded p-3 bg-light" style="display: none;">
+                                        <h6 class="fw-semibold mb-2 text-primary">
+                                            <i class="bi bi-clock-history me-1"></i>
+                                            <span id="shiftName">-</span>
+                                        </h6>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="text-muted">Time:</span>
+                                            <span class="fw-semibold" id="shiftTime">-</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="text-muted">Employees on this shift:</span>
+                                            <span class="badge bg-info" id="shiftEmployeeCount">-</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="text-muted">Status:</span>
+                                            <span id="shiftDefaultStatus">
+                                                <span class="badge bg-secondary">Not default</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+
+                        <!-- RIGHT COLUMN: Employee Selection (67% width) -->
+                        <div class="col-md-8">
                             <div class="form-group mb-3">
                                 <label class="form-label">Select Employees</label>
-                                <select id="bulkEmployeeSelect" class="form-select" multiple>
-                                    @foreach (var emp in Model.AllEmployees)
-                                    {
-                                        <option value="@emp.Employee_ID">
-                                            @emp.FullName - @emp.Department?.Department_Name
-                                        </option>
-                                    }
-                                </select>
-                                <small class="text-muted">Hold Ctrl to select multiple employees</small>
+
+                                <!-- Search Box -->
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text" id="employeeSearch" class="form-control"
+                                           placeholder="Search employees by name, department, or email...">
+                                </div>
+
+                                <!-- Employee Selection Container -->
+                                <div class="card border" style="max-height: 280px; overflow-y: auto;">
+                                    <div class="card-body p-0">
+                                        <!-- Select All & Count -->
+                                        <div class="d-flex justify-content-between align-items-center p-2 border-bottom bg-light">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input" type="checkbox" id="selectAllEmployees">
+                                                <label class="form-check-label fw-bold small" for="selectAllEmployees">
+                                                    Select All Visible
+                                                </label>
+                                            </div>
+                                            <small class="text-muted small" id="selectedCount">0 selected</small>
+                                        </div>
+
+                                        <!-- Employee List -->
+                                        <div id="employeeCheckboxContainer" class="list-group list-group-flush">
+                                            @foreach (var emp in Model.AllEmployees)
+                                            {
+                                                <div class="list-group-item employee-item p-2"
+                                                     data-employee-id="@emp.Employee_ID"
+                                                     data-employee-name="@emp.FullName.ToLower()"
+                                                     data-department="@(emp.Department?.Department_Name?.ToLower() ?? "")"
+                                                     data-email="@emp.Employee_Email.ToLower()"
+                                                     data-current-shift="@emp.Shift?.Shift_Name">
+                                                    <div class="form-check d-flex align-items-center mb-0">
+                                                        <input class="form-check-input employee-checkbox me-2"
+                                                               type="checkbox"
+                                                               value="@emp.Employee_ID"
+                                                               id="emp_@emp.Employee_ID"
+                                                               style="flex-shrink: 0;">
+                                                        <label class="form-check-label flex-grow-1 mb-0 small" for="emp_@emp.Employee_ID">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <div class="me-2" style="min-width: 0;">
+                                                                    <div class="text-truncate fw-semibold">
+                                                                        @emp.FullName
+                                                                    </div>
+                                                                    <div class="text-muted">
+                                                                        <small>@emp.Department?.Department_Name</small>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="text-end" style="flex-shrink: 0;">
+                                                                    @if (emp.Shift != null)
+                                                                    {
+                                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success small">
+                                                                            <i class="bi bi-clock small"></i>
+                                                                            @emp.Shift.Shift_Name
+                                                                        </span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning small">
+                                                                            No Shift
+                                                                        </span>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <!-- No Results Message -->
+                                        <div id="noEmployeesFound" class="text-center py-3" style="display: none;">
+                                            <i class="bi bi-search text-muted mb-2"></i>
+                                            <p class="text-muted small mb-0">No employees found</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <small class="text-muted mt-2 d-block small">
+                                    <i class="bi bi-info-circle"></i>
+                                    Select employees by checking the boxes. Use search to filter.
+                                </small>
                             </div>
                         </div>
                     </div>
 
                     <div class="mt-3">
-                        <button id="bulkAssignBtn" class="btn btn-success">
-                            <i class="bi bi-check-all me-2"></i>Assign Shift to Selected Employees
-                        </button>
-                        <button id="clearAllShiftsBtn" class="btn btn-danger ms-2">
-                            <i class="bi bi-x-circle me-2"></i>Remove Shifts from Selected
-                        </button>
+                        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                            <button id="batchAssignBtn" class="btn btn-success btn-sm">
+                                <i class="bi bi-check-all me-1"></i>Assign to Selected
+                            </button>
+                            <button id="clearAllShiftsBtn" class="btn btn-danger btn-sm">
+                                <i class="bi bi-x-circle me-1"></i>Remove Shifts
+                            </button>
+                            <button id="clearSelectionBtn" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-x-lg me-1"></i>Clear Selection
+                            </button>
+                        </div>
+
+                        <!-- Selected Employees Summary -->
+                        <div class="card border-info mt-2" id="selectedSummary" style="display: none;">
+                            <div class="card-header bg-info bg-opacity-10 py-1">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 small">
+                                        <i class="bi bi-list-check me-1"></i>
+                                        Selected Employees
+                                    </h6>
+                                    <span class="badge bg-info" id="selectedBadgeCount">0</span>
+                                </div>
+                            </div>
+                            <div class="card-body py-2">
+                                <div id="selectedEmployeesList" class="d-flex flex-wrap gap-1"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -263,7 +472,305 @@
 
 @section Scripts {
     <script>
-        // Single assignment
+        // ==================== BATCH ASSIGNMENT FUNCTIONALITY ====================
+
+        // Employee search functionality (for Batch tab)
+        const employeeSearch = document.getElementById('employeeSearch');
+        const employeeItems = document.querySelectorAll('.employee-item');
+        const noEmployeesFound = document.getElementById('noEmployeesFound');
+        const selectAllCheckbox = document.getElementById('selectAllEmployees');
+        const employeeCheckboxes = document.querySelectorAll('.employee-checkbox');
+        const batchShiftSelect = document.getElementById('batchShiftSelect');
+        const batchAssignBtn = document.getElementById('batchAssignBtn');
+        const batchClearShiftsBtn = document.getElementById('clearAllShiftsBtn');
+        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+
+        // Search filter
+        employeeSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            let visibleCount = 0;
+
+            employeeItems.forEach(item => {
+                const name = item.getAttribute('data-employee-name');
+                const department = item.getAttribute('data-department');
+                const email = item.getAttribute('data-email');
+
+                if (name.includes(searchTerm) ||
+                    department.includes(searchTerm) ||
+                    email.includes(searchTerm) ||
+                    searchTerm === '') {
+                    item.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Show/hide no results message
+            if (visibleCount === 0 && searchTerm !== '') {
+                noEmployeesFound.style.display = 'block';
+            } else {
+                noEmployeesFound.style.display = 'none';
+            }
+
+            // Update select all checkbox
+            updateSelectAllCheckbox();
+            updateButtonStates();
+        });
+
+        // Select All functionality
+        selectAllCheckbox.addEventListener('change', function() {
+            const visibleItems = Array.from(employeeItems)
+                .filter(item => item.style.display !== 'none');
+
+            visibleItems.forEach(item => {
+                const checkbox = item.querySelector('.employee-checkbox');
+                if (checkbox) {
+                    checkbox.checked = this.checked;
+                }
+            });
+
+            updateSelectedCount();
+            updateSelectedSummary();
+            updateButtonStates();
+        });
+
+        // Update individual checkbox states
+        employeeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectedCount();
+                updateSelectAllCheckbox();
+                updateSelectedSummary();
+                updateButtonStates();
+            });
+        });
+
+        // Clear selection button
+        clearSelectionBtn.addEventListener('click', function() {
+            employeeCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+            updateSelectedCount();
+            updateSelectedSummary();
+            updateButtonStates();
+        });
+
+        // Update selected count
+        function updateSelectedCount() {
+            const selected = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked).length;
+
+            // Update the text count
+            document.getElementById('selectedCount').textContent = selected + ' selected';
+
+            // Update the badge count (add this line)
+            document.getElementById('selectedBadgeCount').textContent = selected;
+
+            // Show/hide summary
+            const summary = document.getElementById('selectedSummary');
+            if (selected > 0) {
+                summary.style.display = 'block';
+            } else {
+                summary.style.display = 'none';
+            }
+        }
+
+        // Update select all checkbox state
+        function updateSelectAllCheckbox() {
+            const visibleCheckboxes = Array.from(employeeItems)
+                .filter(item => item.style.display !== 'none')
+                .map(item => item.querySelector('.employee-checkbox'))
+                .filter(cb => cb !== null);
+
+            if (visibleCheckboxes.length === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+                return;
+            }
+
+            const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+
+            if (checkedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedCount === visibleCheckboxes.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+
+        // Update button states based on selections
+        function updateButtonStates() {
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked).length;
+            const hasShiftSelected = batchShiftSelect.value !== '';
+
+            // Enable/disable Assign button
+            batchAssignBtn.disabled = !(selectedEmployees > 0 && hasShiftSelected);
+
+            // Enable/disable Clear Shifts button
+            batchClearShiftsBtn.disabled = selectedEmployees === 0;
+        }
+
+        // Update selected employees summary
+        function updateSelectedSummary() {
+            const selectedList = document.getElementById('selectedEmployeesList');
+            selectedList.innerHTML = '';
+
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => {
+                    const item = cb.closest('.employee-item');
+                    return {
+                        id: cb.value,
+                        name: item.getAttribute('data-employee-name')
+                    };
+                });
+
+            selectedEmployees.forEach(emp => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary bg-opacity-10 text-primary border border-primary p-2';
+                badge.innerHTML = `
+                    <span class="fw-semibold">${emp.name}</span>
+                    <button type="button" class="btn-close btn-close-sm ms-2"
+                            data-employee-id="${emp.id}"></button>
+                `;
+                selectedList.appendChild(badge);
+            });
+
+            // Add event listeners to remove buttons
+            selectedList.querySelectorAll('.btn-close').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const employeeId = this.getAttribute('data-employee-id');
+                    const checkbox = document.querySelector(`.employee-checkbox[value="${employeeId}"]`);
+                    if (checkbox) {
+                        checkbox.checked = false;
+                        updateSelectedCount();
+                        updateSelectAllCheckbox();
+                        updateSelectedSummary();
+                        updateButtonStates();
+                    }
+                });
+            });
+        }
+
+        // Batch assignment with checkboxes
+        batchAssignBtn.addEventListener('click', function() {
+            const shiftId = batchShiftSelect.value;
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+
+            if (!shiftId || selectedEmployees.length === 0) {
+                showMessage('Please select both a shift and employees', 'warning');
+                return;
+            }
+
+            // Confirm batch assignment
+            if (!confirm(`Assign shift to ${selectedEmployees.length} employee(s)?`)) return;
+
+            selectedEmployees.forEach(employeeId => {
+                assignShift(employeeId, shiftId);
+            });
+
+            showMessage(`Processing shift assignment for ${selectedEmployees.length} employee(s)`, 'success');
+        });
+
+        // Clear shifts from selected employees (Batch tab)
+        batchClearShiftsBtn.addEventListener('click', function() {
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+
+            if (selectedEmployees.length === 0) {
+                showMessage('Please select employees first', 'warning');
+                return;
+            }
+
+            if (!confirm(`Remove shifts from ${selectedEmployees.length} employee(s)?`)) return;
+
+            selectedEmployees.forEach(employeeId => {
+                assignShift(employeeId, '');
+            });
+
+            showMessage(`Removing shifts from ${selectedEmployees.length} employee(s)`, 'info');
+        });
+
+                        // ==================== SHIFT PREVIEW FUNCTIONALITY ====================
+
+        // When shift selection changes
+        batchShiftSelect.addEventListener('change', function() {
+            updateButtonStates();
+            updateShiftPreview(this);
+        });
+
+        // Function to update shift preview
+        function updateShiftPreview(selectElement) {
+            const shiftPreview = document.getElementById('shiftPreview');
+            const shiftNoSelection = document.getElementById('shiftNoSelection');
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+            if (selectElement.value === '') {
+                // No shift selected
+                shiftPreview.style.display = 'none';
+                shiftNoSelection.style.display = 'block';
+                return;
+            }
+
+            // Get shift data from data attributes
+            const shiftName = selectedOption.textContent.split(' (')[0]; // Extract name before time
+            const startTime = selectedOption.getAttribute('data-start');
+            const endTime = selectedOption.getAttribute('data-end');
+            const isDefault = selectedOption.getAttribute('data-is-default') === 'True';
+            const employeeCount = selectedOption.getAttribute('data-employee-count') || '0';
+
+            // Update preview elements
+            document.getElementById('shiftName').textContent = shiftName;
+            document.getElementById('shiftTime').textContent = `${startTime} - ${endTime}`;
+            document.getElementById('shiftEmployeeCount').textContent = employeeCount;
+
+            // Update default status badge
+            const defaultStatusElement = document.getElementById('shiftDefaultStatus');
+            if (isDefault) {
+                defaultStatusElement.innerHTML = '<span class="badge bg-success">Default Shift</span>';
+            } else {
+                defaultStatusElement.innerHTML = '<span class="badge bg-secondary">Not default</span>';
+            }
+
+            // Show preview, hide initial message
+            shiftPreview.style.display = 'block';
+            shiftNoSelection.style.display = 'none';
+
+            // Optional: Highlight employees already on this shift
+            highlightEmployeesOnCurrentShift(shiftName);
+        }
+
+        // Optional: Highlight employees already assigned to the selected shift
+        function highlightEmployeesOnCurrentShift(shiftName) {
+            employeeItems.forEach(item => {
+                const currentShift = item.getAttribute('data-current-shift');
+                const row = item.closest('.list-group-item');
+
+                if (row) {
+                    // Remove previous highlighting
+                    row.classList.remove('bg-success', 'bg-opacity-10');
+
+                    // Add highlighting if employee is on this shift
+                    if (currentShift && currentShift === shiftName) {
+                        row.classList.add('bg-success', 'bg-opacity-10');
+                    }
+                }
+            });
+        }
+
+        // ==================== SINGLE ASSIGNMENT (for other tabs) ====================
+
+        // Single assignment for "Unassigned" and "All Employees" tabs
         document.querySelectorAll('.assign-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const employeeId = this.getAttribute('data-employee-id');
@@ -279,53 +786,29 @@
             });
         });
 
-        // Bulk assignment
-        document.getElementById('bulkAssignBtn').addEventListener('click', function() {
-            const shiftId = document.getElementById('bulkShiftSelect').value;
-            const employeeSelect = document.getElementById('bulkEmployeeSelect');
-            const selectedEmployees = Array.from(employeeSelect.selectedOptions).map(opt => opt.value);
-
-            if (!shiftId || selectedEmployees.length === 0) {
-                showMessage('Please select both a shift and employees', 'warning');
-                return;
-            }
-
-            selectedEmployees.forEach(employeeId => {
-                assignShift(employeeId, shiftId);
-            });
-
-            showMessage(`Shift assigned to ${selectedEmployees.length} employee(s)`, 'success');
-        });
-
-        // Clear shifts
-        document.getElementById('clearAllShiftsBtn').addEventListener('click', function() {
-            const employeeSelect = document.getElementById('bulkEmployeeSelect');
-            const selectedEmployees = Array.from(employeeSelect.selectedOptions).map(opt => opt.value);
-
-            if (selectedEmployees.length === 0) {
-                showMessage('Please select employees first', 'warning');
-                return;
-            }
-
-            if (!confirm(`Remove shifts from ${selectedEmployees.length} employee(s)?`)) return;
-
-            selectedEmployees.forEach(employeeId => {
-                assignShift(employeeId, '');
-            });
-
-            showMessage(`Shifts removed from ${selectedEmployees.length} employee(s)`, 'info');
-        });
+        // ==================== SHARED FUNCTIONS ====================
 
         // AJAX function
         function assignShift(employeeId, shiftId) {
+            // Convert shiftId to number or 0 for "No Shift"
+            const shiftIdValue = shiftId === '' ? 0 : parseInt(shiftId);
+
             fetch('@Url.Action("AssignShiftToEmployee", "Shifts")', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ employeeId, shiftId })
+                body: JSON.stringify({
+                    employeeId: parseInt(employeeId),
+                    shiftId: shiftIdValue
+                })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     showMessage(data.message, 'success');
@@ -336,8 +819,8 @@
                 }
             })
             .catch(error => {
-                showMessage('Error assigning shift', 'danger');
-                console.error(error);
+                showMessage('Error assigning shift: ' + error.message, 'danger');
+                console.error('Error:', error);
             });
         }
 
@@ -357,5 +840,16 @@
                 alert.remove();
             }, 5000);
         }
+
+        // Initialize shift preview if a shift is already selected
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSelectedCount();
+            updateButtonStates();
+
+            // If a shift is already selected, show its preview
+            if (batchShiftSelect.value !== '') {
+                updateShiftPreview(batchShiftSelect);
+            }
+        });
     </script>
 }
