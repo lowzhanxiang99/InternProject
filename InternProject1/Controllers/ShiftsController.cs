@@ -17,7 +17,7 @@ namespace InternProject1.Controllers
         // GET: Shifts/AdminLogin
         public IActionResult AdminLogin()
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdminAuth");
+            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
 
             if (isAdmin == "true")
                 return RedirectToAction("Index");
@@ -49,9 +49,7 @@ namespace InternProject1.Controllers
         // GET: Shifts/Index (Dashboard)
         public async Task<IActionResult> Index()
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -67,9 +65,7 @@ namespace InternProject1.Controllers
         // GET: Shifts/Manage (CRUD for shifts)
         public async Task<IActionResult> Manage()
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -81,9 +77,7 @@ namespace InternProject1.Controllers
         // GET: Shifts/Assign (Assign shifts to employees)
         public async Task<IActionResult> Assign()
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -116,11 +110,9 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> AssignShiftToEmployee([FromBody] AssignShiftRequest request)
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
-                return Json(new { success = false, message = "Unauthorized" });
+                return RedirectToAction("AdminLogin");
             }
 
             var employee = await _context.Employees.FindAsync(request.EmployeeId);
@@ -168,9 +160,7 @@ namespace InternProject1.Controllers
         [HttpPost]
         public async Task<IActionResult> SetAsDefault(int shiftId)
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -206,9 +196,7 @@ namespace InternProject1.Controllers
         // GET: Shifts/Create
         public IActionResult Create()
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -221,9 +209,7 @@ namespace InternProject1.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Shift shift)
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -253,9 +239,7 @@ namespace InternProject1.Controllers
         // GET: Shifts/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -273,9 +257,7 @@ namespace InternProject1.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Shift shift)
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -318,9 +300,7 @@ namespace InternProject1.Controllers
         // GET: Shifts/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -347,9 +327,7 @@ namespace InternProject1.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var isAdmin = HttpContext.Session.GetString("IsShiftsAdmin");
-
-            if (isAdmin != "true")
+            if (HttpContext.Session.GetString("IsShiftsAdmin") != "true")
             {
                 return RedirectToAction("AdminLogin");
             }
@@ -384,6 +362,19 @@ namespace InternProject1.Controllers
         private bool ShiftExists(int id)
         {
             return _context.Shifts.Any(e => e.Shift_ID == id);
+        }
+
+        [HttpPost]
+        public IActionResult ClearSession()
+        {
+            HttpContext.Session.Remove("IsShiftsAdmin");
+            return Ok();
+        }
+
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Remove("IsShiftsAdmin");
+            return RedirectToAction("AdminLogin");
         }
     }
 

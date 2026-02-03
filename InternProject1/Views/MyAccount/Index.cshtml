@@ -477,6 +477,14 @@
                 <form asp-action="UpdateProfile" method="post" id="profileForm" novalidate>
                     @Html.AntiForgeryToken()
 
+                    <!-- Add these hidden fields -->
+                    <input type="hidden" asp-for="Employee_ID" />
+                    <input type="hidden" asp-for="Role" />
+                    <input type="hidden" asp-for="ProfilePicturePath" />
+                    <input type="hidden" asp-for="Shift_ID" />
+                    <input type="hidden" asp-for="Department_ID" />
+                    <input type="hidden" asp-for="ShiftTime" />
+
                     <div class="details-grid">
                         <!-- Row 1: Employee ID and Email -->
                         <div class="details-row">
@@ -541,14 +549,18 @@
                         <!-- Row 5: Department and Branch -->
                         <div class="details-row">
                             <div class="form-group">
-                                <label class="form-label">Department</label>
-                                <input type="text" class="form-control"
-                                       value="@Model.DepartmentName"
-                                       disabled />
+                                <label asp-for="DepartmentName" class="form-label required">Department</label>
+                                <input asp-for="DepartmentName" type="text" class="form-control" required
+                                       placeholder="Enter department name"
+                                       maxlength="50" />
+                                <span asp-validation-for="DepartmentName" class="text-danger"></span>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Branch</label>
-                                <input type="text" class="form-control" value="@Model.Branch" disabled />
+                                <label asp-for="Branch" class="form-label required">Branch</label>
+                                <input asp-for="Branch" type="text" class="form-control" required
+                                       placeholder="Enter branch name"
+                                       maxlength="50" />
+                                <span asp-validation-for="Branch" class="text-danger"></span>
                             </div>
                         </div>
 
@@ -759,12 +771,14 @@
         const profileForm = document.getElementById('profileForm');
         // Store original values on page load
         const originalValues = {
-            firstName: '@Html.Raw(Model.First_Name)',
-            lastName: '@Html.Raw(Model.Last_Name)',
-            email: '@Html.Raw(Model.Employee_Email)',
-            phone: '@Html.Raw(Model.Employee_Phone)',
+            firstName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.First_Name)),
+            lastName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Last_Name)),
+            email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Employee_Email)),
+            phone: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Employee_Phone)),
             dob: '@Model.Date_of_Birth.ToString("yyyy-MM-dd")',
-            gender: '@Html.Raw(Model.Gender)'
+            gender: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Gender)),
+            branch: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Branch)),
+            department: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DepartmentName))
         };
 
         editBtn.addEventListener('click', function() {
@@ -776,13 +790,15 @@
             viewMode.style.display = 'block';
             editMode.classList.remove('active');
 
-            // Restore original values
+            // Restore ALL original values
             document.getElementById('First_Name').value = originalValues.firstName;
             document.getElementById('Last_Name').value = originalValues.lastName;
             document.getElementById('Employee_Email').value = originalValues.email;
             document.getElementById('Employee_Phone').value = originalValues.phone;
             document.getElementById('Date_of_Birth').value = originalValues.dob;
             document.getElementById('Gender').value = originalValues.gender;
+            document.getElementById('Branch').value = originalValues.branch;
+            document.getElementById('DepartmentName').value = originalValues.department;
 
             // ONLY clear validation messages WITHIN THE EDIT FORM
             editMode.querySelectorAll('.text-danger').forEach(el => {
@@ -795,7 +811,7 @@
             });
         });
 
-        // Client-side validation
+                // Client-side validation
         profileForm.addEventListener('submit', function(e) {
             let isValid = true;
 
@@ -842,14 +858,15 @@
                 showSuccess(email);
             }
 
-            // Validate Phone
+            // Validate Phone - FIXED REGEX
             const phone = document.getElementById('Employee_Phone');
-            const phonePattern = /^(\+?6?01)[0-46-9]-*[0-9]{7,8}$/;
+            // FIX: Changed [0-46-9] to [0-9] for the second digit
+            const phonePattern = /^(\+?6?01)[0-9]-*[0-9]{7,8}$/;
             if (!phone.value.trim()) {
                 showError(phone, 'Phone number is required');
                 isValid = false;
             } else if (!phonePattern.test(phone.value.replace(/\s/g, ''))) {
-                showError(phone, 'Invalid Malaysian phone number format');
+                showError(phone, 'Invalid Malaysian phone number format (e.g., 012-3456789 or +6012-3456789)');
                 isValid = false;
             } else {
                 showSuccess(phone);
@@ -901,6 +918,30 @@
                 isValid = false;
             } else {
                 showSuccess(gender);
+            }
+
+            // Validate Department (Required field)
+            const department = document.getElementById('DepartmentName');
+            if (!department.value.trim()) {
+                showError(department, 'Department is required');
+                isValid = false;
+            } else if (department.value.trim().length > 100) {
+                showError(department, 'Department cannot exceed 100 characters');
+                isValid = false;
+            } else {
+                showSuccess(department);
+            }
+
+            // Validate Branch (Required field)
+            const branch = document.getElementById('Branch');
+            if (!branch.value.trim()) {
+                showError(branch, 'Branch is required');
+                isValid = false;
+            } else if (branch.value.trim().length > 100) {
+                showError(branch, 'Branch cannot exceed 100 characters');
+                isValid = false;
+            } else {
+                showSuccess(branch);
             }
 
             if (!isValid) {
@@ -1048,6 +1089,26 @@
                     case 'Gender':
                         if (!input.value) {
                             showError(input, 'Gender is required');
+                        } else {
+                            showSuccess(input);
+                        }
+                        break;
+
+                    case 'DepartmentName':
+                        if (!input.value.trim()) {
+                            showError(input, 'Department is required');
+                        } else if (input.value.trim().length > 100) {
+                            showError(input, 'Department cannot exceed 100 characters');
+                        } else {
+                            showSuccess(input);
+                        }
+                        break;
+
+                    case 'Branch':
+                        if (!input.value.trim()) {
+                            showError(input, 'Branch is required');
+                        } else if (input.value.trim().length > 100) {
+                            showError(input, 'Branch cannot exceed 100 characters');
                         } else {
                             showSuccess(input);
                         }
