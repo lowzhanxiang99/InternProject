@@ -383,4 +383,10 @@ namespace InternProject1.Controllers
         public int EmployeeId { get; set; }
         public int ShiftId { get; set; }
     }
+
+    public class AssignShiftRequest
+    {
+        public int EmployeeId { get; set; }
+        public int ShiftId { get; set; }
+    }
 }
