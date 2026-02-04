@@ -1,0 +1,203 @@
+﻿@model IEnumerable<InternProject1.Models.StaffSummaryViewModel>
+
+@{
+    ViewData["Title"] = "Yearly Attendance Summary";
+    var selectedYear = ViewBag.SelectedYear;
+
+    // Totals for the cards
+    var totalAttendance = Model?.Sum(s => s.AttendanceCount) ?? 0;
+    var totalLate = Model?.Sum(s => s.LateCount) ?? 0;
+    var totalLeave = Model?.Sum(s => s.LeaveCount) ?? 0;
+}
+
+<div class="container-fluid p-0 report-wrapper" style="background-color: #f4f7f6; min-height: 100vh;">
+    @* Header with Year Selection *@
+    <div class="text-center py-4 mb-4 shadow-sm header-section" style="background: linear-gradient(135deg, #4A77A5 0%, #2D4E70 100%); color: white;">
+        <h4 class="fw-bold m-0">YEARLY PERFORMANCE SUMMARY</h4>
+
+        <div class="d-flex align-items-center justify-content-center gap-3 mt-3 no-print">
+            @* Year Selector Dropdown *@
+            <div class="dropdown">
+                <button class="btn btn-light btn-sm dropdown-toggle shadow-sm px-4 py-2"
+                        type="button" id="yearDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                        style="border-radius: 20px; font-weight: 600;">
+                    <i class="bi bi-calendar-event me-2"></i>Year: @selectedYear
+                </button>
+                <ul class="dropdown-menu shadow border-0" aria-labelledby="yearDropdown" style="border-radius: 12px;">
+                    @if (ViewBag.YearList != null)
+                    {
+                        foreach (var y in ViewBag.YearList)
+                        {
+                            <li>
+                                <a class="dropdown-item @(y == selectedYear ? "active bg-primary" : "")"
+                                   href="@Url.Action("YearlyReport", new { year = y })">@y</a>
+                            </li>
+                        }
+                    }
+                </ul>
+            </div>
+
+            <a asp-action="Index" class="btn btn-sm btn-outline-light px-4 py-2" style="border-radius: 20px; font-weight: 600;">
+                <i class="bi bi-arrow-left me-1"></i> BACK TO MONTHLY
+            </a>
+        </div>
+    </div>
+
+    <div class="container main-report-container">
+        @* Yearly Summary Cards *@
+        <div class="row g-3 mb-4 justify-content-center summary-cards">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100" style="border-radius: 15px; border-left: 5px solid #4A77A5 !important;">
+                    <p class="text-muted small fw-bold mb-1">TOTAL ATTENDANCE</p>
+                    <h3 class="fw-bold text-dark">@totalAttendance</h3>
+                    <span class="badge bg-primary rounded-pill no-print">Days Present</span>
+                    <small class="text-muted d-none d-print-block">Days Present</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100" style="border-radius: 15px; border-left: 5px solid #FFCC00 !important;">
+                    <p class="text-muted small fw-bold mb-1">TOTAL LATE</p>
+                    <h3 class="fw-bold text-dark">@totalLate</h3>
+                    <span class="badge bg-warning text-dark rounded-pill no-print">Occurrences</span>
+                    <small class="text-muted d-none d-print-block">Occurrences</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center p-3 h-100" style="border-radius: 15px; border-left: 5px solid #99CCFF !important;">
+                    <p class="text-muted small fw-bold mb-1">TOTAL LEAVE</p>
+                    <h3 class="fw-bold text-dark">@totalLeave</h3>
+                    <span class="badge bg-info text-dark rounded-pill no-print">Days Approved</span>
+                    <small class="text-muted d-none d-print-block">Days Approved</small>
+                </div>
+            </div>
+        </div>
+
+        @* Yearly Data Table *@
+        <div class="card border-0 shadow-sm mb-5 table-card" style="border-radius: 15px; overflow: hidden;">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold m-0 text-muted"><i class="bi bi-table me-2"></i>Staff Annual Breakdown (@selectedYear)</h6>
+                <button class="btn btn-sm btn-outline-secondary border-0 no-print" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i> Print
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead style="background-color: #f8f9fa;">
+                        <tr class="text-muted small uppercase">
+                            <th class="ps-4">Employee Name</th>
+                            <th class="text-center">Attendance</th>
+                            <th class="text-center">Late</th>
+                            <th class="text-center">Leave</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">@item.Name</div>
+                                    <div class="text-muted" style="font-size: 0.7rem;">ID: @item.Employee_ID</div>
+                                </td>
+                                <td class="text-center"><span class="fw-bold">@item.AttendanceCount</span> <small class="text-muted">days</small></td>
+                                <td class="text-center text-warning fw-bold">@item.LateCount</td>
+                                <td class="text-center text-info fw-bold">@item.LeaveCount</td>
+                                <td class="text-center">
+                                    @{
+                                        var ratio = totalAttendance > 0 ? (double)item.AttendanceCount / (totalAttendance / Model.Count()) : 0;
+                                        if (ratio >= 1.0)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle print-badge">Excellent</span>
+                                        }
+                                        else if (ratio >= 0.8)
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle print-badge">Good</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle print-badge">Review</span>
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="text-center pb-5 footer-text">
+            <p class="text-muted small">Report generated automatically based on system logs for January - December @selectedYear</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .table thead th {
+        font-weight: 700;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #eee;
+        color: #6c757d;
+    }
+
+    .table tbody td {
+        font-size: 0.85rem;
+        padding: 1.1rem 0.5rem;
+    }
+
+    .dropdown-item.active {
+        background-color: #4A77A5 !important;
+    }
+
+    /* Print Specific Styles */
+    @@media print {
+        /* 1. Hide the Sidebar and any other non-report UI elements */
+        /* Targets common sidebar classes and the fixed sidebar shown in your screenshots */
+        .sidebar, nav, #sidebar, .sidebar-wrapper,
+        .flex-shrink-0, .border-end, aside {
+            display: none !important;
+        }
+        /* 2. Reset the main layout to full width */
+        body, html, .report-wrapper, main, .main-content {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            left: 0 !important;
+            position: relative !important;
+            background-color: white !important;
+        }
+        /* 3. Hide navigation buttons and dropdowns */
+        .no-print, .btn, .dropdown, .bi-printer, .header-section a {
+            display: none !important;
+        }
+        /* 4. Style adjustments for printed paper */
+        .container, .main-report-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 20px !important;
+        }
+
+        .card {
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+            break-inside: avoid; /* Prevents cards from splitting across pages */
+        }
+
+        .header-section {
+            background: #4A77A5 !important; /* Solid color prints better than gradients */
+            color: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        /* 5. Keep the "Excellent/Good" badges visible but remove shadow */
+        .badge {
+            border: 1px solid #ccc !important;
+            box-shadow: none !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>

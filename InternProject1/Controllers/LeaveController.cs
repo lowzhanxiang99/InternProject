@@ -1,37 +1,40 @@
-﻿using InternProject1.Data;
+﻿using ClosedXML.Excel;
+using InternProject1.Data;
 using InternProject1.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Mvc;
+using InternProject1.Services;
 using Microsoft.AspNetCore.Http;
-using ClosedXML.Excel;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 
 public class LeaveController : Controller
 {
     private readonly ApplicationDbContext _context;
+    private readonly IEmailService _emailService;
 
-    public LeaveController(ApplicationDbContext context) => _context = context;
+    public LeaveController(ApplicationDbContext context, IEmailService emailService)
+    {
+        _context = context;
+        _emailService = emailService;
+    }
 
     public IActionResult Index() => View();
 
-    // NEW: AJAX helper to check for date overlaps before submission
     [HttpGet]
     public async Task<IActionResult> CheckDuplicateLeave(int employeeId, DateTime start, DateTime end)
     {
-        // Check if any existing leave request for this employee overlaps with the selected range
         bool isDuplicate = await _context.LeaveRequests.AnyAsync(l =>
             l.Employee_ID == employeeId &&
-            l.Status != "Rejected" && // Only check against Pending or Approved leaves
+            l.Status != "Rejected" &&
             start.Date <= l.End_Date.Date && end.Date >= l.Start_Date.Date);
 
         return Json(new { isDuplicate = isDuplicate });
     }
 
-    // GET: Leave/Apply
     public async Task<IActionResult> Apply()
     {
         var userId = HttpContext.Session.GetInt32("UserID");
@@ -49,17 +52,14 @@ public class LeaveController : Controller
         return View();
     }
 
-    // POST: Leave/Apply
     [HttpPost]
     public async Task<IActionResult> Apply(LeaveRequest leave)
     {
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        // 1. Validation: Dates must not be in the past
         if (leave.Start_Date.Date < DateTime.Today || leave.End_Date.Date < DateTime.Today) return View("Error");
 
-        // 2. Server-side Duplicate Check (Security Layer)
         bool isDuplicate = await _context.LeaveRequests.AnyAsync(l =>
             l.Employee_ID == userId &&
             l.Status != "Rejected" &&
@@ -73,6 +73,10 @@ public class LeaveController : Controller
 
         var employee = await _context.Employees.FindAsync(userId);
         if (employee == null) return View("Error");
+
+        // --- FIXED: Use Employee_Email from your Model to populate the LeaveRequest ---
+        leave.Email = employee.Employee_Email;
+        // ------------------------------------------------------------------------------
 
         int requestedDays = (leave.End_Date.Date - leave.Start_Date.Date).Days + 1;
         bool hasInsufficientBalance = false;
@@ -103,8 +107,6 @@ public class LeaveController : Controller
         await _context.SaveChangesAsync();
         return View("Success");
     }
-
-    // --- PERSONAL HISTORY SECTION ---
 
     public async Task<IActionResult> MyStatus()
     {
@@ -192,7 +194,9 @@ public class LeaveController : Controller
     {
         var request = await _context.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Leave_ID == id);
 
-        if (request != null && status == "Approve" && request.Status != "Approve")
+        if (request == null) return NotFound();
+
+        if (status == "Approve" && request.Status != "Approve")
         {
             int totalDays = (request.End_Date.Date - request.Start_Date.Date).Days + 1;
 
@@ -218,16 +222,40 @@ public class LeaveController : Controller
                     });
                 }
                 else
+                {
                     existingRecord.Status = "Leave";
+                }
             }
         }
 
-        if (request != null)
+        request.Status = status;
+        await _context.SaveChangesAsync();
+
+        // --- FIXED: Check Employee_Email instead of Email ---
+        if (request.Employee != null && !string.IsNullOrEmpty(request.Employee.Employee_Email))
         {
-            request.Status = status;
-            await _context.SaveChangesAsync();
-            TempData["Success"] = $"Request REQ-{id} updated to {status}.";
+            try
+            {
+                string subject = $"Leave Request REQ-{id}: {status}";
+                string body = $@"<h3>Leave Status Update</h3>
+                                 <p>Dear {request.Employee.First_Name},</p>
+                                 <p>Your leave request (REQ-{id}) for <b>{request.LeaveType}</b> has been <b>{status}</b>.</p>
+                                 <p>Dates: {request.Start_Date:dd-MM-yyyy} to {request.End_Date:dd-MM-yyyy}</p>";
+
+                // --- FIXED: Send to Employee_Email ---
+                await _emailService.SendEmailAsync(request.Employee.Employee_Email, subject, body);
+                TempData["Success"] = $"Request REQ-{id} updated to {status} and email sent.";
+            }
+            catch (Exception)
+            {
+                TempData["Success"] = $"Status updated to {status}, but email failed to send.";
+            }
         }
+        else
+        {
+            TempData["Success"] = $"Request REQ-{id} updated to {status} (No email sent: Email address missing).";
+        }
+
         return RedirectToAction(nameof(Approval));
     }
 
@@ -258,8 +286,6 @@ public class LeaveController : Controller
         }
         return RedirectToAction(nameof(Approval));
     }
-
-    // --- HELPERS ---
 
     [HttpGet]
     public async Task<IActionResult> ExportToExcel(string searchString, DateTime? fromDate, DateTime? toDate)

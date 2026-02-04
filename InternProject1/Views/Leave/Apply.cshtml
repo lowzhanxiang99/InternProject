@@ -26,6 +26,8 @@
 
         <form asp-action="Apply" method="post" id="leaveForm" class="pe-md-5">
 
+            <input type="hidden" asp-for="Email" value="@Context.Session.GetString("UserEmail")" />
+
             <div class="row mb-4 align-items-center">
                 <label class="col-md-4 fs-5 fw-bold text-dark text-md-end pe-4">Select Leave Type:</label>
                 <div class="col-md-7">
@@ -201,13 +203,13 @@
                         confirmButtonColor: '#f9a8a8',
                         customClass: { popup: 'rounded-4' }
                     });
-                    return; // Stop the process here
+                    return;
                 }
             } catch (error) {
                 console.error("Error checking leave dates:", error);
             }
 
-            // Step 2: Show confirmation if no duplicates found
+            // Step 2: Confirmation
             Swal.fire({
                 title: 'Confirm Application?',
                 text: `You are applying for ${days} day(s) of leave.`,
@@ -220,7 +222,8 @@
                 customClass: { popup: 'rounded-4' }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    this.submit();
+                    // Use actual form submission
+                    document.getElementById('leaveForm').submit();
                 }
             });
         });

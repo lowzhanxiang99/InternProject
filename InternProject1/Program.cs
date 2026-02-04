@@ -1,7 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using InternProject1.Services;
 using InternProject1.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Register the Email Service
+builder.Services.AddTransient<IEmailService, EmailService>();
 
 // 1. Add services to the container
 builder.Services.AddControllersWithViews();

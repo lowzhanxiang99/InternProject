@@ -33,7 +33,7 @@ namespace InternProject1.Models
         // Navigation property to link to the Employee table
         [ForeignKey("Employee_ID")]
         public virtual Employee? Employee { get; set; }
-
         public string? Reason { get; set; }
+        public string? Email { get; set; }
     }
 }
