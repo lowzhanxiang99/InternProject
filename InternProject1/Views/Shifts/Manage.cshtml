@@ -44,12 +44,18 @@
                         <th>Start Time</th>
                         <th>End Time</th>
                         <th>Default</th>
-                        <th>Actions</th>
+                        <th>Schedules</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in Model)
                     {
+                        var scheduleCount = ViewBag.ScheduleCounts != null &&
+                        ViewBag.ScheduleCounts.ContainsKey(item.Shift_ID)
+                        ? ViewBag.ScheduleCounts[item.Shift_ID]
+                        : 0;
+
                         <tr>
                             <td>
                                 <strong>@item.Shift_Name</strong>
@@ -60,22 +66,48 @@
                                 }
                             </td>
                             <td>@item.Start_Time.ToString(@"hh\:mm") - @item.End_Time.ToString(@"hh\:mm")</td>
-                            <td>@item.Start_Time.ToString(@"hh\:mm")</td>
-                            <td>@item.End_Time.ToString(@"hh\:mm")</td>
+                            <td class="text-center">@item.Start_Time.ToString(@"hh\:mm")</td>
+                            <td class="text-center">@item.End_Time.ToString(@"hh\:mm")</td>
                             <td>
                                 @if (item.Is_Default)
                                 {
                                     <span class="badge bg-success">Default</span>
                                 }
                             </td>
-                            <td>
-                                <a asp-action="Edit" asp-route-id="@item.Shift_ID" class="btn btn-sm btn-outline-primary">
+                            <td class="text-center">
+                                @if (scheduleCount > 0)
+                                {
+                                    <span class="badge bg-info d-inline-flex align-items-center"
+                                          data-bs-toggle="tooltip"
+                                          title="@scheduleCount active schedule(s)">
+                                        <i class="bi bi-calendar-check me-1"></i>@scheduleCount
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary d-inline-flex align-items-center"
+                                          data-bs-toggle="tooltip"
+                                          title="No schedule">
+                                        <i class="bi bi-calendar-x me-1"></i>0
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <a asp-action="Edit" asp-route-id="@item.Shift_ID"
+                                   class="btn btn-sm btn-outline-primary" title="Edit Shifts">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+
+                                <a asp-action="ManageSchedules" asp-route-shiftId="@item.Shift_ID"
+                                   class="btn btn-sm btn-outline-info"
+                                   title="Manage schedule">
+                                    <i class="bi bi-calendar-week"></i>
+                                </a>
+
                                 @if (!item.Is_Default)
                                 {
                                     <a asp-action="Delete" asp-route-id="@item.Shift_ID"
-                                       class="btn btn-sm btn-outline-danger">
+                                       class="btn btn-sm btn-outline-danger" title="Delete Shifts">
                                         <i class="bi bi-trash"></i>
                                     </a>
                                 }
@@ -92,6 +124,10 @@
                 </tbody>
             </table>
         </div>
+    </div>
+    <div class="text-muted small mt-2">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>Tip:</strong> Use the <i class="bi bi-calendar-week text-info"></i> button to set different hours for holidays, weekends, or special events.
     </div>
 </div>
 
@@ -120,5 +156,13 @@
                 window.location.href = '@Url.Action("AdminLogin", "Shifts")';
             }
         });
+
+        // Initialize tooltips
+            document.addEventListener('DOMContentLoaded', function() {
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            });
     </script>
 }

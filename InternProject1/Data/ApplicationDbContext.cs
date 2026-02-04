@@ -11,7 +11,6 @@ public class ApplicationDbContext : DbContext
     }
 
     // Each DbSet represents one table in your database. 
-    // I have removed the duplicates so each one is listed only once.
     public DbSet<Manager> Managers { get; set; }
     public DbSet<Department> Departments { get; set; }
     public DbSet<Shift> Shifts { get; set; }
@@ -20,4 +19,5 @@ public class ApplicationDbContext : DbContext
     public DbSet<LeaveRequest> LeaveRequests { get; set; }
     public DbSet<Report> Reports { get; set; }
     public DbSet<Claim> Claims { get; set; }
+    public DbSet<ShiftSchedule> ShiftSchedules { get; set; }
 }

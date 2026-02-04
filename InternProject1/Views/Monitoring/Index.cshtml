@@ -15,7 +15,6 @@
         };
     }
 
-    // Keep your existing GetWeekOfYear function
     public int GetWeekOfYear(DateTime date)
     {
         var calendar = System.Globalization.CultureInfo.CurrentCulture.Calendar;
@@ -29,20 +28,12 @@
     ViewData["Title"] = "Employee Attendance Monitoring";
     Layout = "_Layout";
 
-    // USE VALUES FROM CONTROLLER INSTEAD OF RECALCULATING
     var totalEmployees = Model.TotalEmployees;
     var presentCount = Model.PresentCount;
     var absentCount = Model.AbsentCount;
     var lateCount = Model.LateCount;
-    
-    // Early departures
-    var earlyDeparturesCount = Model.TodayAttendance.Count(a =>
-        a.ClockInTime != null &&
-        a.ClockOutTime != null &&
-        a.ClockOutTime.Value.Hours < 17 &&
-        !(a.ClockOutTime.Value.Hours == 16 && a.ClockOutTime.Value.Minutes == 0));
-
     var timeOffCount = Model.TimeOffCount;
+    var earlyDeparturesCount = Model.EarlyDeparturesCount;
     var currentWeekNumber = GetWeekOfYear(DateTime.Now);
 }
 
@@ -50,7 +41,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* Main container styles - keep existing */
     .monitoring-container {
         min-height: 100vh;
         padding: 20px;
@@ -59,7 +49,6 @@
         overflow-x: hidden;
     }
 
-    /* Header styles - keep existing */
     .monitoring-header {
         display: flex;
         flex-direction: row;
@@ -95,7 +84,6 @@
             margin: 5px 0 0 0;
         }
 
-    /* Top section with 7 cards - UPDATED: Fixed to fill space */
     .top-cards-section {
         display: grid;
         grid-template-columns: 1.5fr 1fr 1fr 1fr; /* Changed from fixed 383px */
@@ -106,21 +94,18 @@
         width: 100%; /* Ensure it takes full width */
     }
 
-    /* Big card that spans 2 rows */
     .big-card {
         grid-column: 1;
         grid-row: 1 / span 2;
         height: 370px;
     }
 
-    /* Regular cards - all cards will have same dimensions */
     .regular-card {
         width: 100%;
         height: 178px;
         box-sizing: border-box;
     }
 
-    /* Specific grid positions */
     .card-2 {
         grid-column: 2;
         grid-row: 1;
@@ -151,7 +136,6 @@
         grid-row: 2;
     }
 
-    /* Bottom section with 2 chart cards */
     .bottom-charts-section {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -165,7 +149,6 @@
         box-sizing: border-box;
     }
 
-    /* CARD STYLING - ALL CARDS USE THIS EXACT DESIGN */
     .stat-card {
         box-sizing: border-box;
         width: 100%;
@@ -186,7 +169,6 @@
             box-shadow: 0px 4px 12px rgba(88, 134, 166, 0.35);
         }
 
-    /* Big card specific styling - FLEXIBLE CONTENT LAYOUT */
     .big-card-content {
         display: flex;
         flex-direction: column;
@@ -252,7 +234,6 @@
             font-weight: 600;
         }
 
-    /* Option 3: Simple elegant styles */
     .digital-clock {
         font-family: 'Poppins', sans-serif;
         font-size: 40px;
@@ -305,8 +286,8 @@
         font-size: 24px;
         flex-shrink: 0;
         position: absolute;
-        top: 24px; 
-        right: 24px; 
+        top: 24px;
+        right: 24px;
         margin-bottom: 10px;
     }
 
@@ -423,7 +404,6 @@
             box-shadow: 0px 4px 8px rgba(88, 134, 166, 0.3);
         }
 
-    /* Chart styling */
     .chart-filter-dropdown {
         position: relative;
     }
@@ -480,7 +460,6 @@
             border-color: #E2E8F0;
         }
 
-    /* Update existing chart-header for better alignment */
     .chart-header {
         display: flex;
         justify-content: space-between;
@@ -519,203 +498,6 @@
 
     .trend-down {
         color: #dc3545;
-    }
-
-    /* Responsive adjustments */
-    @@media (max-width: 1400px) {
-        .top-cards-section {
-            grid-template-columns: 1.2fr 1fr 1fr 1fr;
-        }
-    }
-
-    @@media (max-width: 1200px) {
-        .top-cards-section {
-            grid-template-columns: 1fr 1fr 1fr;
-            grid-template-rows: 356px auto auto;
-            gap: 15px;
-        }
-
-        .big-card {
-            grid-column: 1 / span 3;
-            grid-row: 1;
-            height: 356px;
-        }
-
-        .card-2 {
-            grid-column: 1;
-            grid-row: 2;
-            height: 178px;
-        }
-
-        .card-3 {
-            grid-column: 2;
-            grid-row: 2;
-            height: 178px;
-        }
-
-        .card-4 {
-            grid-column: 3;
-            grid-row: 2;
-            height: 178px;
-        }
-
-        .card-5 {
-            grid-column: 1;
-            grid-row: 3;
-            height: 178px;
-        }
-
-        .card-6 {
-            grid-column: 2;
-            grid-row: 3;
-            height: 178px;
-        }
-
-        .card-7 {
-            grid-column: 3;
-            grid-row: 3;
-            height: 178px;
-        }
-
-        .bottom-charts-section {
-            grid-template-columns: 1fr;
-        }
-
-        .chart-card {
-            height: 400px;
-        }
-    }
-
-    @@media (max-width: 992px) {
-        .top-cards-section {
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 356px auto auto auto;
-        }
-
-        .big-card {
-            grid-column: 1 / span 2;
-            grid-row: 1;
-        }
-
-        .card-2 {
-            grid-column: 1;
-            grid-row: 2;
-        }
-
-        .card-3 {
-            grid-column: 2;
-            grid-row: 2;
-        }
-
-        .card-4 {
-            grid-column: 1;
-            grid-row: 3;
-        }
-
-        .card-5 {
-            grid-column: 2;
-            grid-row: 3;
-        }
-
-        .card-6 {
-            grid-column: 1;
-            grid-row: 4;
-        }
-
-        .card-7 {
-            grid-column: 2;
-            grid-row: 4;
-        }
-    }
-
-    @@media (max-width: 768px) {
-        .monitoring-container {
-            padding: 15px;
-            margin-left: 0;
-            width: 100%;
-        }
-
-        .top-cards-section {
-            grid-template-columns: 1fr;
-            grid-template-rows: auto repeat(6, 178px);
-            gap: 15px;
-        }
-
-        .big-card, .card-2, .card-3, .card-4, .card-5, .card-6, .card-7 {
-            grid-column: 1;
-            width: 100%;
-        }
-
-        .big-card {
-            grid-row: 1;
-            height: auto;
-            min-height: 356px;
-        }
-
-        .card-2 {
-            grid-row: 2;
-        }
-
-        .card-3 {
-            grid-row: 3;
-        }
-
-        .card-4 {
-            grid-row: 4;
-        }
-
-        .card-5 {
-            grid-row: 5;
-        }
-
-        .card-6 {
-            grid-row: 6;
-        }
-
-        .card-7 {
-            grid-row: 7;
-        }
-
-        .stat-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 20px;
-        }
-
-        .regular-card .stat-number {
-            font-size: 28px;
-            line-height: 34px;
-        }
-    }
-
-    @@media (max-width: 576px) {
-        .monitoring-container {
-            padding: 10px;
-        }
-
-        .header-left h1 {
-            font-size: 20px;
-            line-height: 30px;
-        }
-
-        .stat-card {
-            padding: 20px;
-        }
-
-        .stat-number {
-            font-size: 28px;
-            line-height: 34px;
-        }
-
-        .big-card .stat-number {
-            font-size: 36px;
-            line-height: 42px;
-        }
-
-        .view-attendance-btn {
-            padding: 8px 16px;
-            font-size: 13px;
-        }
     }
 </style>
 
@@ -795,17 +577,12 @@
                     <div class="stat-icon icon-ontime">
                         <i class="bi bi-check-circle"></i>
                     </div>
-                    <div class="stat-number">
-                        @{
-                            // On-time = Present - Late (already calculated in controller)
-                            var onTimeCountFromController = Model.PresentCount - Model.LateCount;
-                        }
-                        @onTimeCountFromController
-                    </div>
+                    <!-- Use Model.OnTimeCount directly (already calculated in controller) -->
+                    <div class="stat-number">@Model.OnTimeCount</div>
                     <div class="stat-label">On Time</div>
                     @if (Model.PresentCount > 0)
                     {
-                        var onTimePercentage = Math.Round((double)onTimeCountFromController / Model.PresentCount * 100, 1);
+                        var onTimePercentage = Math.Round((double)Model.OnTimeCount / Model.PresentCount * 100, 1);
                         <div class="trend-indicator @(onTimePercentage >= 80 ? "trend-up" : "trend-down")">
                             @if (onTimePercentage >= 80)
                             {
@@ -853,7 +630,7 @@
                     <div class="stat-icon icon-late">
                         <i class="bi bi-clock-history"></i>
                     </div>
-                    <div class="stat-number">@Model.LateCount</div>  <!-- Already using Model -->
+                    <div class="stat-number">@Model.LateCount</div>
                     <div class="stat-label">Late Arrival</div>
                     @if (Model.PresentCount > 0)
                     {
@@ -882,12 +659,15 @@
                     <div class="stat-number">@earlyDeparturesCount</div>
                     <div class="stat-label">Early Departures</div>
                     @{
-                        var earlyDeparturePercentage = presentCount > 0 ? 
-                            Math.Round((double)earlyDeparturesCount / presentCount * 100, 1) : 0;
+                        var earlyDeparturePercentage = presentCount > 0 ?
+                        Math.Round((double)earlyDeparturesCount / presentCount * 100, 1) : 0;
                         <div class="trend-indicator @(earlyDeparturePercentage < 5 ? "trend-down" : "trend-up")">
-                            @if(earlyDeparturePercentage < 5) {
+                            @if (earlyDeparturePercentage < 5)
+                            {
                                 <i class="bi bi-arrow-down me-1"></i>
-                            } else {
+                            }
+                            else
+                            {
                                 <i class="bi bi-arrow-up me-1"></i>
                             }
                             <span>@earlyDeparturePercentage% of present</span>
@@ -908,9 +688,12 @@
                     {
                         var timeOffPercentage = Math.Round((double)timeOffCount / totalEmployees * 100, 1);
                         <div class="trend-indicator @(timeOffPercentage < 10 ? "trend-down" : "trend-up")">
-                            @if(timeOffPercentage < 10) {
+                            @if (timeOffPercentage < 10)
+                            {
                                 <i class="bi bi-arrow-down me-1"></i>
-                            } else {
+                            }
+                            else
+                            {
                                 <i class="bi bi-arrow-up me-1"></i>
                             }
                             <span>@timeOffPercentage% of total</span>
@@ -987,7 +770,7 @@
             lastWeekPresentCount: @Model.LastWeekPresentCount,
             lastMonthPresentCount: @Model.LastMonthPresentCount,
 
-            // Weekly data (100% REAL from database)
+            // Weekly data
             weeklyData: @Html.Raw(Json.Serialize(Model.WeeklyData)),
             lastWeekData: @Html.Raw(Json.Serialize(Model.LastWeekData))
         };
@@ -1059,8 +842,6 @@
 
         let data;
         let chartTitle = 'Attendance Comparison';
-
-        // DECLARE THIS AT THE TOP - OUTSIDE THE SWITCH
         let thisMonthRate = 0;
 
         switch (filterType) {
@@ -1468,8 +1249,6 @@
                         y: {
                             beginAtZero: true,
                             stacked: false,
-
-                            // ALWAYS show from 0 to total employees
                             max: chartData.total,
 
                             ticks: {
@@ -1548,7 +1327,7 @@
             }, 100);
         });
 
-                function setupFilterEventHandlers() {
+        function setupFilterEventHandlers() {
             console.log('Setting up filter event handlers...');
 
             // Chart 1 - Attendance Comparison filters
@@ -1583,8 +1362,6 @@
                 item.addEventListener('click', function(e) {
                     e.preventDefault();
                     console.log('Chart 2 filter clicked!');
-
-                    // Remove active class from all Chart 2 options
                     chart2Filters.forEach(opt => opt.classList.remove('active'));
 
                     // Add active class to clicked option

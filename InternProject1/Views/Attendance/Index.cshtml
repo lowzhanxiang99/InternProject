@@ -1,4 +1,30 @@
 ﻿@model List<Attendance>
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Warning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        @TempData["Warning"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="bi bi-x-circle-fill me-2"></i>
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
 @{
     ViewData["Title"] = "Check-In/Check-Out";
     Layout = "_Layout";
@@ -99,6 +125,7 @@
         return $"{date:MMM dd}: Marked absent";
     }
 }
+
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
@@ -1360,25 +1387,35 @@
                                                 string statusClass = "";
                                                 string statusText = "";
 
-                                                if (record.ClockInTime.HasValue && record.ClockInTime.Value != null)
+                                                if (!string.IsNullOrEmpty(record.Status))
                                                 {
-                                                    TimeSpan workStartTime = new TimeSpan(9, 0, 0);
-                                                    var clockInTime = record.ClockInTime.Value;
+                                                    string status = record.Status.ToLower();
 
-                                                    if (clockInTime <= workStartTime)
+                                                    switch (status)
                                                     {
-                                                        statusClass = "status-on-time";
-                                                        statusText = "On Time";
-                                                    }
-                                                    else
-                                                    {
-                                                        statusClass = "status-late";
-                                                        statusText = "Late";
+                                                        case "on time":
+                                                        case "present":
+                                                            statusClass = "status-on-time";
+                                                            statusText = "On Time";
+                                                            break;
+                                                        case "late":
+                                                            statusClass = "status-late";
+                                                            statusText = "Late";
+                                                            break;
+                                                        case "absent":
+                                                            statusClass = "status-absent";
+                                                            statusText = "Absent";
+                                                            break;
+                                                        default:
+                                                            statusClass = "status-on-time";
+                                                            statusText = record.Status;
+                                                            break;
                                                     }
                                                 }
-                                                else
+                                                else if (record.ClockInTime.HasValue)
                                                 {
-                                                    statusText = "No Clock In";
+                                                    statusClass = "status-on-time";
+                                                    statusText = "Present";
                                                 }
 
                                                 <tr data-date="@record.Date.ToString("yyyy-MM-dd")"
@@ -1966,8 +2003,6 @@
             }
         }
 
-        // Function to update table with new data
-                // Function to update table with new data
         function updateTableWithData(data) {
             const tbody = document.getElementById('attendanceTableBody');
 
@@ -1986,31 +2021,38 @@
             let rowsHtml = '';
 
             data.forEach(record => {
-                // Determine status
+                // Use the status from the server (already calculated correctly in the controller)
                 let statusClass = "";
                 let statusText = "";
 
-                if (record.clockInTime && record.clockInTime !== '-') {
-                    // Parse the time string (e.g., "09:15 AM")
-                    const timeMatch = record.clockInTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-                    if (timeMatch) {
-                        let hours = parseInt(timeMatch[1]);
-                        const minutes = parseInt(timeMatch[2]);
-                        const ampm = timeMatch[3].toUpperCase();
+                // Check if record has a status field from the server
+                if (record.status) {
+                    const status = record.status.toLowerCase();
 
-                        // Convert to 24-hour format for comparison
-                        if (ampm === 'PM' && hours < 12) hours += 12;
-                        if (ampm === 'AM' && hours === 12) hours = 0;
-
-                        // Compare with 9:00 AM
-                        if (hours < 9 || (hours === 9 && minutes === 0)) {
+                    switch(status) {
+                        case 'on time':
+                        case 'present':
                             statusClass = "status-on-time";
                             statusText = "On Time";
-                        } else {
+                            break;
+                        case 'late':
                             statusClass = "status-late";
                             statusText = "Late";
-                        }
+                            break;
+                        case 'absent':
+                            statusClass = "status-absent";
+                            statusText = "Absent";
+                            break;
+                        default:
+                            // If status exists but doesn't match known values
+                            statusClass = "status-on-time";
+                            statusText = record.status;
+                            break;
                     }
+                } else if (record.clockInTime && record.clockInTime !== '-') {
+                    // Fallback: If no status from server, assume present
+                    statusClass = "status-on-time";
+                    statusText = "Present";
                 } else {
                     statusText = "No Clock In";
                 }

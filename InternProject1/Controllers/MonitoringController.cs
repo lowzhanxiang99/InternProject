@@ -61,6 +61,7 @@ namespace InternProject1.Controllers
             var employees = await _context.Employees
                 .Include(e => e.Department)
                 .Include(e => e.Shift)
+                    .ThenInclude(s => s.Schedules)
                 .OrderBy(e => e.Department != null ? e.Department.Department_Name : "ZZZ")
                 .ThenBy(e => e.First_Name)
                 .ToListAsync();
@@ -68,6 +69,9 @@ namespace InternProject1.Controllers
             // Get today's attendance for ALL employees
             var today = DateTime.Today;
             var todayAttendance = await _context.Attendances
+                .Include(a => a.Employee)
+                    .ThenInclude(e => e.Shift)
+                        .ThenInclude(s => s.Schedules)
                 .Where(a => a.Date.Date == today)
                 .ToListAsync();
 
@@ -107,7 +111,7 @@ namespace InternProject1.Controllers
                 absentCount = totalEmployees - timeOffCount - presentCount;
             }
 
-            // Calculate on-time and late counts
+            // Calculate on-time and late counts using shift times WITH SCHEDULE OVERRIDES
             int onTimeCount = 0, lateCount = 0;
 
             foreach (var employeeId in clockedInEmployeeIds)
@@ -117,11 +121,18 @@ namespace InternProject1.Controllers
                     .OrderBy(a => a.ClockInTime)
                     .FirstOrDefault();
 
-                if (firstClockIn != null)
+                if (firstClockIn != null && firstClockIn.Employee?.Shift != null)
                 {
-                    if (firstClockIn.ClockInTime.Value.Hours < 9 ||
-                        (firstClockIn.ClockInTime.Value.Hours == 9 &&
-                         firstClockIn.ClockInTime.Value.Minutes == 0))
+                    var shift = firstClockIn.Employee.Shift;
+                    var clockInTime = firstClockIn.ClockInTime.Value;
+                    var attendanceDate = firstClockIn.Date.Date;
+                    var (shiftStartTimeSpan, shiftEndTimeSpan) = shift.GetTimeForDate(attendanceDate);
+                    var shiftStartTime = attendanceDate.Add(shiftStartTimeSpan);
+                    var clockInDateTime = attendanceDate.Add(new TimeSpan(clockInTime.Hours, clockInTime.Minutes, clockInTime.Seconds));
+
+                    // Employee is on time if they clock in at or before shift start time
+                    var graceEndTime = shiftStartTime.AddMinutes(1);
+                    if (clockInDateTime < graceEndTime)
                     {
                         onTimeCount++;
                     }
@@ -132,19 +143,31 @@ namespace InternProject1.Controllers
                 }
             }
 
-            // Calculate early departures
-            var earlyDeparturesCount = todayAttendance.Count(a =>
+            // Calculate early departures using shift times WITH SCHEDULE OVERRIDES
+            var earlyDeparturesCount = 0;
+
+            foreach (var attendance in todayAttendance.Where(a =>
                 a.ClockInTime != null &&
                 a.ClockOutTime != null &&
-                !onLeaveEmployeeIds.Contains(a.Employee_ID) &&
-                (
-                    (today.DayOfWeek >= DayOfWeek.Monday && today.DayOfWeek <= DayOfWeek.Friday &&
-                     a.ClockOutTime.Value.Hours < 18) ||
-                    (today.DayOfWeek == DayOfWeek.Saturday &&
-                     a.ClockOutTime.Value.Hours < 13)
-                ));
+                !onLeaveEmployeeIds.Contains(a.Employee_ID)))
+            {
+                if (attendance.Employee?.Shift != null)
+                {
+                    var shift = attendance.Employee.Shift;
+                    var clockOutTime = attendance.ClockOutTime.Value;
+                    var attendanceDate = attendance.Date.Date;
+                    var (shiftStartTimeSpan, shiftEndTimeSpan) = shift.GetTimeForDate(attendanceDate);
+                    var shiftEndTime = attendanceDate.Add(shiftEndTimeSpan);
+                    var clockOutDateTime = attendanceDate.Add(new TimeSpan(clockOutTime.Hours, clockOutTime.Minutes, clockOutTime.Seconds));
 
-            // ========== WEEKLY DATA FOR CHARTS (FIXED) ==========
+                    // Employee left early if they clocked out before shift end time
+                    if (clockOutDateTime < shiftEndTime)
+                    {
+                        earlyDeparturesCount++;
+                    }
+                }
+            }
+            // ========== WEEKLY DATA FOR CHARTS ==========
 
             // 1. Get LAST week data (Monday to Sunday of last week)
             int daysFromMondayLast = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
@@ -158,6 +181,9 @@ namespace InternProject1.Controllers
 
                 // Get attendance for this specific date
                 var dayAttendance = await _context.Attendances
+                    .Include(a => a.Employee)
+                        .ThenInclude(e => e.Shift)
+                            .ThenInclude(s => s.Schedules)
                     .Where(a => a.Date.Date == date.Date)
                     .ToListAsync();
 
@@ -186,165 +212,178 @@ namespace InternProject1.Controllers
                     .Where(a => a.ClockInTime != null && !allOnLeaveThisDay.Contains(a.Employee_ID))
                     .Select(a => a.Employee_ID)
                     .Distinct()
-                    .Count();
+                    .ToList();
 
-                var uniqueLateEmployees = dayAttendance
-                    .Where(a => a.ClockInTime != null &&
-                        !allOnLeaveThisDay.Contains(a.Employee_ID) &&
-                        (a.ClockInTime.Value.Hours > 9 ||
-                        (a.ClockInTime.Value.Hours == 9 && a.ClockInTime.Value.Minutes > 0)))
-                    .Select(a => a.Employee_ID)
-                    .Distinct()
-                    .Count();
+                var presentThisDay = uniquePresentEmployees.Count;
 
-                // Absent = Total - Present - On Leave
-                var absent = totalEmployees - uniquePresentEmployees - allOnLeaveThisDay.Count;
-
-                // If it's Sunday, set absent = 0
-                if (date.DayOfWeek == DayOfWeek.Sunday)
+                // Calculate late count for this day using shift times
+                var lateThisDay = 0;
+                foreach (var employeeId in uniquePresentEmployees)
                 {
-                    absent = 0;
+                    var firstClockIn = dayAttendance
+                        .Where(a => a.Employee_ID == employeeId && a.ClockInTime != null)
+                        .OrderBy(a => a.ClockInTime)
+                        .FirstOrDefault();
+
+                    if (firstClockIn != null && firstClockIn.Employee?.Shift != null)
+                    {
+                        var shift = firstClockIn.Employee.Shift;
+                        var clockInTime = firstClockIn.ClockInTime.Value;
+                        var attendanceDate = firstClockIn.Date.Date;
+                        var (shiftStartTimeSpan, shiftEndTimeSpan) = shift.GetTimeForDate(attendanceDate);
+                        var shiftStartTime = attendanceDate.Add(shiftStartTimeSpan);
+                        var clockInDateTime = attendanceDate.Add(new TimeSpan(clockInTime.Hours, clockInTime.Minutes, clockInTime.Seconds));
+
+                        var graceEndTime = shiftStartTime.AddMinutes(1);
+                        if (clockInDateTime >= graceEndTime)
+                        {
+                            lateThisDay++;
+                        }
+                    }
                 }
+
+                // Absent = not on leave, not present
+                var absentThisDay = (date.DayOfWeek == DayOfWeek.Sunday) ? 0 :
+                    totalEmployees - allOnLeaveThisDay.Count - presentThisDay;
 
                 lastWeekData.Add(new DailyAttendance
                 {
                     Date = date,
                     DayName = date.ToString("ddd"),
-                    Present = uniquePresentEmployees,
-                    Late = uniqueLateEmployees,
-                    Absent = absent
+                    Present = presentThisDay,
+                    Late = lateThisDay,
+                    Absent = Math.Max(0, absentThisDay)
                 });
             }
 
-            // 2. Get CURRENT week data (Monday to Sunday of this week)
-            int daysFromMondayCurrent = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
-            var startOfCurrentWeek = today.AddDays(-daysFromMondayCurrent);
+            // 2. Get CURRENT week data (Monday of this week to today)
+            int daysFromMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+            var startOfCurrentWeek = today.AddDays(-daysFromMonday);
 
             var currentWeekData = new List<DailyAttendance>();
 
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i <= daysFromMonday; i++)
             {
                 var date = startOfCurrentWeek.AddDays(i);
 
-                int uniquePresentEmployees = 0;
-                int uniqueLateEmployees = 0;
-                int absent = 0;
+                var dayAttendance = await _context.Attendances
+                    .Include(a => a.Employee)
+                        .ThenInclude(e => e.Shift)
+                            .ThenInclude(s => s.Schedules)
+                    .Where(a => a.Date.Date == date.Date)
+                    .ToListAsync();
 
-                // ONLY process data for past dates and today
-                if (date.Date <= today.Date)
+                var onLeaveThisDay = await _context.LeaveRequests
+                    .Where(l => (l.Status.ToLower() == "approve") &&
+                               l.Start_Date.Date <= date.Date &&
+                               l.End_Date.Date >= date.Date)
+                    .Select(l => l.Employee_ID)
+                    .Distinct()
+                    .ToListAsync();
+
+                var onLeaveFromAttendance = dayAttendance
+                    .Where(a => a.Status != null &&
+                           (a.Status.ToLower().Contains("leave")))
+                    .Select(a => a.Employee_ID)
+                    .Distinct()
+                    .ToList();
+
+                var allOnLeaveThisDay = onLeaveThisDay.Union(onLeaveFromAttendance).Distinct().ToList();
+
+                var uniquePresentEmployees = dayAttendance
+                    .Where(a => a.ClockInTime != null && !allOnLeaveThisDay.Contains(a.Employee_ID))
+                    .Select(a => a.Employee_ID)
+                    .Distinct()
+                    .ToList();
+
+                var presentThisDay = uniquePresentEmployees.Count;
+
+                var lateThisDay = 0;
+                foreach (var employeeId in uniquePresentEmployees)
                 {
-                    var dayAttendance = await _context.Attendances
-                        .Where(a => a.Date.Date == date.Date)
-                        .ToListAsync();
+                    var firstClockIn = dayAttendance
+                        .Where(a => a.Employee_ID == employeeId && a.ClockInTime != null)
+                        .OrderBy(a => a.ClockInTime)
+                        .FirstOrDefault();
 
-                    // Get employees on leave for this specific date
-                    var onLeaveThisDay = await _context.LeaveRequests
-                        .Where(l => (l.Status.ToLower() == "approve") &&
-                                   l.Start_Date.Date <= date.Date &&
-                                   l.End_Date.Date >= date.Date)
-                        .Select(l => l.Employee_ID)
-                        .Distinct()
-                        .ToListAsync();
-
-                    // ALSO check Attendance table status for leave
-                    var onLeaveFromAttendance = dayAttendance
-                        .Where(a => a.Status != null &&
-                               (a.Status.ToLower().Contains("leave")))
-                        .Select(a => a.Employee_ID)
-                        .Distinct()
-                        .ToList();
-
-                    // Combine both sources
-                    var allOnLeaveThisDay = onLeaveThisDay.Union(onLeaveFromAttendance).Distinct().ToList();
-
-                    uniquePresentEmployees = dayAttendance
-                        .Where(a => a.ClockInTime != null && !allOnLeaveThisDay.Contains(a.Employee_ID))
-                        .Select(a => a.Employee_ID)
-                        .Distinct()
-                        .Count();
-
-                    uniqueLateEmployees = dayAttendance
-                        .Where(a => a.ClockInTime != null &&
-                            !allOnLeaveThisDay.Contains(a.Employee_ID) &&
-                            (a.ClockInTime.Value.Hours > 9 ||
-                            (a.ClockInTime.Value.Hours == 9 && a.ClockInTime.Value.Minutes > 0)))
-                        .Select(a => a.Employee_ID)
-                        .Distinct()
-                        .Count();
-
-                    // Absent = Total - Present - On Leave
-                    absent = totalEmployees - uniquePresentEmployees - allOnLeaveThisDay.Count;
-
-                    // If it's Sunday, absent = 0
-                    if (date.DayOfWeek == DayOfWeek.Sunday)
+                    if (firstClockIn != null && firstClockIn.Employee?.Shift != null)
                     {
-                        absent = 0;
+                        var shift = firstClockIn.Employee.Shift;
+                        var clockInTime = firstClockIn.ClockInTime.Value;
+                        var attendanceDate = firstClockIn.Date.Date;
+                        var (shiftStartTimeSpan, shiftEndTimeSpan) = shift.GetTimeForDate(attendanceDate);
+                        var shiftStartTime = attendanceDate.Add(shiftStartTimeSpan);
+                        var clockInDateTime = attendanceDate.Add(new TimeSpan(clockInTime.Hours, clockInTime.Minutes, clockInTime.Seconds));
+
+                        var graceEndTime = shiftStartTime.AddMinutes(1);
+                        if (clockInDateTime >= graceEndTime)
+                        {
+                            lateThisDay++;
+                        }
                     }
                 }
-                // Future dates: all values remain at defaults (0 present, 0 late, 0 absent)
+
+                var absentThisDay = (date.DayOfWeek == DayOfWeek.Sunday) ? 0 :
+                    totalEmployees - allOnLeaveThisDay.Count - presentThisDay;
 
                 currentWeekData.Add(new DailyAttendance
                 {
                     Date = date,
                     DayName = date.ToString("ddd"),
-                    Present = uniquePresentEmployees,
-                    Late = uniqueLateEmployees,
-                    Absent = absent
+                    Present = presentThisDay,
+                    Late = lateThisDay,
+                    Absent = Math.Max(0, absentThisDay)
                 });
             }
 
-            // 3. Get last month's data
-            var startOfMonth = new DateTime(today.Year, today.Month, 1);
-            var startOfLastMonth = startOfMonth.AddMonths(-1);
-            var endOfLastMonth = startOfMonth.AddDays(-1);
+            // ========== HISTORICAL ATTENDANCE RATES ==========
+
+            // Last week attendance rate
+            var lastWeekTotalDays = lastWeekData.Count(d => d.Date.DayOfWeek != DayOfWeek.Sunday);
+            var lastWeekPresentCount = lastWeekData.Sum(d => d.Present);
+            var lastWeekExpectedAttendance = lastWeekTotalDays * totalEmployees;
+            var lastWeekAttendanceRate = lastWeekExpectedAttendance > 0 ?
+                Math.Round((double)lastWeekPresentCount / lastWeekExpectedAttendance * 100, 1) : 0;
+
+            // Last month attendance rate
+            var lastMonthStart = today.AddMonths(-1).Date;
+            var lastMonthEnd = today.AddDays(-1).Date;
 
             var lastMonthAttendance = await _context.Attendances
-                .Where(a => a.Date >= startOfLastMonth && a.Date <= endOfLastMonth)
+                .Where(a => a.Date >= lastMonthStart && a.Date <= lastMonthEnd && a.ClockInTime != null)
                 .ToListAsync();
 
+            var lastMonthOnLeave = await _context.LeaveRequests
+                .Where(l => l.Status.ToLower() == "approve" &&
+                           l.Start_Date <= lastMonthEnd &&
+                           l.End_Date >= lastMonthStart)
+                .ToListAsync();
+
+            var lastMonthWorkingDays = Enumerable.Range(0, (lastMonthEnd - lastMonthStart).Days + 1)
+                .Select(offset => lastMonthStart.AddDays(offset))
+                .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
+
             var lastMonthPresentCount = lastMonthAttendance
-                .Where(a => a.ClockInTime != null)
-                .Select(a => new { a.Employee_ID, a.Date.Date })
+                .Select(a => a.Employee_ID)
                 .Distinct()
                 .Count();
 
-            var daysInLastMonth = (endOfLastMonth - startOfLastMonth).Days + 1;
-            var lastMonthTotalPossible = daysInLastMonth * totalEmployees;
+            var lastMonthExpectedAttendance = lastMonthWorkingDays * totalEmployees;
+            var lastMonthAttendanceRate = lastMonthExpectedAttendance > 0 ?
+                Math.Round((double)lastMonthPresentCount / lastMonthExpectedAttendance * 100, 1) : 0;
 
-            var lastMonthAttendanceRate = lastMonthTotalPossible > 0 ?
-                Math.Round((double)lastMonthPresentCount / lastMonthTotalPossible * 100, 1) : 0;
-
-            // ========== CALCULATE LAST WEEK METRICS ==========
-            var lastWeekPresentCount = lastWeekData.Sum(d => d.Present);
-            var lastWeekWorkingDays = lastWeekData.Count(d => d.Date.DayOfWeek != DayOfWeek.Sunday);
-            var lastWeekTotalPossible = lastWeekWorkingDays * totalEmployees;
-
-            var lastWeekAttendanceRate = lastWeekTotalPossible > 0 ?
-                Math.Round((double)lastWeekPresentCount / lastWeekTotalPossible * 100, 1) : 0;
-
-            // ========== TREND CALCULATIONS ==========
+            // ========== EMPLOYEE TREND ==========
+            var lastEmployeeCount = HttpContext.Session.GetInt32("LastEmployeeCount");
             string trendText;
             string trendDirection;
-            var lastVisitCount = HttpContext.Session.GetInt32("LastEmployeeCount");
 
-            if (lastVisitCount.HasValue)
+            if (lastEmployeeCount.HasValue && lastEmployeeCount.Value != totalEmployees)
             {
-                var newEmployees = totalEmployees - lastVisitCount.Value;
-                if (newEmployees > 0)
-                {
-                    trendText = $"+{newEmployees} new employee{(newEmployees > 1 ? "s" : "")}";
-                    trendDirection = "up";
-                }
-                else if (newEmployees < 0)
-                {
-                    trendText = $"{newEmployees} employee{(Math.Abs(newEmployees) > 1 ? "s" : "")} removed";
-                    trendDirection = "down";
-                }
-                else
-                {
-                    trendText = $"{totalEmployees} active employees";
-                    trendDirection = "neutral";
-                }
+                var difference = totalEmployees - lastEmployeeCount.Value;
+                trendText = difference > 0
+                    ? $"+{difference} from last check"
+                    : $"{difference} from last check";
+                trendDirection = difference > 0 ? "up" : "down";
             }
             else
             {
@@ -385,52 +424,34 @@ namespace InternProject1.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAttendanceForDate(DateTime date)
         {
-            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
-
-            if (isAdmin != "true")
-            {
-                return RedirectToAction("AdminLogin");
-            }
-
             try
             {
-                // First get all attendance for the date
                 var attendance = await _context.Attendances
+                    .Include(a => a.Employee)
+                        .ThenInclude(e => e.Department)
                     .Where(a => a.Date.Date == date.Date)
+                    .OrderBy(a => a.Employee.First_Name)
                     .ToListAsync();
 
-                // Get all employee IDs from attendance
-                var employeeIds = attendance.Select(a => a.Employee_ID).Distinct().ToList();
-
-                // Get employees with their departments
-                var employees = await _context.Employees
-                    .Include(e => e.Department)
-                    .Include(e => e.Shift)
-                    .Where(e => employeeIds.Contains(e.Employee_ID))
-                    .ToListAsync();
-
-                // Combine the data
                 var result = attendance.Select(a => new
                 {
-                    attendance = a,
-                    employee = employees.FirstOrDefault(e => e.Employee_ID == a.Employee_ID)
+                    employeeName = $"{a.Employee.First_Name} {a.Employee.Last_Name}",
+                    department = a.Employee.Department?.Department_Name ?? "N/A",
+                    clockInTime = a.ClockInTime?.ToString(@"hh\:mm tt") ?? "N/A",
+                    clockOutTime = a.ClockOutTime?.ToString(@"hh\:mm tt") ?? "N/A",
+                    status = a.Status ?? "N/A"
                 }).ToList();
 
-                return Json(new { success = true, data = result });
+                return Json(result);
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { error = ex.Message });
             }
         }
-        public async Task<IActionResult> AttendanceOverview(
-            DateTime? dateFrom,
-            DateTime? dateTo,
-            string searchTerm = "",
-            string sortBy = "Date",
-            string sortOrder = "desc",
-            int pageSize = 10,
-            int currentPage = 1)
+
+        // GET: Monitoring/AttendanceOverview
+        public async Task<IActionResult> AttendanceOverview(DateTime? dateFrom, DateTime? dateTo, string searchTerm = "", string sortBy = "Date", string sortOrder = "desc", int pageSize = 10, int currentPage = 1)
         {
             // ADDED: Admin check
             var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
@@ -499,23 +520,21 @@ namespace InternProject1.Controllers
                     }
 
                     // Combine: sorted records first, then nulls at the end
-                    var sortedData = sortedWithHours.Concat(withoutHours).ToList();
+                    var allRecords = sortedWithHours.Concat(withoutHours).ToList();
 
-                    // Get total count for pagination
-                    totalRecords = sortedData.Count;
+                    totalRecords = allRecords.Count;
 
-                    // Apply pagination to sorted data
-                    attendanceRecords = sortedData
+                    // Apply pagination
+                    attendanceRecords = allRecords
                         .Skip((currentPage - 1) * pageSize)
                         .Take(pageSize)
                         .ToList();
 
-                    // Calculate total pages
                     totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
                 }
                 else
                 {
-                    // Apply sorting for all OTHER columns (not WorkHours)
+                    // Normal sorting
                     switch (sortBy)
                     {
                         case "Employee_ID":
@@ -523,49 +542,42 @@ namespace InternProject1.Controllers
                                 ? query.OrderBy(a => a.Employee_ID)
                                 : query.OrderByDescending(a => a.Employee_ID);
                             break;
-
                         case "EmployeeName":
                             query = sortOrder == "asc"
                                 ? query.OrderBy(a => a.Employee.First_Name).ThenBy(a => a.Employee.Last_Name)
                                 : query.OrderByDescending(a => a.Employee.First_Name).ThenByDescending(a => a.Employee.Last_Name);
                             break;
-
                         case "Department":
                             query = sortOrder == "asc"
                                 ? query.OrderBy(a => a.Employee.Department.Department_Name)
                                 : query.OrderByDescending(a => a.Employee.Department.Department_Name);
                             break;
-
                         case "Date":
                             query = sortOrder == "asc"
                                 ? query.OrderBy(a => a.Date)
                                 : query.OrderByDescending(a => a.Date);
                             break;
-
                         case "Status":
                             query = sortOrder == "asc"
                                 ? query.OrderBy(a => a.Status)
                                 : query.OrderByDescending(a => a.Status);
                             break;
-
                         case "ClockInTime":
                             query = sortOrder == "asc"
                                 ? query.OrderBy(a => a.ClockInTime)
                                 : query.OrderByDescending(a => a.ClockInTime);
                             break;
-
                         case "ClockOutTime":
                             query = sortOrder == "asc"
                                 ? query.OrderBy(a => a.ClockOutTime)
                                 : query.OrderByDescending(a => a.ClockOutTime);
                             break;
-
                         default:
                             query = query.OrderByDescending(a => a.Date);
                             break;
                     }
 
-                    // Get total count for pagination
+                    // Get total count before pagination
                     totalRecords = await query.CountAsync();
 
                     // Get paginated data
@@ -607,48 +619,55 @@ namespace InternProject1.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ExportToExcel(
-    DateTime? dateFrom,
-    DateTime? dateTo,
-    string searchTerm = "",
-    string sortBy = "Date",
-    string sortOrder = "desc")
+        public async Task<IActionResult> ExportToExcel(DateTime? dateFrom, DateTime? dateTo, string searchTerm = "", string sortBy = "Date", string sortOrder = "desc")
         {
-            // ADDED: Admin check
-            var isAdmin = HttpContext.Session.GetString("IsAdminAuthenticated");
-            if (isAdmin != "true")
-            {
-                return RedirectToAction("AdminLogin");
-            }
-
             try
             {
-                // Get filtered attendance data with sorting (now includes sortBy and sortOrder)
+                // Get the same filtered data as the view (but all records, no pagination)
                 var attendanceRecords = await GetFilteredAttendanceData(dateFrom, dateTo, searchTerm, sortBy, sortOrder);
+
+                if (attendanceRecords == null || !attendanceRecords.Any())
+                {
+                    TempData["Error"] = "No records found to export.";
+                    return RedirectToAction("AttendanceOverview", new { dateFrom, dateTo, searchTerm, sortBy, sortOrder });
+                }
 
                 using (var workbook = new XLWorkbook())
                 {
-                    var worksheet = workbook.Worksheets.Add("Attendance Report");
-                    var currentRow = 1;
+                    var worksheet = workbook.Worksheets.Add("Attendance Records");
 
-                    // Headers for YOUR data format
+                    // Add title
+                    worksheet.Cell(1, 1).Value = "Attendance Overview Report";
+                    worksheet.Cell(1, 1).Style.Font.Bold = true;
+                    worksheet.Cell(1, 1).Style.Font.FontSize = 16;
+                    worksheet.Range(1, 1, 1, 8).Merge();
+
+                    // Add generation date
+                    worksheet.Cell(2, 1).Value = $"Generated on: {DateTime.Now:MMMM dd, yyyy HH:mm}";
+                    worksheet.Range(2, 1, 2, 8).Merge();
+
+                    // Add headers
+                    int currentRow = 4;
                     worksheet.Cell(currentRow, 1).Value = "Employee ID";
                     worksheet.Cell(currentRow, 2).Value = "Employee Name";
                     worksheet.Cell(currentRow, 3).Value = "Department";
                     worksheet.Cell(currentRow, 4).Value = "Date";
                     worksheet.Cell(currentRow, 5).Value = "Status";
-                    worksheet.Cell(currentRow, 6).Value = "Check In";
-                    worksheet.Cell(currentRow, 7).Value = "Check Out";
+                    worksheet.Cell(currentRow, 6).Value = "Clock In";
+                    worksheet.Cell(currentRow, 7).Value = "Clock Out";
                     worksheet.Cell(currentRow, 8).Value = "Work Hours";
 
-                    // Style headers (optional - like your friend's style)
+                    // Style header row
                     var headerRange = worksheet.Range(currentRow, 1, currentRow, 8);
                     headerRange.Style.Font.Bold = true;
+                    headerRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
+                    headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
-                    // Add data
+                    // Add data rows
+                    currentRow++;
                     foreach (var record in attendanceRecords)
                     {
-                        currentRow++;
                         worksheet.Cell(currentRow, 1).Value = record.Employee_ID;
                         worksheet.Cell(currentRow, 2).Value = record.Employee?.First_Name + " " + record.Employee?.Last_Name;
                         worksheet.Cell(currentRow, 3).Value = record.Employee?.Department?.Department_Name ?? "-";
@@ -668,6 +687,8 @@ namespace InternProject1.Controllers
                         {
                             worksheet.Cell(currentRow, 8).Value = "-";
                         }
+
+                        currentRow++;
                     }
 
                     // Auto-fit columns
@@ -686,7 +707,6 @@ namespace InternProject1.Controllers
                         currentRow++;
                     }
 
-                    // ADDED: Show sort information
                     if (!string.IsNullOrEmpty(sortBy) && sortBy != "Date")
                     {
                         worksheet.Cell(currentRow, 1).Value = $"Sorted By: {sortBy} ({sortOrder.ToUpper()})";
@@ -698,7 +718,7 @@ namespace InternProject1.Controllers
 
                     using (var stream = new MemoryStream())
                     {
-                        workbook.SaveAs(stream);                      
+                        workbook.SaveAs(stream);
                         var fileName = $"Attendance_Report_{DateTime.Now:yyyyMMdd}.xlsx";
                         return File(stream.ToArray(),
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -715,12 +735,7 @@ namespace InternProject1.Controllers
         }
 
         // Helper method to get filtered data
-        private async Task<List<Attendance>> GetFilteredAttendanceData(
-            DateTime? dateFrom,
-            DateTime? dateTo,
-            string searchTerm = "",
-            string sortBy = "Date",
-            string sortOrder = "desc")
+        private async Task<List<Attendance>> GetFilteredAttendanceData(DateTime? dateFrom, DateTime? dateTo, string searchTerm = "", string sortBy = "Date", string sortOrder = "desc")
         {
             // If no dates provided, default to current month
             if (!dateFrom.HasValue)
@@ -729,7 +744,6 @@ namespace InternProject1.Controllers
             if (!dateTo.HasValue)
                 dateTo = DateTime.Now.Date;
 
-            // Start with base query
             var query = _context.Attendances
                 .Include(a => a.Employee)
                 .ThenInclude(e => e.Department)
@@ -748,10 +762,8 @@ namespace InternProject1.Controllers
                     (a.Status != null && a.Status.ToLower().Contains(term)));
             }
 
-            // SPECIAL HANDLING FOR WORKHOURS SORTING
             if (sortBy == "WorkHours")
             {
-                // Load all data first
                 var allData = await query.ToListAsync();
 
                 // Separate records with and without work hours
@@ -777,7 +789,7 @@ namespace InternProject1.Controllers
                 return sortedWithHours.Concat(withoutHours).ToList();
             }
 
-            // Apply sorting for other columns (same logic as in AttendanceOverview)
+            // Apply sorting for other columns
             switch (sortBy)
             {
                 case "Employee_ID":
@@ -825,8 +837,7 @@ namespace InternProject1.Controllers
         }
 
     }
-
-        public class DailyAttendance
+    public class DailyAttendance
     {
         public DateTime Date { get; set; }
         public string DayName { get; set; }

@@ -1,0 +1,276 @@
+﻿@model InternProject1.Models.ShiftSchedule
+@{
+    ViewData["Title"] = "Add Schedule Exception";
+    var shiftId = ViewBag.ShiftId;
+    var shiftName = ViewBag.ShiftName;
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        <ul class="mb-0">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <li>
+                    @if (error.ErrorMessage.Contains("already has an active schedule"))
+                    {
+                        <div class="d-flex">
+                            <i class="bi bi-calendar-x me-2 text-danger"></i>
+                            <div>
+                                <strong>Schedule Conflict!</strong><br>
+                                @Html.Raw(error.ErrorMessage.Replace("already has an active schedule",
+                                "<span class='text-muted'>Already scheduled:</span>"))
+                </div>
+            </div>
+                        }
+                    else
+                    {
+                        @error.ErrorMessage
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-light">
+                    <h4 class="mb-0">
+                        <i class="bi bi-calendar-plus me-2"></i>
+                        Add Schedule Exception for: @shiftName
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="CreateSchedule" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="Shift_ID" value="@shiftId" />
+                        <input type="hidden" name="shiftId" value="@shiftId" />
+                        <input type="hidden" name="ScheduleType" value="Custom" />
+                        <input type="hidden" name="Is_Active" value="true" />
+                        <input type="hidden" name="Is_HalfDay" value="false" />
+                        <input type="hidden" name="Shift.Shift_Name" value="@shiftName" />
+                        <input type="hidden" name="Shift.Start_Time" value="09:00:00" />
+                        <input type="hidden" name="Shift.End_Time" value="18:00:00" />
+                        <input type="hidden" name="Shift.Is_Default" value="false" />
+
+                        <div class="form-group mb-3">
+                            <label class="form-label fw-bold">Schedule Type <span class="text-danger">*</span></label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="scheduleMode"
+                                           id="specificDate" value="specific" checked
+                                           onchange="toggleScheduleFields()">
+                                    <label class="form-check-label" for="specificDate">Specific Date</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="scheduleMode"
+                                           id="weekly" value="weekly"
+                                           onchange="toggleScheduleFields()">
+                                    <label class="form-check-label" for="weekly">Weekly Pattern</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Specific Date -->
+                        <div id="specificDateFields">
+                            <div class="form-group mb-3">
+                                <label asp-for="SpecificDate" class="form-label fw-bold">Date <span class="text-danger">*</span></label>
+                                <input asp-for="SpecificDate" type="date" class="form-control"
+                                       min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                       max="@DateTime.Today.AddYears(1).ToString("yyyy-MM-dd")"
+                                       required />
+                                <span asp-validation-for="SpecificDate" class="text-danger"></span>
+                                <small class="text-muted">
+                                    Cannot set schedule for past dates.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Weekly Pattern -->
+                        <div id="weeklyFields" style="display: none;">
+                            <div class="form-group mb-3">
+                                <label asp-for="DayOfWeek" class="form-label fw-bold">Day of Week <span class="text-danger">*</span></label>
+                                <select asp-for="DayOfWeek" class="form-select">
+                                    <option value="">-- Select Day --</option>
+                                    <option value="0">Sunday</option>
+                                    <option value="1">Monday</option>
+                                    <option value="2">Tuesday</option>
+                                    <option value="3">Wednesday</option>
+                                    <option value="4">Thursday</option>
+                                    <option value="5">Friday</option>
+                                    <option value="6">Saturday</option>
+                                </select>
+                                <span asp-validation-for="DayOfWeek" class="text-danger"></span>
+                            </div>
+
+                            <!-- Optional Date Range -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label asp-for="StartDate" class="form-label">Start Date (Optional)</label>
+                                        <input asp-for="StartDate" type="date" class="form-control" />
+                                        <small class="text-muted">If empty, applies every week</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label asp-for="EndDate" class="form-label">End Date (Optional)</label>
+                                        <input asp-for="EndDate" type="date" class="form-control" />
+                                        <small class="text-muted">If empty, applies indefinitely</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Work Hours for This Schedule -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-clock me-2"></i>Work Hours</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label asp-for="Start_Time" class="form-label fw-bold">From <span class="text-danger">*</span></label>
+                                            <input asp-for="Start_Time" type="time" class="form-control" required />
+                                            <span asp-validation-for="Start_Time" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label asp-for="End_Time" class="form-label fw-bold">To <span class="text-danger">*</span></label>
+                                            <input asp-for="End_Time" type="time" class="form-control" required />
+                                            <span asp-validation-for="End_Time" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Half Day Checkbox -->
+                                <div class="form-check">
+                                    <input asp-for="Is_HalfDay" class="form-check-input" id="halfDayCheck" />
+                                    <label class="form-check-label" for="halfDayCheck">
+                                        Mark as Half Day <small class="text-muted">(Work hours less than 5 hours)</small>
+                                    </label>
+                                </div>
+
+                                <!-- Auto-duration display -->
+                                <div class="mt-2 text-info" id="durationDisplay" style="display: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                    <span id="durationText"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Description" class="form-label fw-bold">Description <span class="text-danger">*</span></label>
+                            <input asp-for="Description" class="form-control"
+                                   placeholder="e.g., Saturday half-day, Holiday schedule" />
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="bi bi-check-circle me-2"></i> Add Schedule
+                            </button>
+                            <a asp-action="ManageSchedules" asp-route-shiftId="@shiftId"
+                               class="btn btn-secondary px-4">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleScheduleFields() {
+            const mode = document.querySelector('input[name="scheduleMode"]:checked').value;
+
+            if (mode === 'specific') {
+                document.getElementById('specificDateFields').style.display = 'block';
+                document.getElementById('weeklyFields').style.display = 'none';
+                // Make SpecificDate required
+                document.getElementById('SpecificDate').required = true;
+                document.getElementById('DayOfWeek').required = false;
+                document.getElementById('DayOfWeek').value = '';
+            } else {
+                document.getElementById('specificDateFields').style.display = 'none';
+                document.getElementById('weeklyFields').style.display = 'block';
+                // Make DayOfWeek required
+                document.getElementById('SpecificDate').required = false;
+                document.getElementById('DayOfWeek').required = true;
+                document.getElementById('SpecificDate').value = '';
+            }
+        }
+
+        function calculateWorkDuration() {
+            const startInput = document.getElementById('Start_Time');
+            const endInput = document.getElementById('End_Time');
+            const halfDayCheck = document.getElementById('halfDayCheck');
+            const durationDisplay = document.getElementById('durationDisplay');
+            const durationText = document.getElementById('durationText');
+
+            if (startInput.value && endInput.value) {
+                // Parse times
+                const start = new Date('2000-01-01T' + startInput.value);
+                const end = new Date('2000-01-01T' + endInput.value);
+
+                // Calculate hours
+                const hours = (end - start) / (1000 * 60 * 60);
+
+                // Update display
+                durationText.textContent = `Total: ${hours.toFixed(1)} hours`;
+                durationDisplay.style.display = 'block';
+
+                // Auto-check half-day if less than 5 hours
+                if (hours < 5) {
+                    halfDayCheck.checked = true;
+                    durationText.innerHTML += ' <span class="badge bg-warning">Half Day</span>';
+                } else {
+                    halfDayCheck.checked = false;
+                }
+            } else {
+                durationDisplay.style.display = 'none';
+            }
+        }
+
+        // Add event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const startInput = document.getElementById('Start_Time');
+            const endInput = document.getElementById('End_Time');
+
+            if (startInput && endInput) {
+                startInput.addEventListener('change', calculateWorkDuration);
+                endInput.addEventListener('change', calculateWorkDuration);
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleScheduleFields();
+
+            // Clear session when navigating away from Shifts pages
+            document.addEventListener('click', function(e) {
+                var link = e.target.closest('a');
+                if (link && link.href) {
+                    var url = new URL(link.href, window.location.origin);
+                    if (!url.pathname.includes('/Shifts/')) {
+                        navigator.sendBeacon('@Url.Action("ClearSession", "Shifts")');
+                    }
+                }
+            });
+
+            // Also clear on back/forward button
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                    window.location.href = '@Url.Action("AdminLogin", "Shifts")';
+                }
+            });
+        });
+    </script>
+}

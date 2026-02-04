@@ -91,7 +91,7 @@
 
     .search-group {
         flex: 1;
-        min-width: 300px;
+        min-width: 280px;
     }
 
     .date-group {
@@ -101,7 +101,7 @@
     }
 
     .date-input-group {
-        min-width: 180px;
+        width: 150px;
     }
 
     .form-label {
@@ -168,7 +168,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        min-width: 120px;
+        min-width: 100px;
         justify-content: center;
     }
 
@@ -587,7 +587,7 @@
                                name="searchTerm" 
                                id="searchTerm"
                                value="@searchTerm"
-                               placeholder="Search by name, department, or status...">
+                               placeholder="Search name, department, or status...">
                         @if (!string.IsNullOrEmpty(searchTerm))
                         {
                             <button type="button" 
