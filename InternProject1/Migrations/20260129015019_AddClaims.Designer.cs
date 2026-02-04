@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260129011111_AddClaimsTable")]
-    partial class AddClaimsTable
+    [Migration("20260129015019_AddClaims")]
+    partial class AddClaims
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -177,9 +177,6 @@ namespace InternProject1.Migrations
                     b.Property<string>("Gender")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("Joining_Date")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Last_Name")
                         .IsRequired()

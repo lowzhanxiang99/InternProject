@@ -666,10 +666,7 @@
                 .filter(cb => cb.checked)
                 .map(cb => cb.value);
 
-            if (!shiftId || selectedEmployees.length === 0) {
-                showMessage('Please select both a shift and employees', 'warning');
-                return;
-            }
+                    const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
 
             // Confirm batch assignment
             if (!confirm(`Assign shift to ${selectedEmployees.length} employee(s)?`)) return;
@@ -687,10 +684,24 @@
                 .filter(cb => cb.checked)
                 .map(cb => cb.value);
 
-            if (selectedEmployees.length === 0) {
-                showMessage('Please select employees first', 'warning');
-                return;
-            }
+                    // Enable/disable Clear Shifts button
+                    batchClearShiftsBtn.disabled = selectedEmployees === 0;
+                }
+
+                // Update selected employees summary
+                function updateSelectedSummary() {
+                    const selectedList = document.getElementById('selectedEmployeesList');
+                    selectedList.innerHTML = '';
+
+                    const selectedEmployees = Array.from(employeeCheckboxes)
+                        .filter(cb => cb.checked)
+                        .map(cb => {
+                            const item = cb.closest('.employee-item');
+                            return {
+                                id: cb.value,
+                                name: item.getAttribute('data-employee-name')
+                            };
+                        });
 
             if (!confirm(`Remove shifts from ${selectedEmployees.length} employee(s)?`)) return;
 
