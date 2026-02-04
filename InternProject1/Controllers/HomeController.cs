@@ -193,7 +193,8 @@ public class HomeController : Controller
         // Calculate working hours from ClockInTime to ClockOutTime
         TimeSpan currentMonthWorkTotal = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
-            .Select(a => {
+            .Select(a =>
+            {
                 // Calculate work duration (excluding breaks)
                 TimeSpan workDuration = a.ClockOutTime.Value - a.ClockInTime.Value;
 
@@ -210,7 +211,8 @@ public class HomeController : Controller
 
         TimeSpan previousMonthWorkTotal = previousMonthAttendances
             .Where(a => a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
-            .Select(a => {
+            .Select(a =>
+            {
                 TimeSpan workDuration = a.ClockOutTime.Value - a.ClockInTime.Value;
                 if (a.TotalBreakTime.HasValue)
                 {
