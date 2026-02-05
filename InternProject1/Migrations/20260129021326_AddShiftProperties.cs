@@ -35,6 +35,6 @@ namespace InternProject1.Migrations
             migrationBuilder.DropColumn(
                 name: "UsingDefaultShift",
                 table: "Employees");
-        }
+       }
     }
 }

@@ -1530,10 +1530,7 @@
                                         <ul class="pagination mb-0" id="paginationNav">
                                             <!-- Previous button -->
                                             <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                                                <a class="page-link"
-                                                   href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage - 1)"
-                                                   onclick="changePage(@(currentPage - 1)); return false;"
-                                                   aria-label="Previous">
+                                                <a class="page-link" href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage - 1)" onclick="event.preventDefault(); changePage(@(currentPage - 1));">
                                                     <span aria-hidden="true">&laquo;</span>
                                                 </a>
                                             </li>
@@ -1552,9 +1549,7 @@
                                             @for (int i = startPage; i <= endPage; i++)
                                             {
                                                 <li class="page-item @(i == currentPage ? "active" : "")">
-                                                    <a class="page-link"
-                                                       href="?month=@selectedMonth&year=@selectedYear&page=@i"
-                                                       onclick="changePage(@i); return false;">
+                                                    <a class="page-link" href="?month=@selectedMonth&year=@selectedYear&page=@i" onclick="event.preventDefault(); changePage(@i);">
                                                         @i
                                                     </a>
                                                 </li>
@@ -1562,10 +1557,7 @@
 
                                             <!-- Next button -->
                                             <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                                                <a class="page-link"
-                                                   href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage + 1)"
-                                                   onclick="changePage(@(currentPage + 1)); return false;"
-                                                   aria-label="Next">
+                                                <a class="page-link" href="?month=@selectedMonth&year=@selectedYear&page=@(currentPage + 1)" onclick="event.preventDefault(); changePage(@(currentPage + 1));">
                                                     <span aria-hidden="true">&raquo;</span>
                                                 </a>
                                             </li>
@@ -2159,46 +2151,17 @@
         }
 
         // Modified changePage function
-        async function changePage(page, isAjax = false) {
-            if (page < 1 || page > currentSort.totalPages) return;
-
-            if (isAjax) {
-                // AJAX pagination (when sorting is active)
-                showTableLoading(true);
-                try {
-                    await loadSortedData(currentSort.column, currentSort.order, page);
-                } catch (error) {
-                    console.error('Page change error:', error);
-                    showToast('Error loading page. Please try again.', 'error');
-                } finally {
-                    showTableLoading(false);
-                }
-            } else {
-                // Regular pagination (non-AJAX)
-                const monthSelect = document.getElementById('monthSelect');
-                const yearSelect = document.getElementById('yearSelect');
-                const currentMonth = monthSelect ? monthSelect.value : @selectedMonth;
-                const currentYear = yearSelect ? yearSelect.value : @selectedYear;
-
-                // Navigate to the page with month/year parameters
-                window.location.href = `?month=${currentMonth}&year=${currentYear}&page=${page}`;
-            }
-        }
-
-        // Function to change page
         async function changePage(page) {
-            if (page < 1 || page > currentSort.totalPages) return;
+            console.log('Changing to page:', page);
 
-            showTableLoading(true);
+            // Get current month and year values
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
+            const currentMonth = monthSelect ? monthSelect.value : @selectedMonth;
+            const currentYear = yearSelect ? yearSelect.value : @selectedYear;
 
-            try {
-                await loadSortedData(currentSort.column, currentSort.order, page);
-            } catch (error) {
-                console.error('Page change error:', error);
-                showToast('Error loading page. Please try again.', 'error');
-            } finally {
-                showTableLoading(false);
-            }
+            // Navigate to the page with month/year parameters
+            window.location.href = `?month=${currentMonth}&year=${currentYear}&page=${page}`;
         }
 
         // Function to show/hide table loading

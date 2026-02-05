@@ -68,6 +68,7 @@
                         <th>Clock In</th>
                         <th>Clock Out</th>
                         <th>Status / Remarks</th>
+                        <th>Login IP</th> @* --- NEW COLUMN --- *@
                         <th>Work Duration</th>
                     </tr>
                 </thead>
@@ -81,7 +82,7 @@
                             var isLate = statusLower == "late";
                             var isLeave = statusLower == "leave";
                             var isAbsent = statusLower == "absent";
-                            var isHoliday = statusLower == "public holiday"; // New condition
+                            var isHoliday = statusLower == "public holiday";
 
                             var hasClockIn = log.ClockInTime.HasValue;
                             var hasClockedOut = log.ClockOutTime.HasValue;
@@ -148,6 +149,20 @@
                                     }
                                 </td>
 
+                                @* --- NEW DATA CELL FOR IP --- *@
+                                <td>
+                                    @if (!string.IsNullOrEmpty(log.IPAddress))
+                                    {
+                                        <span class="badge border text-dark font-monospace" style="background-color: #f1f3f5; font-size: 0.85rem;">
+                                            <i class="bi bi-geo-alt-fill text-primary me-1"></i> @log.IPAddress
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">--</span>
+                                    }
+                                </td>
+
                                 <td class="text-secondary fw-bold">
                                     @((!isLeave && !isAbsent && !isHoliday && hasClockIn && hasClockedOut) ? duration : "--")
                                 </td>
@@ -157,7 +172,8 @@
                     else
                     {
                         <tr>
-                            <td colspan="5" class="py-5 text-muted">
+                            <td colspan="6" class="py-5 text-muted">
+                                @* Increased Colspan to 6 *@
                                 <i class="bi bi-info-circle d-block mb-2" style="font-size: 1.5rem;"></i>
                                 No records found for @currentMonth.
                             </td>

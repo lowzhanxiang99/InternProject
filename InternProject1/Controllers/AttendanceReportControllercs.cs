@@ -73,15 +73,19 @@ public class AttendanceReportController : Controller
         return View("AdminLogin");
     }
 
-    public async Task<IActionResult> Index(string month)
+    // --- FIXED: Merged Index Method to avoid AmbiguousMatchException ---
+    public async Task<IActionResult> Index(string? month)
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
         {
             return RedirectToAction("AdminLogin");
         }
 
-        if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
+        // Default to current month if null
+        if (string.IsNullOrEmpty(month))
+            month = DateTime.Now.ToString("MMMM yyyy");
 
+        // Fetch the summary analytics data
         var reportData = await GetReportData(month);
 
         var allEmployees = await _context.Employees
@@ -91,21 +95,21 @@ public class AttendanceReportController : Controller
 
         ViewBag.EmployeeList = allEmployees;
         ViewBag.SelectedMonth = month;
+
         // Generate months for the current year
-        ViewBag.MonthsList = Enumerable.Range(1, 12).Select(i => new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM yyyy")).ToList();
+        ViewBag.MonthsList = Enumerable.Range(1, 12)
+            .Select(i => new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM yyyy"))
+            .ToList();
 
         return View(reportData);
     }
 
-    // --- UPDATED: YEARLY REPORT WITH YEAR FILTER ---
     public async Task<IActionResult> YearlyReport(int? year)
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true") return RedirectToAction("AdminLogin");
 
-        // Use selected year or default to current year
         int targetYear = year ?? DateTime.Now.Year;
 
-        // Prepare Year List for dropdown (e.g., 2 years back and 1 year forward)
         ViewBag.YearList = new List<int> { targetYear - 2, targetYear - 1, targetYear, targetYear + 1 };
         ViewBag.SelectedYear = targetYear;
 
@@ -123,7 +127,6 @@ public class AttendanceReportController : Controller
                 .Where(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve" && (l.Start_Date.Year == targetYear || l.End_Date.Year == targetYear))
                 .ToListAsync();
 
-            // Calculate yearly leave days (excluding Sundays and Holidays)
             int totalYearlyLeaveDays = 0;
             foreach (var leave in approvedLeaves)
             {
@@ -131,7 +134,6 @@ public class AttendanceReportController : Controller
                 {
                     if (date.Year == targetYear && date.DayOfWeek != DayOfWeek.Sunday && !malaysiaHolidays.Contains(date.Date))
                     {
-                        // Only count leave if they didn't actually clock in that day
                         if (!records.Any(r => r.Date.Date == date.Date && r.ClockInTime.HasValue))
                             totalYearlyLeaveDays++;
                     }
@@ -145,7 +147,7 @@ public class AttendanceReportController : Controller
                 AttendanceCount = records.Count(r => r.ClockInTime.HasValue && r.Date.DayOfWeek != DayOfWeek.Sunday),
                 LateCount = records.Count(r => r.Status != null && r.Status.ToLower() == "late"),
                 LeaveCount = totalYearlyLeaveDays,
-                AbsentCount = 0 // Yearly absence usually isn't shown as a static number due to varying total work days
+                AbsentCount = 0
             });
         }
 
@@ -425,6 +427,38 @@ public class AttendanceReportController : Controller
         doc.Close();
 
         return File(pdfFile, "application/pdf", $"Attendance_Report_{month.Replace(" ", "")}.pdf");
+    }
+
+    public async Task<IActionResult> EmployeeDetails(int id, string month)
+    {
+        if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
+        {
+            return RedirectToAction("AdminLogin");
+        }
+
+        if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
+
+        var employee = await _context.Employees.FindAsync(id);
+        if (employee == null) return NotFound();
+
+        DateTime parsedDate;
+        if (!DateTime.TryParseExact(month, "MMMM yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
+        {
+            parsedDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+        }
+
+        var logs = await _context.Attendances
+            .Where(a => a.Employee_ID == id &&
+                        a.Date.Month == parsedDate.Month &&
+                        a.Date.Year == parsedDate.Year)
+            .OrderBy(a => a.Date)
+            .ToListAsync();
+
+        ViewBag.EmployeeName = employee.First_Name + " " + employee.Last_Name;
+        ViewBag.EmployeeId = id;
+        ViewBag.SelectedMonth = month;
+
+        return View(logs);
     }
 
     public IActionResult Logout()

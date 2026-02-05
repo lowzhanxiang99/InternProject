@@ -75,29 +75,28 @@ public class AccountController : Controller
         return View();
     }
 
-    // --- UPDATED: QR CODE AUTO-LOGIN & CLOCK-IN WITH 5-MINUTE ROTATION ---
     public async Task<IActionResult> AutoLogin(int empId, string secret)
     {
-        // 1. Get Base Secret from configuration
-        string baseSecret = _configuration["QRCodeSettings:SecretPassphrase"] ?? "AlpineSolution2026";
+        // 1. Define a static secret
+        string baseSecret = "AlpineSolution2026";
 
-        // 2. Calculate the current 5-minute time block (Unix Time / 300 seconds)
-        long currentTimeStep = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds / 300;
-
-        // 3. Generate the expected secrets for the Current and Previous time blocks
-        // Checking "currentTimeStep - 1" provides a buffer for codes generated right before the flip.
-        string expectedSecretNow = $"{baseSecret}_{currentTimeStep}";
-        string expectedSecretPrev = $"{baseSecret}_{currentTimeStep - 1}";
-
-        // 4. Validate the incoming secret
-        if (secret != expectedSecretNow && secret != expectedSecretPrev)
+        // 2. Validate the incoming secret
+        if (secret != baseSecret)
         {
-            return Unauthorized("This QR code has expired or is invalid. Please refresh your code.");
+            return Unauthorized("Invalid QR code. Please contact the administrator.");
         }
 
+        // 3. Find the employee
         var user = await _context.Employees.FindAsync(empId);
         if (user == null) return NotFound();
 
+        // --- NEW: Capture the IP Address ---
+        string userIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+
+        // If testing locally, IPv6 loopback "::1" is common, convert to IPv4 style for clarity
+        if (userIp == "::1") userIp = "127.0.0.1";
+
+        // 4. Handle Clock-In logic
         var today = DateTime.Now.Date;
         var existingAttendance = await _context.Attendances
             .FirstOrDefaultAsync(a => a.Employee_ID == empId && a.Date == today);
@@ -109,18 +108,21 @@ public class AccountController : Controller
                 Employee_ID = empId,
                 Date = today,
                 ClockInTime = DateTime.Now.TimeOfDay,
-                Status = (DateTime.Now.Hour < 9) ? "Present" : "Late"
+                // Assuming 9:00 AM is the late threshold
+                Status = (DateTime.Now.Hour < 9) ? "Present" : "Late",
+                IPAddress = userIp  // <--- NEW: Saving the IP to the database
             };
 
             _context.Attendances.Add(attendance);
             await _context.SaveChangesAsync();
-            TempData["SuccessMessage"] = "Clock-in successful!";
+            TempData["SuccessMessage"] = $"Clock-in successful from IP: {userIp}";
         }
         else
         {
             TempData["SuccessMessage"] = "You have already clocked in for today.";
         }
 
+        // 5. Set Session and Login
         HttpContext.Session.SetInt32("UserID", user.Employee_ID);
         HttpContext.Session.SetString("UserName", $"{user.First_Name} {user.Last_Name}");
 

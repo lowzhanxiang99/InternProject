@@ -11,7 +11,7 @@ namespace InternProject1.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<TimeSpan>(
+             migrationBuilder.AddColumn<TimeSpan>(
                 name: "Expected_End",
                 table: "Attendances",
                 type: "time",
@@ -65,6 +65,7 @@ namespace InternProject1.Migrations
             migrationBuilder.DropColumn(
                 name: "Used_Default_Shift",
                 table: "Attendances");
+            
         }
     }
 }
