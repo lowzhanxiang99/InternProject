@@ -27,7 +27,7 @@ namespace InternProject1.Controllers
             return HttpContext.Session.GetInt32("UserID");
         }
 
-        public async Task<IActionResult> Index(int? month = null, int? year = null)
+        public async Task<IActionResult> Index(int? month = null, int? year = null, int page = 1)
         {
             var userId = GetCurrentUserId();
 

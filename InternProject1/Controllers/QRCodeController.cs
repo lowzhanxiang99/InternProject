@@ -9,18 +9,16 @@ namespace InternProject1.Controllers
     {
         public IActionResult Generate(int employeeId)
         {
+            // IMPORTANT: Use your actual local IP (e.g., 192.168.1.15) if Request.Host 
+            // is showing "localhost", otherwise your phone won't connect.
             var host = Request.Host.Value;
             var scheme = Request.Scheme;
 
-            // 1. Calculate a 5-minute time block (Unix time divided by 300 seconds)
-            long timeStep = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds / 300;
+            // 1. Use the static secret only (No more 5-minute time blocks)
+            string baseSecret = "AlpineSolution2026";
 
-            // 2. Create a dynamic secret using your base passphrase + the time step
-            string baseSecret = "AlpineSolution2026"; // Matches your updated appsettings
-            string dynamicSecret = $"{baseSecret}_{timeStep}";
-
-            // 3. Generate the URL with the dynamic secret
-            string loginUrl = $"{scheme}://{host}/Account/AutoLogin?empId={employeeId}&secret={dynamicSecret}";
+            // 2. Generate the URL with just the employeeId and the static secret
+            string loginUrl = $"{scheme}://{host}/Account/AutoLogin?empId={employeeId}&secret={baseSecret}";
 
             using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
             using (QRCodeData qrCodeData = qrGenerator.CreateQrCode(loginUrl, QRCodeGenerator.ECCLevel.Q))
