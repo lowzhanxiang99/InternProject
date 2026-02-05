@@ -3,6 +3,7 @@ using InternProject1.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
 using ClosedXML.Excel;
 using System.IO;
 using SelectPdf;
@@ -11,16 +12,51 @@ using System.Linq;
 using System.Threading.Tasks;
 using System;
 using System.Globalization;
+using System.Diagnostics;
 
 namespace InternProject1.Controllers;
 
 public class AttendanceReportController : Controller
 {
     private readonly ApplicationDbContext _context;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
-    public AttendanceReportController(ApplicationDbContext context)
+    public AttendanceReportController(ApplicationDbContext context, IWebHostEnvironment webHostEnvironment)
     {
         _context = context;
+        _webHostEnvironment = webHostEnvironment;
+    }
+
+    private HashSet<DateTime> GetMalaysiaHolidays(int year)
+    {
+        var baseHolidays = new List<DateTime>
+        {
+            new DateTime(year, 1, 1),
+            new DateTime(year, 1, 29),
+            new DateTime(year, 1, 30),
+            new DateTime(year, 2, 1),
+            new DateTime(year, 3, 20),
+            new DateTime(year, 3, 21),
+            new DateTime(year, 5, 1),
+            new DateTime(year, 5, 27),
+            new DateTime(year, 5, 31),
+            new DateTime(year, 6, 1),
+            new DateTime(year, 8, 31),
+            new DateTime(year, 9, 16),
+            new DateTime(year, 11, 8),
+            new DateTime(year, 12, 25)
+        };
+
+        var finalHolidays = new HashSet<DateTime>();
+        foreach (var holiday in baseHolidays)
+        {
+            finalHolidays.Add(holiday);
+            if (holiday.DayOfWeek == DayOfWeek.Sunday)
+            {
+                finalHolidays.Add(holiday.AddDays(1));
+            }
+        }
+        return finalHolidays;
     }
 
     public IActionResult AdminLogin() => View();
@@ -55,74 +91,65 @@ public class AttendanceReportController : Controller
 
         ViewBag.EmployeeList = allEmployees;
         ViewBag.SelectedMonth = month;
-
-        var monthsList = Enumerable.Range(1, 12).Select(i => new DateTime(2026, i, 1).ToString("MMMM yyyy")).ToList();
-        ViewBag.MonthsList = monthsList;
+        // Generate months for the current year
+        ViewBag.MonthsList = Enumerable.Range(1, 12).Select(i => new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM yyyy")).ToList();
 
         return View(reportData);
     }
 
-    public async Task<IActionResult> EmployeeDetails(int id, string month)
+    // --- UPDATED: YEARLY REPORT WITH YEAR FILTER ---
+    public async Task<IActionResult> YearlyReport(int? year)
     {
-        if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
+        if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true") return RedirectToAction("AdminLogin");
+
+        // Use selected year or default to current year
+        int targetYear = year ?? DateTime.Now.Year;
+
+        // Prepare Year List for dropdown (e.g., 2 years back and 1 year forward)
+        ViewBag.YearList = new List<int> { targetYear - 2, targetYear - 1, targetYear, targetYear + 1 };
+        ViewBag.SelectedYear = targetYear;
+
+        var employees = await _context.Employees.ToListAsync();
+        var yearlyData = new List<StaffSummaryViewModel>();
+        var malaysiaHolidays = GetMalaysiaHolidays(targetYear);
+
+        foreach (var emp in employees)
         {
-            return RedirectToAction("AdminLogin");
-        }
+            var records = await _context.Attendances
+                .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Year == targetYear)
+                .ToListAsync();
 
-        var employee = await _context.Employees.FindAsync(id);
-        if (employee == null) return NotFound();
+            var approvedLeaves = await _context.LeaveRequests
+                .Where(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve" && (l.Start_Date.Year == targetYear || l.End_Date.Year == targetYear))
+                .ToListAsync();
 
-        if (string.IsNullOrEmpty(month)) month = "January 2026";
-
-        DateTime parsedDate;
-        if (!DateTime.TryParseExact(month, "MMMM yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
-        {
-            parsedDate = new DateTime(2026, 1, 1);
-        }
-
-        var targetMonth = parsedDate.Month;
-        var targetYear = parsedDate.Year;
-        DateTime today = DateTime.Now.Date;
-
-        var approvedLeaveDates = await _context.LeaveRequests
-            .Where(l => l.Employee_ID == id && l.Status == "Approve")
-            .ToListAsync();
-
-        var validDatesList = new HashSet<DateTime>();
-        foreach (var leave in approvedLeaveDates)
-        {
-            for (var dt = leave.Start_Date.Date; dt <= leave.End_Date.Date; dt = dt.AddDays(1))
+            // Calculate yearly leave days (excluding Sundays and Holidays)
+            int totalYearlyLeaveDays = 0;
+            foreach (var leave in approvedLeaves)
             {
-                if (dt.Month == targetMonth && dt.Year == targetYear)
+                for (var date = leave.Start_Date.Date; date <= leave.End_Date.Date; date = date.AddDays(1))
                 {
-                    validDatesList.Add(dt);
+                    if (date.Year == targetYear && date.DayOfWeek != DayOfWeek.Sunday && !malaysiaHolidays.Contains(date.Date))
+                    {
+                        // Only count leave if they didn't actually clock in that day
+                        if (!records.Any(r => r.Date.Date == date.Date && r.ClockInTime.HasValue))
+                            totalYearlyLeaveDays++;
+                    }
                 }
             }
-        }
 
-        // MODIFY: Pull all records, then filter in memory to keep future Leaves but hide future Presence
-        var allRecords = await _context.Attendances
-            .Where(a => a.Employee_ID == id && a.Date.Month == targetMonth && a.Date.Year == targetYear)
-            .OrderByDescending(a => a.Date)
-            .ToListAsync();
-
-        var filteredAttendance = allRecords.Where(a =>
-            a.Date.Date <= today || (a.Date.Date > today && a.Status == "Leave")
-        ).ToList();
-
-        foreach (var log in filteredAttendance)
-        {
-            if (log.Status == "Leave" && !validDatesList.Contains(log.Date.Date))
+            yearlyData.Add(new StaffSummaryViewModel
             {
-                log.Status = "Absent";
-            }
+                Employee_ID = emp.Employee_ID,
+                Name = emp.First_Name + " " + emp.Last_Name,
+                AttendanceCount = records.Count(r => r.ClockInTime.HasValue && r.Date.DayOfWeek != DayOfWeek.Sunday),
+                LateCount = records.Count(r => r.Status != null && r.Status.ToLower() == "late"),
+                LeaveCount = totalYearlyLeaveDays,
+                AbsentCount = 0 // Yearly absence usually isn't shown as a static number due to varying total work days
+            });
         }
 
-        ViewBag.EmployeeName = employee.First_Name + " " + employee.Last_Name;
-        ViewBag.SelectedMonth = month;
-        ViewBag.EmployeeId = id;
-
-        return View(filteredAttendance);
+        return View(yearlyData);
     }
 
     private async Task<List<StaffSummaryViewModel>> GetReportData(string monthName)
@@ -130,7 +157,7 @@ public class AttendanceReportController : Controller
         DateTime parsedDate;
         if (!DateTime.TryParseExact(monthName, "MMMM yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
         {
-            parsedDate = new DateTime(2026, 1, 1);
+            parsedDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
         }
 
         var targetMonth = parsedDate.Month;
@@ -139,21 +166,29 @@ public class AttendanceReportController : Controller
 
         var monthStartDate = new DateTime(targetYear, targetMonth, 1);
         var monthEndDate = monthStartDate.AddMonths(1).AddDays(-1);
+        var malaysiaHolidays = GetMalaysiaHolidays(targetYear);
 
-        int workDaysToCount = 0;
-        int lastDayToProcess = 0;
+        int totalSundaysInMonth = 0;
+        int totalHolidaysInMonth = 0;
+        int daysInFullMonth = DateTime.DaysInMonth(targetYear, targetMonth);
 
-        if (parsedDate.Year < today.Year || (parsedDate.Year == today.Year && parsedDate.Month < today.Month))
-            lastDayToProcess = DateTime.DaysInMonth(targetYear, targetMonth);
-        else if (parsedDate.Year == today.Year && parsedDate.Month == today.Month)
-            lastDayToProcess = today.Day;
-        else
-            lastDayToProcess = 0;
+        for (int d = 1; d <= daysInFullMonth; d++)
+        {
+            DateTime current = new DateTime(targetYear, targetMonth, d);
+            if (current.DayOfWeek == DayOfWeek.Sunday) totalSundaysInMonth++;
+            else if (malaysiaHolidays.Contains(current.Date)) totalHolidaysInMonth++;
+        }
 
+        int lastDayToProcess = (parsedDate.Year < today.Year || (parsedDate.Year == today.Year && parsedDate.Month < today.Month))
+            ? daysInFullMonth
+            : (parsedDate.Year == today.Year && parsedDate.Month == today.Month) ? today.Day : 0;
+
+        int workDaysSoFar = 0;
         for (int d = 1; d <= lastDayToProcess; d++)
         {
             DateTime current = new DateTime(targetYear, targetMonth, d);
-            if (current.DayOfWeek != DayOfWeek.Sunday) workDaysToCount++;
+            if (current.DayOfWeek != DayOfWeek.Sunday && !malaysiaHolidays.Contains(current.Date))
+                workDaysSoFar++;
         }
 
         var employees = await _context.Employees.ToListAsync();
@@ -165,15 +200,11 @@ public class AttendanceReportController : Controller
                     .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
                     .ToListAsync();
 
-            // Only count Attendance/Late if Date <= Today
             int attCount = records.Count(a => a.Date.Date <= today && a.ClockInTime.HasValue && a.Date.DayOfWeek != DayOfWeek.Sunday);
             int lateCount = records.Count(a => a.Date.Date <= today && (a.Status != null && a.Status.ToLower() == "late") && a.ClockInTime.HasValue);
 
             var approvedLeaves = await _context.LeaveRequests
-                .Where(l => l.Employee_ID == emp.Employee_ID &&
-                            l.Status == "Approve" &&
-                            l.Start_Date <= monthEndDate &&
-                            l.End_Date >= monthStartDate)
+                .Where(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve" && l.Start_Date <= monthEndDate && l.End_Date >= monthStartDate)
                 .ToListAsync();
 
             int leaveDaysThisMonth = 0;
@@ -181,19 +212,13 @@ public class AttendanceReportController : Controller
             {
                 for (var date = leave.Start_Date.Date; date <= leave.End_Date.Date; date = date.AddDays(1))
                 {
-                    if (date >= monthStartDate && date <= monthEndDate && date.DayOfWeek != DayOfWeek.Sunday)
+                    if (date >= monthStartDate && date <= monthEndDate && date.DayOfWeek != DayOfWeek.Sunday && !malaysiaHolidays.Contains(date.Date))
                     {
-                        // Future leaves are allowed to be counted in the total
-                        bool workedOnThisDay = records.Any(r => r.Date.Date == date.Date && r.ClockInTime.HasValue && r.Date.Date <= today);
-                        if (!workedOnThisDay)
-                        {
+                        if (!records.Any(r => r.Date.Date == date.Date && r.ClockInTime.HasValue && r.Date.Date <= today))
                             leaveDaysThisMonth++;
-                        }
                     }
                 }
             }
-
-            int absentCount = Math.Max(0, workDaysToCount - (attCount + records.Count(r => r.Date.Date <= today && r.Status == "Leave")));
 
             reportData.Add(new StaffSummaryViewModel
             {
@@ -202,10 +227,11 @@ public class AttendanceReportController : Controller
                 AttendanceCount = attCount,
                 LateCount = lateCount,
                 LeaveCount = leaveDaysThisMonth,
-                AbsentCount = absentCount
+                AbsentCount = Math.Max(0, workDaysSoFar - (attCount + leaveDaysThisMonth)),
+                HolidayCount = totalHolidaysInMonth,
+                SundayCount = totalSundaysInMonth
             });
         }
-
         return reportData;
     }
 
@@ -214,16 +240,32 @@ public class AttendanceReportController : Controller
         if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
         var data = await GetReportData(month);
 
+        DateTime parsedDate = DateTime.ParseExact(month, "MMMM yyyy", CultureInfo.InvariantCulture);
+        int totalDays = DateTime.DaysInMonth(parsedDate.Year, parsedDate.Month);
+        var firstRecord = data.FirstOrDefault();
+        int expectedWorkDays = firstRecord != null ? (totalDays - firstRecord.SundayCount - firstRecord.HolidayCount) : 0;
+
         using (var workbook = new XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Attendance Report");
-            var currentRow = 1;
-            worksheet.Cell(currentRow, 1).Value = "Employee Name";
-            worksheet.Cell(currentRow, 2).Value = "Attendance";
-            worksheet.Cell(currentRow, 3).Value = "Late";
-            worksheet.Cell(currentRow, 4).Value = "Leave";
-            worksheet.Cell(currentRow, 5).Value = "Absent";
 
+            worksheet.Cell(1, 1).Value = "Report Month:";
+            worksheet.Cell(1, 2).Value = month;
+            worksheet.Cell(2, 1).Value = "Expected Working Days:";
+            worksheet.Cell(2, 2).Value = expectedWorkDays;
+            worksheet.Range("A1:A2").Style.Font.Bold = true;
+
+            var headers = new[] { "Employee Name", "Attendance", "Late", "Leave", "Absent", "Public Holiday", "Sunday" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = worksheet.Cell(4, i + 1);
+                cell.Value = headers[i];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#4A77A5");
+                cell.Style.Font.FontColor = XLColor.White;
+            }
+
+            int currentRow = 4;
             foreach (var item in data)
             {
                 currentRow++;
@@ -231,7 +273,13 @@ public class AttendanceReportController : Controller
                 worksheet.Cell(currentRow, 2).Value = item.AttendanceCount;
                 worksheet.Cell(currentRow, 3).Value = item.LateCount;
                 worksheet.Cell(currentRow, 4).Value = item.LeaveCount;
-                worksheet.Cell(currentRow, 5).Value = item.AbsentCount;
+
+                var absentCell = worksheet.Cell(currentRow, 5);
+                absentCell.Value = item.AbsentCount;
+                if (item.AbsentCount > 0) absentCell.Style.Font.FontColor = XLColor.Red;
+
+                worksheet.Cell(currentRow, 6).Value = item.HolidayCount;
+                worksheet.Cell(currentRow, 7).Value = item.SundayCount;
             }
             worksheet.Columns().AdjustToContents();
             using (var stream = new MemoryStream())
@@ -247,38 +295,88 @@ public class AttendanceReportController : Controller
         if (string.IsNullOrEmpty(month)) month = DateTime.Now.ToString("MMMM yyyy");
         var data = await GetReportData(month);
 
-        int totalAtt = data.Sum(x => x.AttendanceCount);
-        int totalLate = data.Sum(x => x.LateCount);
-        int totalLeave = data.Sum(x => x.LeaveCount);
-        int totalAbs = data.Sum(x => x.AbsentCount);
+        DateTime parsedDate = DateTime.ParseExact(month, "MMMM yyyy", CultureInfo.InvariantCulture);
+        int totalDaysInMonth = DateTime.DaysInMonth(parsedDate.Year, parsedDate.Month);
+        var firstRecord = data.FirstOrDefault();
+        int workingDays = firstRecord != null ? (totalDaysInMonth - firstRecord.SundayCount - firstRecord.HolidayCount) : 0;
+
+        string logoBase64 = "";
+        string logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "Alpine Logo.png");
+
+        if (System.IO.File.Exists(logoPath))
+        {
+            try
+            {
+                byte[] imageBytes = System.IO.File.ReadAllBytes(logoPath);
+                logoBase64 = "data:image/png;base64," + Convert.ToBase64String(imageBytes);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Logo conversion failed: {ex.Message}");
+            }
+        }
 
         string htmlContent = $@"
         <html>
         <head>
             <style>
-                body {{ font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #333; }}
-                .header {{ text-align: center; margin-bottom: 30px; border-bottom: 2px solid #4A77A5; padding-bottom: 10px; }}
-                h2 {{ color: #4A77A5; margin: 0; text-transform: uppercase; letter-spacing: 1px; }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }}
-                th {{ background-color: #4A77A5; color: white; padding: 12px 5px; font-size: 13px; text-align: center; }}
-                td {{ border: 1px solid #ddd; padding: 10px 5px; text-align: center; font-size: 12px; }}
-                tr:nth-child(even) {{ background-color: #f9f9f9; }}
-                .total-row {{ background-color: #eee !important; font-weight: bold; border-top: 2px solid #4A77A5; }}
+                body {{ font-family: 'Arial', sans-serif; padding: 20px; color: #333; }}
+                .header-container {{ width: 100%; border-bottom: 3px solid #4A77A5; padding-bottom: 10px; margin-bottom: 20px; }}
+                .logo-box {{ float: left; width: 250px; height: 80px; }}
+                .logo-img {{ height: 70px; width: auto; }}
+                .address-box {{ float: right; text-align: right; font-size: 10px; color: #444; width: 350px; line-height: 1.4; }}
+                .clearfix {{ clear: both; }}
+                .report-title {{ text-align: center; margin: 20px 0; }}
+                .report-title h2 {{ color: #4A77A5; font-size: 24px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }}
+                .stats-grid {{ background-color: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 11px; margin-bottom: 25px; }}
+                .data-table {{ width: 100%; border-collapse: collapse; }}
+                .data-table th {{ background-color: #4A77A5; color: white; padding: 12px 5px; font-size: 11px; border: 1px solid #4A77A5; }}
+                .data-table td {{ border: 1px solid #ddd; padding: 8px 5px; text-align: center; font-size: 10px; }}
+                .name-column {{ text-align: left; padding-left: 10px; font-weight: bold; }}
+                .total-row {{ background-color: #f2f2f2; font-weight: bold; font-size: 11px; }}
+                .footer {{ margin-top: 60px; }}
+                .signature-box {{ float: right; width: 220px; border-top: 1px solid #000; text-align: center; padding-top: 5px; font-size: 11px; }}
+                .timestamp {{ float: left; font-size: 9px; color: #888; margin-top: 15px; }}
             </style>
         </head>
         <body>
-            <div class='header'>
-                <h2>Attendance Analytics Report</h2>
-                <p>Generated for the month of {month}</p>
+            <div class='header-container'>
+                <div class='logo-box'>
+                    {(string.IsNullOrEmpty(logoBase64)
+                        ? "<h1 style='color:#4A77A5; margin:0;'>ALPINE</h1>"
+                        : $"<img src='{logoBase64}' class='logo-img' />")}
+                </div>
+                <div class='address-box'>
+                    <strong>Alpine Software Solutions</strong><br/>
+                    126-3, 12, Jalan Genting Kelang, Taman Danau Kota,<br/>
+                    53300 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur<br/>
+                    Phone: 011-3933 2219
+                </div>
+                <div class='clearfix'></div>
             </div>
-            <table>
+
+            <div class='report-title'>
+                <h2>ATTENDANCE ANALYTICS REPORT</h2>
+                <p>For the Month of <strong>{month}</strong></p>
+            </div>
+
+            <div class='stats-grid'>
+                Total Days: <strong>{totalDaysInMonth}</strong> | 
+                Sundays: <strong>{firstRecord?.SundayCount}</strong> | 
+                Holidays: <strong>{firstRecord?.HolidayCount}</strong> | 
+                <span style='color:#4A77A5; font-weight:bold;'>Expected Working Days: {workingDays}</span>
+            </div>
+
+            <table class='data-table'>
                 <thead>
                     <tr>
-                        <th style='width: 25%; text-align: left; padding-left: 10px;'>Employee Name</th>
+                        <th class='name-column'>Employee Name</th>
                         <th>Attendance</th>
                         <th>Late</th>
                         <th>Leave</th>
                         <th>Absent</th>
+                        <th>Holiday</th>
+                        <th>Sunday</th>
                     </tr>
                 </thead>
                 <tbody>";
@@ -286,29 +384,42 @@ public class AttendanceReportController : Controller
         foreach (var item in data)
         {
             htmlContent += $@"
-                    <tr>
-                        <td style='text-align: left; padding-left: 10px;'>{item.Name}</td>
-                        <td>{item.AttendanceCount}</td>
-                        <td>{item.LateCount}</td>
-                        <td>{item.LeaveCount}</td>
-                        <td>{item.AbsentCount}</td>
-                    </tr>";
+                <tr>
+                    <td class='name-column'>{item.Name}</td>
+                    <td>{item.AttendanceCount}</td>
+                    <td>{item.LateCount}</td>
+                    <td>{item.LeaveCount}</td>
+                    <td {(item.AbsentCount > 0 ? "style='color:red; font-weight:bold;'" : "")}>{item.AbsentCount}</td>
+                    <td>{item.HolidayCount}</td>
+                    <td>{item.SundayCount}</td>
+                </tr>";
         }
 
         htmlContent += $@"
-                    <tr class='total-row'>
-                        <td style='text-align: left; padding-left: 10px;'>COMPANY TOTAL</td>
-                        <td>{totalAtt}</td>
-                        <td>{totalLate}</td>
-                        <td>{totalLeave}</td>
-                        <td>{totalAbs}</td>
-                    </tr>
+                <tr class='total-row'>
+                    <td class='name-column'>COMPANY TOTAL</td>
+                    <td>{data.Sum(x => x.AttendanceCount)}</td>
+                    <td>{data.Sum(x => x.LateCount)}</td>
+                    <td>{data.Sum(x => x.LeaveCount)}</td>
+                    <td>{data.Sum(x => x.AbsentCount)}</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
                 </tbody>
             </table>
+
+            <div class='footer'>
+                <div class='timestamp'>Generated on: {DateTime.Now:dd MMM yyyy HH:mm}</div>
+                <div class='signature-box'>Manager Signature</div>
+                <div class='clearfix'></div>
+            </div>
         </body>
         </html>";
 
         HtmlToPdf converter = new HtmlToPdf();
+        converter.Options.PdfPageSize = PdfPageSize.A4;
+        converter.Options.WebPageWidth = 1024;
+
         PdfDocument doc = converter.ConvertHtmlString(htmlContent);
         byte[] pdfFile = doc.Save();
         doc.Close();

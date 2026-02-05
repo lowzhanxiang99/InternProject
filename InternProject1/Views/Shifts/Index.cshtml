@@ -114,3 +114,31 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.1); /* Reduced shadow */
         }
 </style>
+
+@section Scripts {
+    <script>
+        // Clear session when navigating away from Shifts pages
+        document.addEventListener('click', function(e) {
+            var link = e.target.closest('a');
+
+            if (link && link.href) {
+                var url = new URL(link.href, window.location.origin);
+
+                // If clicking a link that goes outside /Shifts/
+                if (!url.pathname.includes('/Shifts/')) {
+                    // Clear the session
+                    navigator.sendBeacon('@Url.Action("ClearSession", "Shifts")');
+                }
+            }
+        });
+
+        // Also clear on back/forward button
+        window.addEventListener('pageshow', function(event) {
+            // Check if page was loaded from cache (back button)
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                // Redirect to login
+                window.location.href = '@Url.Action("AdminLogin", "Shifts")';
+            }
+        });
+    </script>
+}

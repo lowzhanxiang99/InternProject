@@ -24,6 +24,7 @@ public class Employee
     public string Branch { get; set; } = string.Empty;
     public string? QR_Code_Data { get; set; }
     public string? ProfilePicturePath { get; set; }
+    public string Email { get; set; }
 
     // Relationships
     public int? Department_ID { get; set; }

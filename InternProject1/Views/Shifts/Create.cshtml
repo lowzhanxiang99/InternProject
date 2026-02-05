@@ -17,7 +17,7 @@
                         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
                         <div class="form-group mb-3">
-                            <label asp-for="Shift_Name" class="form-label">Shift Name <span class="text-danger">*</span></label>
+                            <label asp-for="Shift_Name" class="form-label fw-bold">Shift Name <span class="text-danger">*</span></label>
                             <input asp-for="Shift_Name" class="form-control" />
                             <span asp-validation-for="Shift_Name" class="text-danger"></span>
                         </div>
@@ -25,14 +25,14 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label asp-for="Start_Time" class="form-label">Start Time <span class="text-danger">*</span></label>
+                                    <label asp-for="Start_Time" class="form-label fw-bold">Start Time <span class="text-danger">*</span></label>
                                     <input asp-for="Start_Time" type="time" class="form-control" />
                                     <span asp-validation-for="Start_Time" class="text-danger"></span>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label asp-for="End_Time" class="form-label">End Time <span class="text-danger">*</span></label>
+                                    <label asp-for="End_Time" class="form-label fw-bold">End Time <span class="text-danger">*</span></label>
                                     <input asp-for="End_Time" type="time" class="form-control" />
                                     <span asp-validation-for="End_Time" class="text-danger"></span>
                                 </div>
@@ -40,7 +40,7 @@
                         </div>
 
                         <div class="form-group mb-3">
-                            <label asp-for="Description" class="form-label">Description</label>
+                            <label asp-for="Description" class="form-label fw-bold">Description</label>
                             <textarea asp-for="Description" class="form-control" rows="3"></textarea>
                             <span asp-validation-for="Description" class="text-danger"></span>
                         </div>
@@ -78,5 +78,29 @@
             const warning = document.getElementById('defaultWarning');
             warning.style.display = checkbox.checked ? 'block' : 'none';
         }
+
+        // Clear session when navigating away from Shifts pages
+        document.addEventListener('click', function(e) {
+            var link = e.target.closest('a');
+
+            if (link && link.href) {
+                var url = new URL(link.href, window.location.origin);
+
+                // If clicking a link that goes outside /Shifts/
+                if (!url.pathname.includes('/Shifts/')) {
+                    // Clear the session
+                    navigator.sendBeacon('@Url.Action("ClearSession", "Shifts")');
+                }
+            }
+        });
+
+        // Also clear on back/forward button
+        window.addEventListener('pageshow', function(event) {
+            // Check if page was loaded from cache (back button)
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                // Redirect to login
+                window.location.href = '@Url.Action("AdminLogin", "Shifts")';
+            }
+        });
     </script>
 }

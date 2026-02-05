@@ -15,12 +15,17 @@
 
         profilePicturePath = employee?.ProfilePicturePath;
     }
+
+    // Logic to determine if the Claim menu should be expanded by default
+    var currentController = ViewContext.RouteData.Values["Controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
+    bool isClaimActive = currentController == "Claim";
 }
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=1280">
     <title>@ViewData["Title"] - Alpine Software Solutions</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -29,67 +34,89 @@
         html, body {
             height: 100%;
             margin: 0;
-            overflow: hidden; /* Prevent double scrollbars */
+            overflow: hidden;
+            width: 1280px;
         }
 
         #wrapper {
             display: flex;
             height: 100vh;
+            width: 100%;
         }
 
         #sidebar-wrapper {
-            width: 25%;
-            min-width: 330px;
-            max-width: 470px;
+            width: 280px;
             min-height: 100%;
             position: sticky;
             top: 0;
             overflow-y: auto;
+            flex-shrink: 0;
+            transition: all 0.3s;
         }
 
         #page-content-wrapper {
             flex: 1;
-            overflow-y: auto; /* Allow main content scrolling */
-            max-height: 100vh; /* Limit to viewport height */
+            overflow-y: auto;
+            max-height: 100vh;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-            /* Chrome, Edge, Safari */
-            #sidebar-wrapper::-webkit-scrollbar,
-            #page-content-wrapper::-webkit-scrollbar {
-                display: none;
-            }
+        .content-container {
+            width: 100%;
+            max-width: 1100px;
+            margin-left: 40px;
+            padding: 2rem;
+        }
 
-        /* Firefox */
+        /* Hide scrollbars */
+        #sidebar-wrapper::-webkit-scrollbar,
+        #page-content-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+
         #sidebar-wrapper,
         #page-content-wrapper {
             scrollbar-width: none;
-        }
-
-        /* IE / old Edge */
-        #sidebar-wrapper,
-        #page-content-wrapper {
             -ms-overflow-style: none;
         }
 
-        .nav-link.active {
-            background-color: #0d6efd !important;
-            color: white !important;
-            border-radius: 8px;
+        /* Sidebar Nav Styles */
+        .nav-link {
+            color: #495057;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s;
         }
 
-        .nav-link:hover:not(.active) {
-            background-color: #f8f9fa;
+            .nav-link.active {
+                background-color: #0d6efd !important;
+                color: white !important;
+                border-radius: 8px;
+            }
+
+            .nav-link:hover:not(.active) {
+                background-color: #f8f9fa;
+                border-radius: 8px;
+            }
+
+        /* Submenu Styling */
+        .nav-submenu-container {
+            background-color: #fbfbfb;
             border-radius: 8px;
+            margin-bottom: 5px;
         }
 
-        /* Styling for nested sub-menu items */
-        .nav-submenu {
-            padding-left: 3rem !important;
+        .nav-submenu-item {
+            padding-left: 3.5rem !important;
             font-size: 0.85rem;
             color: #6c757d;
+            border-radius: 0 !important;
         }
 
-            .nav-submenu.active-sub {
+            .nav-submenu-item.active-sub {
                 color: #0d6efd !important;
                 font-weight: bold;
             }
@@ -125,14 +152,41 @@
             height: auto;
             display: block;
         }
+
+        /* PRINT LOGIC: Hides Sidebar */
+        @@media print {
+            #sidebar-wrapper {
+                display: none !important;
+            }
+
+            #page-content-wrapper {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            .content-container {
+                margin: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+
+            body, html {
+                width: auto !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="d-flex" id="wrapper">
-        <div class="bg-white border-end shadow-sm" id="sidebar-wrapper" style="width: 280px; min-height: 100vh; position: sticky; top: 0;">
+        <div class="bg-white border-end shadow-sm" id="sidebar-wrapper">
 
             <div class="sidebar-heading p-4">
-                <img src="~/images/Alpine Logo.png" alt="Alpine Software Solutions" class="sidebar-logo" />
+                <img src="~/images/Alpine_Logo.png" alt="Alpine Software Solutions" class="sidebar-logo" />
             </div>
 
             <div class="list-group list-group-flush px-3">
@@ -152,49 +206,63 @@
                 </div>
 
                 <a asp-controller="Home" asp-action="Index"
-                   class="nav-link p-3 mb-1 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(currentController == "Home" ? "active" : "")">
                     <i class="bi bi-grid-fill me-2"></i> Dashboard
                 </a>
 
-                <a asp-controller="Claim" asp-action="Index"
-                   class="nav-link nav-submenu py-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active-sub" : "")">
-                    <i class="bi bi-cash-stack me-2"></i> Claim Application
-                </a>
-
-                <a asp-controller="Claim" asp-action="AdminLogin"
-                   class="nav-link nav-submenu py-2 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Claim" && (ViewContext.RouteData.Values["Action"]?.ToString() == "AdminLogin" || ViewContext.RouteData.Values["Action"]?.ToString() == "AdminApproval") ? "active-sub" : "")">
-                    <i class="bi bi-shield-lock me-2"></i> Admin Claim Approval
-                </a>
+                <div class="mb-1">
+                    <a class="nav-link p-3 d-flex justify-content-between align-items-center @(isClaimActive ? "fw-bold text-primary" : "")"
+                       data-bs-toggle="collapse" href="#claimSubmenu" role="button" aria-expanded="@(isClaimActive ? "true" : "false")">
+                        <span><i class="bi bi-cash-stack me-2"></i> Claims</span>
+                        <i class="bi bi-chevron-down small"></i>
+                    </a>
+                    <div class="collapse @(isClaimActive ? "show" : "") nav-submenu-container" id="claimSubmenu">
+                        <ul class="nav flex-column">
+                            <li>
+                                <a asp-controller="Claim" asp-action="Index"
+                                   class="nav-link nav-submenu-item py-2 @(currentController == "Claim" && currentAction == "Index" ? "active-sub" : "")">
+                                    Claim Application
+                                </a>
+                            </li>
+                            <li>
+                                <a asp-controller="Claim" asp-action="AdminLogin"
+                                   class="nav-link nav-submenu-item py-2 @(currentController == "Claim" && (currentAction == "AdminLogin" || currentAction == "AdminApproval") ? "active-sub" : "")">
+                                    Admin Approval
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
 
                 <hr class="my-2 opacity-25" />
 
                 <a asp-controller="Attendance" asp-action="Index"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Attendance" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(currentController == "Attendance" ? "active" : "")">
                     <i class="bi bi-clock-history me-2"></i> Check-in & Out
                 </a>
 
                 <a asp-controller="Leave" asp-action="Index"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Leave" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(currentController == "Leave" ? "active" : "")">
                     <i class="bi bi-calendar2-check me-2"></i> Leave Application
                 </a>
 
                 <a asp-controller="AttendanceReport" asp-action="AdminLogin"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AttendanceReport" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(currentController == "AttendanceReport" ? "active" : "")">
                     <i class="bi bi-file-earmark-bar-graph me-2"></i> Attendance Report
                 </a>
 
                 <a asp-controller="Monitoring" asp-action="AdminLogin"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Monitoring" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(currentController == "Monitoring" ? "active" : "")">
                     <i class="bi bi-people me-2"></i> Employee Attendance Monitoring
                 </a>
 
                 <a asp-controller="Shifts" asp-action="Index"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Shifts" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(currentController == "Shifts" ? "active" : "")">
                     <i class="bi bi-clock me-2"></i> Shifts Management
                 </a>
 
                 <a asp-controller="MyAccount" asp-action="Index"
-                   class="nav-link p-3 mb-2 @(ViewContext.RouteData.Values["Controller"]?.ToString() == "MyAccount" ? "active" : "")">
+                   class="nav-link p-3 mb-1 @(currentController == "MyAccount" ? "active" : "")">
                     <i class="bi bi-person-circle me-2"></i> My Account
                 </a>
 
@@ -219,9 +287,11 @@
         </div>
 
         <div id="page-content-wrapper" class="flex-grow-1 bg-light">
-            <main role="main" class="p-4">
-                @RenderBody()
-            </main>
+            <div class="content-container">
+                <main role="main">
+                    @RenderBody()
+                </main>
+            </div>
         </div>
     </div>
 

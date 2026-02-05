@@ -4,6 +4,7 @@ using InternProject1.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternProject1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260203062903_AddEmailToEmployee")]
+    partial class AddEmailToEmployee
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -254,6 +257,7 @@ namespace InternProject1.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Leave_ID"));
 
                     b.Property<string>("Email")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Employee_ID")
@@ -368,57 +372,6 @@ namespace InternProject1.Migrations
                     b.ToTable("Shifts");
                 });
 
-            modelBuilder.Entity("InternProject1.Models.ShiftSchedule", b =>
-                {
-                    b.Property<int>("Schedule_ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Schedule_ID"));
-
-                    b.Property<int?>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<TimeSpan>("End_Time")
-                        .HasColumnType("time");
-
-                    b.Property<bool>("Is_Active")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("Is_HalfDay")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ScheduleType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Shift_ID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("SpecificDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<TimeSpan>("Start_Time")
-                        .HasColumnType("time");
-
-                    b.HasKey("Schedule_ID");
-
-                    b.HasIndex("Shift_ID");
-
-                    b.ToTable("ShiftSchedules");
-                });
-
             modelBuilder.Entity("InternProject1.Models.Attendance", b =>
                 {
                     b.HasOne("InternProject1.Models.Employee", "Employee")
@@ -489,17 +442,6 @@ namespace InternProject1.Migrations
                     b.Navigation("Employee");
                 });
 
-            modelBuilder.Entity("InternProject1.Models.ShiftSchedule", b =>
-                {
-                    b.HasOne("InternProject1.Models.Shift", "Shift")
-                        .WithMany("Schedules")
-                        .HasForeignKey("Shift_ID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Shift");
-                });
-
             modelBuilder.Entity("InternProject1.Models.Department", b =>
                 {
                     b.Navigation("Employees");
@@ -513,8 +455,6 @@ namespace InternProject1.Migrations
             modelBuilder.Entity("InternProject1.Models.Shift", b =>
                 {
                     b.Navigation("Employees");
-
-                    b.Navigation("Schedules");
                 });
 #pragma warning restore 612, 618
         }

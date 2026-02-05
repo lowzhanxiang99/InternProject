@@ -204,10 +204,11 @@
                                         </select>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-primary assign-btn"
-                                                data-employee-id="@emp.Employee_ID">
-                                            <i class="bi bi-check-lg"></i> Assign
-                                        </button>
+                                        <div class="assign-button-wrapper">
+                                            <button class="assign-btn assign" data-employee-id="@emp.Employee_ID">
+                                                <i class="bi bi-person-plus"></i> Assign
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -226,8 +227,8 @@
                             <th style="min-width: 180px;">Employee</th>
                             <th style="min-width: 120px;">Department</th>
                             <th style="min-width: 150px;">Current Shift</th>
-                            <th style="min-width: 220px;">Change Shift</th>
-                            <th style="min-width: 100px;">Action</th>
+                            <th style="min-width: 200px;">Change Shift</th>
+                            <th style="min-width: 90px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -355,9 +356,9 @@
                                 </div>
 
                                 <!-- Employee Selection Container -->
-                                <div class="card border" style="max-height: 280px; overflow-y: auto;">
+                                <div class="card border">
                                     <div class="card-body p-0">
-                                        <!-- Select All & Count -->
+                                        <!-- Select All & Count - FIXED to be outside scrollable area -->
                                         <div class="d-flex justify-content-between align-items-center p-2 border-bottom bg-light">
                                             <div class="form-check mb-0">
                                                 <input class="form-check-input" type="checkbox" id="selectAllEmployees">
@@ -368,8 +369,7 @@
                                             <small class="text-muted small" id="selectedCount">0 selected</small>
                                         </div>
 
-                                        <!-- Employee List -->
-                                        <div id="employeeCheckboxContainer" class="list-group list-group-flush">
+                                        <div id="employeeCheckboxContainer" class="list-group list-group-flush" style="max-height: 280px; overflow-y: auto;">
                                             @foreach (var emp in Model.AllEmployees)
                                             {
                                                 <div class="list-group-item employee-item p-2"
@@ -471,147 +471,218 @@
 <div id="messageContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1050;"></div>
 
 @section Scripts {
-            <script>
-                // ==================== BATCH ASSIGNMENT FUNCTIONALITY ====================
+    <script>
+        // ==================== BATCH ASSIGNMENT FUNCTIONALITY ====================
 
-                // Employee search functionality (for Batch tab)
-                const employeeSearch = document.getElementById('employeeSearch');
-                const employeeItems = document.querySelectorAll('.employee-item');
-                const noEmployeesFound = document.getElementById('noEmployeesFound');
-                const selectAllCheckbox = document.getElementById('selectAllEmployees');
-                const employeeCheckboxes = document.querySelectorAll('.employee-checkbox');
-                const batchShiftSelect = document.getElementById('batchShiftSelect');
-                const batchAssignBtn = document.getElementById('batchAssignBtn');
-                const batchClearShiftsBtn = document.getElementById('clearAllShiftsBtn');
-                const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+        // Employee search functionality (for Batch tab)
+        const employeeSearch = document.getElementById('employeeSearch');
+        const employeeItems = document.querySelectorAll('.employee-item');
+        const noEmployeesFound = document.getElementById('noEmployeesFound');
+        const selectAllCheckbox = document.getElementById('selectAllEmployees');
+        const employeeCheckboxes = document.querySelectorAll('.employee-checkbox');
+        const batchShiftSelect = document.getElementById('batchShiftSelect');
+        const batchAssignBtn = document.getElementById('batchAssignBtn');
+        const batchClearShiftsBtn = document.getElementById('clearAllShiftsBtn');
+        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
 
-                // Search filter
-                employeeSearch.addEventListener('input', function() {
-                    const searchTerm = this.value.toLowerCase();
-                    let visibleCount = 0;
+        // Search filter
+        employeeSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            let visibleCount = 0;
 
-                    employeeItems.forEach(item => {
-                        const name = item.getAttribute('data-employee-name');
-                        const department = item.getAttribute('data-department');
-                        const email = item.getAttribute('data-email');
+            employeeItems.forEach(item => {
+                const name = item.getAttribute('data-employee-name');
+                const department = item.getAttribute('data-department');
+                const email = item.getAttribute('data-email');
 
-                        if (name.includes(searchTerm) ||
-                            department.includes(searchTerm) ||
-                            email.includes(searchTerm) ||
-                            searchTerm === '') {
-                            item.style.display = 'block';
-                            visibleCount++;
-                        } else {
-                            item.style.display = 'none';
-                        }
-                    });
+                if (name.includes(searchTerm) ||
+                    department.includes(searchTerm) ||
+                    email.includes(searchTerm) ||
+                    searchTerm === '') {
+                    item.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
 
-                    // Show/hide no results message
-                    if (visibleCount === 0 && searchTerm !== '') {
-                        noEmployeesFound.style.display = 'block';
-                    } else {
-                        noEmployeesFound.style.display = 'none';
-                    }
+            // Show/hide no results message
+            if (visibleCount === 0 && searchTerm !== '') {
+                noEmployeesFound.style.display = 'block';
+            } else {
+                noEmployeesFound.style.display = 'none';
+            }
 
-                    // Update select all checkbox
-                    updateSelectAllCheckbox();
-                    updateButtonStates();
+            // Update select all checkbox
+            updateSelectAllCheckbox();
+            updateButtonStates();
+        });
+
+        // Select All functionality
+        selectAllCheckbox.addEventListener('change', function() {
+            const visibleItems = Array.from(employeeItems)
+                .filter(item => item.style.display !== 'none');
+
+            visibleItems.forEach(item => {
+                const checkbox = item.querySelector('.employee-checkbox');
+                if (checkbox) {
+                    checkbox.checked = this.checked;
+                }
+            });
+
+            updateSelectedCount();
+            updateSelectedSummary();
+            updateButtonStates();
+        });
+
+        // Update individual checkbox states
+        employeeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectedCount();
+                updateSelectAllCheckbox();
+                updateSelectedSummary();
+                updateButtonStates();
+            });
+        });
+
+        // Clear selection button
+        clearSelectionBtn.addEventListener('click', function() {
+            employeeCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+            updateSelectedCount();
+            updateSelectedSummary();
+            updateButtonStates();
+        });
+
+        // Update selected count
+        function updateSelectedCount() {
+            const selected = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked).length;
+
+            // Update the text count
+            document.getElementById('selectedCount').textContent = selected + ' selected';
+
+            // Update the badge count (add this line)
+            document.getElementById('selectedBadgeCount').textContent = selected;
+
+            // Show/hide summary
+            const summary = document.getElementById('selectedSummary');
+            if (selected > 0) {
+                summary.style.display = 'block';
+            } else {
+                summary.style.display = 'none';
+            }
+        }
+
+        // Update select all checkbox state
+        function updateSelectAllCheckbox() {
+            const visibleCheckboxes = Array.from(employeeItems)
+                .filter(item => item.style.display !== 'none')
+                .map(item => item.querySelector('.employee-checkbox'))
+                .filter(cb => cb !== null);
+
+            if (visibleCheckboxes.length === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+                return;
+            }
+
+            const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+
+            if (checkedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedCount === visibleCheckboxes.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+
+        // Update button states based on selections
+        function updateButtonStates() {
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked).length;
+            const hasShiftSelected = batchShiftSelect.value !== '';
+
+            // Enable/disable Assign button
+            batchAssignBtn.disabled = !(selectedEmployees > 0 && hasShiftSelected);
+
+            // Enable/disable Clear Shifts button
+            batchClearShiftsBtn.disabled = selectedEmployees === 0;
+        }
+
+        // Update selected employees summary
+        function updateSelectedSummary() {
+            const selectedList = document.getElementById('selectedEmployeesList');
+            selectedList.innerHTML = '';
+
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => {
+                    const item = cb.closest('.employee-item');
+                    return {
+                        id: cb.value,
+                        name: item.getAttribute('data-employee-name')
+                    };
                 });
 
-                // Select All functionality
-                selectAllCheckbox.addEventListener('change', function() {
-                    const visibleItems = Array.from(employeeItems)
-                        .filter(item => item.style.display !== 'none');
+            selectedEmployees.forEach(emp => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary bg-opacity-10 text-primary border border-primary p-2';
+                badge.innerHTML = `
+                    <span class="fw-semibold">${emp.name}</span>
+                    <button type="button" class="btn-close btn-close-sm ms-2"
+                            data-employee-id="${emp.id}"></button>
+                `;
+                selectedList.appendChild(badge);
+            });
 
-                    visibleItems.forEach(item => {
-                        const checkbox = item.querySelector('.employee-checkbox');
-                        if (checkbox) {
-                            checkbox.checked = this.checked;
-                        }
-                    });
-
-                    updateSelectedCount();
-                    updateSelectedSummary();
-                    updateButtonStates();
-                });
-
-                // Update individual checkbox states
-                employeeCheckboxes.forEach(checkbox => {
-                    checkbox.addEventListener('change', function() {
+            // Add event listeners to remove buttons
+            selectedList.querySelectorAll('.btn-close').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const employeeId = this.getAttribute('data-employee-id');
+                    const checkbox = document.querySelector(`.employee-checkbox[value="${employeeId}"]`);
+                    if (checkbox) {
+                        checkbox.checked = false;
                         updateSelectedCount();
                         updateSelectAllCheckbox();
                         updateSelectedSummary();
                         updateButtonStates();
-                    });
-                });
-
-                // Clear selection button
-                clearSelectionBtn.addEventListener('click', function() {
-                    employeeCheckboxes.forEach(checkbox => {
-                        checkbox.checked = false;
-                    });
-                    selectAllCheckbox.checked = false;
-                    selectAllCheckbox.indeterminate = false;
-                    updateSelectedCount();
-                    updateSelectedSummary();
-                    updateButtonStates();
-                });
-
-                // Update selected count
-                function updateSelectedCount() {
-                    const selected = Array.from(employeeCheckboxes)
-                        .filter(cb => cb.checked).length;
-
-                    // Update the text count
-                    document.getElementById('selectedCount').textContent = selected + ' selected';
-
-                    // Update the badge count (add this line)
-                    document.getElementById('selectedBadgeCount').textContent = selected;
-
-                    // Show/hide summary
-                    const summary = document.getElementById('selectedSummary');
-                    if (selected > 0) {
-                        summary.style.display = 'block';
-                    } else {
-                        summary.style.display = 'none';
                     }
-                }
+                });
+            });
+        }
 
-                // Update select all checkbox state
-                function updateSelectAllCheckbox() {
-                    const visibleCheckboxes = Array.from(employeeItems)
-                        .filter(item => item.style.display !== 'none')
-                        .map(item => item.querySelector('.employee-checkbox'))
-                        .filter(cb => cb !== null);
-
-                    if (visibleCheckboxes.length === 0) {
-                        selectAllCheckbox.checked = false;
-                        selectAllCheckbox.indeterminate = false;
-                        return;
-                    }
+        // Batch assignment with checkboxes
+        batchAssignBtn.addEventListener('click', function() {
+            const shiftId = batchShiftSelect.value;
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
 
                     const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
 
-                    if (checkedCount === 0) {
-                        selectAllCheckbox.checked = false;
-                        selectAllCheckbox.indeterminate = false;
-                    } else if (checkedCount === visibleCheckboxes.length) {
-                        selectAllCheckbox.checked = true;
-                        selectAllCheckbox.indeterminate = false;
-                    } else {
-                        selectAllCheckbox.checked = false;
-                        selectAllCheckbox.indeterminate = true;
-                    }
-                }
+            // Confirm batch assignment
+            if (!confirm(`Assign shift to ${selectedEmployees.length} employee(s)?`)) return;
 
-                // Update button states based on selections
-                function updateButtonStates() {
-                    const selectedEmployees = Array.from(employeeCheckboxes)
-                        .filter(cb => cb.checked).length;
-                    const hasShiftSelected = batchShiftSelect.value !== '';
+            selectedEmployees.forEach(employeeId => {
+                assignShift(employeeId, shiftId);
+            });
 
-                    // Enable/disable Assign button
-                    batchAssignBtn.disabled = !(selectedEmployees > 0 && hasShiftSelected);
+            showMessage(`Processing shift assignment for ${selectedEmployees.length} employee(s)`, 'success');
+        });
+
+        // Clear shifts from selected employees (Batch tab)
+        batchClearShiftsBtn.addEventListener('click', function() {
+            const selectedEmployees = Array.from(employeeCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
 
                     // Enable/disable Clear Shifts button
                     batchClearShiftsBtn.disabled = selectedEmployees === 0;
@@ -632,224 +703,188 @@
                             };
                         });
 
-                    selectedEmployees.forEach(emp => {
-                        const badge = document.createElement('span');
-                        badge.className = 'badge bg-primary bg-opacity-10 text-primary border border-primary p-2';
-                        badge.innerHTML = `
-                            <span class="fw-semibold">${emp.name}</span>
-                            <button type="button" class="btn-close btn-close-sm ms-2"
-                                    data-employee-id="${emp.id}"></button>
-                        `;
-                        selectedList.appendChild(badge);
-                    });
+            if (!confirm(`Remove shifts from ${selectedEmployees.length} employee(s)?`)) return;
 
-                    // Add event listeners to remove buttons
-                    selectedList.querySelectorAll('.btn-close').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const employeeId = this.getAttribute('data-employee-id');
-                            const checkbox = document.querySelector(`.employee-checkbox[value="${employeeId}"]`);
-                            if (checkbox) {
-                                checkbox.checked = false;
-                                updateSelectedCount();
-                                updateSelectAllCheckbox();
-                                updateSelectedSummary();
-                                updateButtonStates();
-                            }
-                        });
-                    });
+            selectedEmployees.forEach(employeeId => {
+                assignShift(employeeId, '');
+            });
+
+            showMessage(`Removing shifts from ${selectedEmployees.length} employee(s)`, 'info');
+        });
+
+                        // ==================== SHIFT PREVIEW FUNCTIONALITY ====================
+
+        // When shift selection changes
+        batchShiftSelect.addEventListener('change', function() {
+            updateButtonStates();
+            updateShiftPreview(this);
+        });
+
+        // Function to update shift preview
+        function updateShiftPreview(selectElement) {
+            const shiftPreview = document.getElementById('shiftPreview');
+            const shiftNoSelection = document.getElementById('shiftNoSelection');
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+            if (selectElement.value === '') {
+                // No shift selected
+                shiftPreview.style.display = 'none';
+                shiftNoSelection.style.display = 'block';
+                return;
+            }
+
+            // Get shift data from data attributes
+            const shiftName = selectedOption.textContent.split(' (')[0]; // Extract name before time
+            const startTime = selectedOption.getAttribute('data-start');
+            const endTime = selectedOption.getAttribute('data-end');
+            const isDefault = selectedOption.getAttribute('data-is-default') === 'True';
+            const employeeCount = selectedOption.getAttribute('data-employee-count') || '0';
+
+            // Update preview elements
+            document.getElementById('shiftName').textContent = shiftName;
+            document.getElementById('shiftTime').textContent = `${startTime} - ${endTime}`;
+            document.getElementById('shiftEmployeeCount').textContent = employeeCount;
+
+            // Update default status badge
+            const defaultStatusElement = document.getElementById('shiftDefaultStatus');
+            if (isDefault) {
+                defaultStatusElement.innerHTML = '<span class="badge bg-success">Default Shift</span>';
+            } else {
+                defaultStatusElement.innerHTML = '<span class="badge bg-secondary">Not default</span>';
+            }
+
+            // Show preview, hide initial message
+            shiftPreview.style.display = 'block';
+            shiftNoSelection.style.display = 'none';
+
+            // Optional: Highlight employees already on this shift
+            highlightEmployeesOnCurrentShift(shiftName);
+        }
+
+        // Optional: Highlight employees already assigned to the selected shift
+        function highlightEmployeesOnCurrentShift(shiftName) {
+            employeeItems.forEach(item => {
+                const currentShift = item.getAttribute('data-current-shift');
+                const row = item.closest('.list-group-item');
+
+                if (row) {
+                    // Remove previous highlighting
+                    row.classList.remove('bg-success', 'bg-opacity-10');
+
+                    // Add highlighting if employee is on this shift
+                    if (currentShift && currentShift === shiftName) {
+                        row.classList.add('bg-success', 'bg-opacity-10');
+                    }
+                }
+            });
+        }
+
+        // ==================== SINGLE ASSIGNMENT (for other tabs) ====================
+
+        // Single assignment for "Unassigned" and "All Employees" tabs
+        document.querySelectorAll('.assign-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const employeeId = this.getAttribute('data-employee-id');
+                const select = document.querySelector(`.shift-select[data-employee-id="${employeeId}"]`);
+                const shiftId = select.value;
+
+                if (!shiftId) {
+                    showMessage('Please select a shift first', 'warning');
+                    return;
                 }
 
-                // Batch assignment with checkboxes
-                batchAssignBtn.addEventListener('click', function() {
-                    const shiftId = batchShiftSelect.value;
-                    const selectedEmployees = Array.from(employeeCheckboxes)
-                        .filter(cb => cb.checked)
-                        .map(cb => cb.value);
+                assignShift(employeeId, shiftId);
+            });
+        });
 
-                    if (!shiftId || selectedEmployees.length === 0) {
-                        showMessage('Please select both a shift and employees', 'warning');
-                        return;
-                    }
+        // ==================== SHARED FUNCTIONS ====================
 
-                    // Confirm batch assignment
-                    if (!confirm(`Assign shift to ${selectedEmployees.length} employee(s)?`)) return;
+        // AJAX function
+        function assignShift(employeeId, shiftId) {
+            // Convert shiftId to number or 0 for "No Shift"
+            const shiftIdValue = shiftId === '' ? 0 : parseInt(shiftId);
 
-                    selectedEmployees.forEach(employeeId => {
-                        assignShift(employeeId, shiftId);
-                    });
-
-                    showMessage(`Processing shift assignment for ${selectedEmployees.length} employee(s)`, 'success');
-                });
-
-                // Clear shifts from selected employees (Batch tab)
-                batchClearShiftsBtn.addEventListener('click', function() {
-                    const selectedEmployees = Array.from(employeeCheckboxes)
-                        .filter(cb => cb.checked)
-                        .map(cb => cb.value);
-
-                    if (selectedEmployees.length === 0) {
-                        showMessage('Please select employees first', 'warning');
-                        return;
-                    }
-
-                    if (!confirm(`Remove shifts from ${selectedEmployees.length} employee(s)?`)) return;
-
-                    selectedEmployees.forEach(employeeId => {
-                        assignShift(employeeId, '');
-                    });
-
-                    showMessage(`Removing shifts from ${selectedEmployees.length} employee(s)`, 'info');
-                });
-
-                                // ==================== SHIFT PREVIEW FUNCTIONALITY ====================
-
-                // When shift selection changes
-                batchShiftSelect.addEventListener('change', function() {
-                    updateButtonStates();
-                    updateShiftPreview(this);
-                });
-
-                // Function to update shift preview
-                function updateShiftPreview(selectElement) {
-                    const shiftPreview = document.getElementById('shiftPreview');
-                    const shiftNoSelection = document.getElementById('shiftNoSelection');
-                    const selectedOption = selectElement.options[selectElement.selectedIndex];
-
-                    if (selectElement.value === '') {
-                        // No shift selected
-                        shiftPreview.style.display = 'none';
-                        shiftNoSelection.style.display = 'block';
-                        return;
-                    }
-
-                    // Get shift data from data attributes
-                    const shiftName = selectedOption.textContent.split(' (')[0]; // Extract name before time
-                    const startTime = selectedOption.getAttribute('data-start');
-                    const endTime = selectedOption.getAttribute('data-end');
-                    const isDefault = selectedOption.getAttribute('data-is-default') === 'True';
-                    const employeeCount = selectedOption.getAttribute('data-employee-count') || '0';
-
-                    // Update preview elements
-                    document.getElementById('shiftName').textContent = shiftName;
-                    document.getElementById('shiftTime').textContent = `${startTime} - ${endTime}`;
-                    document.getElementById('shiftEmployeeCount').textContent = employeeCount;
-
-                    // Update default status badge
-                    const defaultStatusElement = document.getElementById('shiftDefaultStatus');
-                    if (isDefault) {
-                        defaultStatusElement.innerHTML = '<span class="badge bg-success">Default Shift</span>';
-                    } else {
-                        defaultStatusElement.innerHTML = '<span class="badge bg-secondary">Not default</span>';
-                    }
-
-                    // Show preview, hide initial message
-                    shiftPreview.style.display = 'block';
-                    shiftNoSelection.style.display = 'none';
-
-                    // Optional: Highlight employees already on this shift
-                    highlightEmployeesOnCurrentShift(shiftName);
+            fetch('@Url.Action("AssignShiftToEmployee", "Shifts")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    employeeId: parseInt(employeeId),
+                    shiftId: shiftIdValue
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
-
-                // Optional: Highlight employees already assigned to the selected shift
-                function highlightEmployeesOnCurrentShift(shiftName) {
-                    employeeItems.forEach(item => {
-                        const currentShift = item.getAttribute('data-current-shift');
-                        const row = item.closest('.list-group-item');
-
-                        if (row) {
-                            // Remove previous highlighting
-                            row.classList.remove('bg-success', 'bg-opacity-10');
-
-                            // Add highlighting if employee is on this shift
-                            if (currentShift && currentShift === shiftName) {
-                                row.classList.add('bg-success', 'bg-opacity-10');
-                            }
-                        }
-                    });
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    // Refresh after 1.5 seconds
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showMessage(data.message, 'danger');
                 }
+            })
+            .catch(error => {
+                showMessage('Error assigning shift: ' + error.message, 'danger');
+                console.error('Error:', error);
+            });
+        }
 
-                // ==================== SINGLE ASSIGNMENT (for other tabs) ====================
+        // Show toast message
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            container.appendChild(alert);
 
-                // Single assignment for "Unassigned" and "All Employees" tabs
-                document.querySelectorAll('.assign-btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const employeeId = this.getAttribute('data-employee-id');
-                        const select = document.querySelector(`.shift-select[data-employee-id="${employeeId}"]`);
-                        const shiftId = select.value;
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
 
-                        if (!shiftId) {
-                            showMessage('Please select a shift first', 'warning');
-                            return;
-                        }
+        // Initialize shift preview if a shift is already selected
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSelectedCount();
+            updateButtonStates();
 
-                        assignShift(employeeId, shiftId);
-                    });
-                });
+            // If a shift is already selected, show its preview
+            if (batchShiftSelect.value !== '') {
+                updateShiftPreview(batchShiftSelect);
+            }
+        });
 
-                // ==================== SHARED FUNCTIONS ====================
+        // Clear session when navigating away from Shifts pages
+        document.addEventListener('click', function(e) {
+            var link = e.target.closest('a');
 
-                // AJAX function
-                function assignShift(employeeId, shiftId) {
-                    // Convert shiftId to number or 0 for "No Shift"
-                    const shiftIdValue = shiftId === '' ? 0 : parseInt(shiftId);
+            if (link && link.href) {
+                var url = new URL(link.href, window.location.origin);
 
-                    fetch('@Url.Action("AssignShiftToEmployee", "Shifts")', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            employeeId: parseInt(employeeId),
-                            shiftId: shiftIdValue
-                        })
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            showMessage(data.message, 'success');
-                            // Refresh after 1.5 seconds
-                            setTimeout(() => location.reload(), 1500);
-                        } else {
-                            showMessage(data.message, 'danger');
-                        }
-                    })
-                    .catch(error => {
-                        showMessage('Error assigning shift: ' + error.message, 'danger');
-                        console.error('Error:', error);
-                    });
+                // If clicking a link that goes outside /Shifts/
+                if (!url.pathname.includes('/Shifts/')) {
+                    // Clear the session
+                    navigator.sendBeacon('@Url.Action("ClearSession", "Shifts")');
                 }
+            }
+        });
 
-                // Show toast message
-                function showMessage(message, type) {
-                    const container = document.getElementById('messageContainer');
-                    const alert = document.createElement('div');
-                    alert.className = `alert alert-${type} alert-dismissible fade show`;
-                    alert.innerHTML = `
-                        ${message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-                    container.appendChild(alert);
-
-                    // Auto remove after 5 seconds
-                    setTimeout(() => {
-                        alert.remove();
-                    }, 5000);
-                }
-
-                // Initialize shift preview if a shift is already selected
-                document.addEventListener('DOMContentLoaded', function() {
-                    updateSelectedCount();
-                    updateButtonStates();
-
-                    // If a shift is already selected, show its preview
-                    if (batchShiftSelect.value !== '') {
-                        updateShiftPreview(batchShiftSelect);
-                    }
-                });
-            </script>
+        // Also clear on back/forward button
+        window.addEventListener('pageshow', function(event) {
+            // Check if page was loaded from cache (back button)
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                // Redirect to login
+                window.location.href = '@Url.Action("AdminLogin", "Shifts")';
+            }
+        });
+    </script>
 }

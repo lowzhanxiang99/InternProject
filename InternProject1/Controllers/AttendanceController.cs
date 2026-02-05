@@ -208,9 +208,10 @@ namespace InternProject1.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Get employee with shift
+            // Get employee with shift and include shift schedules
             var employee = await _context.Employees
                 .Include(e => e.Shift)
+                    .ThenInclude(s => s.Schedules)
                 .FirstOrDefaultAsync(e => e.Employee_ID == employeeId);
 
             if (employee == null)
@@ -230,8 +231,9 @@ namespace InternProject1.Controllers
             }
             else
             {
-                // Get default shift from database
+                // Get default shift from database with schedules
                 shiftToUse = await _context.Shifts
+                    .Include(s => s.Schedules)
                     .FirstOrDefaultAsync(s => s.Is_Default);
 
                 // If no default exists, create one
@@ -258,11 +260,17 @@ namespace InternProject1.Controllers
                 _context.Employees.Update(employee);
             }
 
-            // SHIFT-BASED ON TIME/LATE LOGIC
-            TimeSpan currentTime = DateTime.Now.TimeOfDay;
-            string status = currentTime <= shiftToUse.Start_Time ? "On Time" : "Late";
+            // GET SCHEDULED TIMES FOR TODAY (considers ShiftSchedule)
+            var (scheduledStartTime, scheduledEndTime) = shiftToUse.GetTimeForDate(DateTime.Today);
 
-            // CREATE ATTENDANCE RECORD
+            // SHIFT-BASED ON TIME/LATE LOGIC using scheduled times with 1-minute grace period
+            TimeSpan currentTime = DateTime.Now.TimeOfDay;
+
+            // Add 1-minute grace period: On Time if within 59 seconds after scheduled start
+            var graceEndTime = scheduledStartTime.Add(TimeSpan.FromMinutes(1));
+            string status = currentTime < graceEndTime ? "On Time" : "Late";
+
+            // CREATE ATTENDANCE RECORD with scheduled times
             var attendance = new Attendance
             {
                 Employee_ID = employeeId,
@@ -273,28 +281,34 @@ namespace InternProject1.Controllers
                 IsOnBreak = false,
                 HasTakenBreak = false,
                 TotalBreakTime = TimeSpan.Zero,
-                Expected_Start = shiftToUse.Start_Time,
-                Expected_End = shiftToUse.End_Time,
+                Expected_Start = scheduledStartTime,  // Use scheduled time (may differ from base shift)
+                Expected_End = scheduledEndTime,      // Use scheduled time (may differ from base shift)
                 Shift_Used = shiftToUse.Shift_Name,
-                Shift_ID_Used = shiftToUse.Shift_ID,  // IMPORTANT: ADD THIS
+                Shift_ID_Used = shiftToUse.Shift_ID,
                 Used_Default_Shift = usingDefaultShift
             };
 
             _context.Attendances.Add(attendance);
             await _context.SaveChangesAsync();
 
-            // Show message
+            // Show message with scheduled times
             string timeMessage = $"Clocked in at {currentTime:hh\\:mm\\:ss}";
-            string shiftMessage = $"{shiftToUse.Shift_Name} ({shiftToUse.Start_Time:hh\\:mm}-{shiftToUse.End_Time:hh\\:mm})";
+            string shiftMessage = $"{shiftToUse.Shift_Name} ({scheduledStartTime:hh\\:mm}-{scheduledEndTime:hh\\:mm})";
+
+            // Check if times differ from base shift
+            bool isDifferentSchedule = scheduledStartTime != shiftToUse.Start_Time ||
+                                       scheduledEndTime != shiftToUse.End_Time;
+            string scheduleNote = isDifferentSchedule ? " [Custom Schedule]" : "";
 
             if (status == "Late")
             {
-                TimeSpan lateBy = currentTime - shiftToUse.Start_Time;
-                TempData["Warning"] = $"{timeMessage}. ⚠️ LATE by {lateBy:mm} minutes. Shift: {shiftMessage}";
+                // Calculate late time from grace end (not from scheduled start)
+                TimeSpan lateBy = currentTime - graceEndTime;
+                TempData["Warning"] = $"{timeMessage}. You arrived late for your shift: {shiftMessage}{scheduleNote}";
             }
             else
             {
-                TempData["Success"] = $"{timeMessage}. ✅ ON TIME. Shift: {shiftMessage}";
+                TempData["Success"] = $"{timeMessage}. Great! You're right on time for your shift: {shiftMessage}{scheduleNote}";
             }
 
             if (usingDefaultShift)

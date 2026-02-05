@@ -55,7 +55,6 @@
                     <input type="text" id="historySearch" class="form-control border-0" placeholder="Search in this month's logs...">
                 </div>
             </div>
-            @* Modified Back Link to keep the selected month context *@
             <a href="@Url.Action("Index", "AttendanceReport", new { month = currentMonth })" class="btn btn-sm px-4 shadow-sm" style="background-color: #DDE7F2; border-radius: 10px; font-weight: 500; color: black; text-decoration: none;">
                 <i class="bi bi-arrow-left"></i> Back to Report
             </a>
@@ -78,9 +77,12 @@
                     {
                         @foreach (var log in Model)
                         {
-                            var isLate = log.Status?.ToLower() == "late";
-                            var isLeave = log.Status?.ToLower() == "leave";
-                            var isAbsent = log.Status?.ToLower() == "absent";
+                            var statusLower = log.Status?.ToLower() ?? "";
+                            var isLate = statusLower == "late";
+                            var isLeave = statusLower == "leave";
+                            var isAbsent = statusLower == "absent";
+                            var isHoliday = statusLower == "public holiday"; // New condition
+
                             var hasClockIn = log.ClockInTime.HasValue;
                             var hasClockedOut = log.ClockOutTime.HasValue;
 
@@ -91,11 +93,11 @@
                                 duration = $"{(int)diff.TotalHours}h {diff.Minutes}m";
                             }
 
-                            <tr class="border-bottom">
+                            <tr class="border-bottom @(isHoliday ? "table-light" : "")">
                                 <td class="py-3 fw-semibold">@log.Date.ToString("dd MMM yyyy")</td>
 
                                 <td>
-                                    @if (!isLeave && !isAbsent && hasClockIn)
+                                    @if (!isLeave && !isAbsent && !isHoliday && hasClockIn)
                                     {
                                         <span class="@(isLate ? "text-danger fw-bold" : "")">
                                             @DateTime.Today.Add(log.ClockInTime.Value).ToString("hh:mm tt")
@@ -108,7 +110,7 @@
                                 </td>
 
                                 <td>
-                                    @if (!isLeave && !isAbsent && hasClockedOut)
+                                    @if (!isLeave && !isAbsent && !isHoliday && hasClockedOut)
                                     {
                                         <span>@DateTime.Today.Add(log.ClockOutTime.Value).ToString("hh:mm tt")</span>
                                     }
@@ -119,7 +121,11 @@
                                 </td>
 
                                 <td>
-                                    @if (isLeave)
+                                    @if (isHoliday)
+                                    {
+                                        <span class="badge" style="background-color: #ffcdd2; color: #b71c1c;">🇲🇾 Public Holiday</span>
+                                    }
+                                    else if (isLeave)
                                     {
                                         <span class="badge" style="background-color: #99CCFF; color: black;">On Leave</span>
                                     }
@@ -136,13 +142,15 @@
                                         <span class="badge" style="background-color: #4A77A5; color: white;">Present</span>
                                     }
 
-                                    @if (!isLeave && !isAbsent && hasClockedOut && hasClockIn && (log.ClockOutTime.Value - log.ClockInTime.Value).TotalHours > 9)
+                                    @if (!isLeave && !isAbsent && !isHoliday && hasClockedOut && hasClockIn && (log.ClockOutTime.Value - log.ClockInTime.Value).TotalHours > 9)
                                     {
                                         <div class="small text-success mt-1"><i class="bi bi-plus-circle-fill"></i> Overtime</div>
                                     }
                                 </td>
 
-                                <td class="text-secondary fw-bold">@((!isLeave && !isAbsent && hasClockIn && hasClockedOut) ? duration : "--")</td>
+                                <td class="text-secondary fw-bold">
+                                    @((!isLeave && !isAbsent && !isHoliday && hasClockIn && hasClockedOut) ? duration : "--")
+                                </td>
                             </tr>
                         }
                     }
@@ -170,8 +178,7 @@
 
             rows.forEach(row => {
                 let text = row.textContent.toLowerCase();
-                // Avoid hiding the "No records" row if it's the only one
-                if(!row.classList.contains('no-records-row')) {
+                if(!row.querySelector('td[colspan]')) {
                     row.style.display = text.includes(filter) ? "" : "none";
                 }
             });

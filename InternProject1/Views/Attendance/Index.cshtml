@@ -1,4 +1,30 @@
 ﻿@model List<Attendance>
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Warning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        @TempData["Warning"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="bi bi-x-circle-fill me-2"></i>
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
 @{
     ViewData["Title"] = "Check-In/Check-Out";
     Layout = "_Layout";
@@ -99,6 +125,7 @@
         return $"{date:MMM dd}: Marked absent";
     }
 }
+
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
@@ -108,6 +135,8 @@
         background: #f8f9fa !important;
         min-height: 100vh;
         padding: 0;
+        margin-left: -40px !important; /* Compensate for parent container's margin-left */
+        width: calc(100% + 40px) !important; /* Extend width to fill space */
     }
 
     /* ===== HEADER SECTION ===== */
@@ -192,7 +221,7 @@
     .calendar-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        gap: 8px;
+        gap: 7px;
     }
 
     .calendar-day {
@@ -776,31 +805,6 @@
                 color: #AAD9F9;
             }
 
-    /* Responsive adjustments */
-    @@media (max-width: 768px) {
-        .pagination-container {
-            flex-direction: column;
-            gap: 15px;
-            padding: 15px 20px;
-        }
-
-        .pagination-info {
-            order: 1; /* Info comes first on mobile */
-            text-align: center;
-        }
-
-        .pagination {
-            order: 2; /* Pagination comes after info on mobile */
-        }
-
-            .pagination .page-item .page-link {
-                padding: 6px 12px;
-                margin: 0 2px;
-                min-width: 36px;
-                font-size: 13px;
-            }
-    }
-
     /* ===== ATTENDANCE MODAL STYLES ===== */
     #attendanceModal .modal-content {
         border-radius: 12px;
@@ -1049,161 +1053,6 @@
         background: #FFFFFF;
         border-top: 1px solid #D6E3F2;
         border-radius: 0 0 12px 12px;
-    }
-
-    /* Adjust for mobile */
-    @@media (max-width: 768px) {
-        .pagination-container {
-            flex-direction: column;
-            gap: 15px;
-            padding: 15px 20px;
-        }
-
-        .pagination-status-indicators {
-            order: 2;
-            margin-right: 0;
-            margin-bottom: 10px;
-        }
-
-        .pagination-info {
-            order: 1;
-        }
-
-        .pagination {
-            order: 3;
-        }
-    }
-
-    /* Loading animation for calendar days */
-    @@keyframes pulse {
-        0% {
-            opacity: 0.6;
-        }
-
-        50% {
-            opacity: 1;
-        }
-
-        100% {
-            opacity: 0.6;
-        }
-    }
-
-    .calendar-day.loading {
-        animation: pulse 1.5s infinite;
-    }
-
-    @@media (max-width: 992px) {
-        .col-md-4.border-end, .col-md-8 {
-            width: 100% !important;
-            flex: 0 0 100% !important;
-            max-width: 100% !important;
-            padding: 15px !important;
-        }
-
-        .col-md-4.border-end {
-            border-right: none !important;
-            border-bottom: 1px solid #D6E3F2 !important;
-            padding-bottom: 30px !important;
-        }
-
-        .analog-clock-container {
-            width: 180px !important;
-            height: 180px !important;
-        }
-
-        #analog-clock {
-            width: 180px;
-            height: 180px;
-        }
-
-        .digital-time-display {
-            font-size: 24px !important;
-            line-height: 36px;
-        }
-
-        .date-display {
-            font-size: 14px !important;
-        }
-    }
-
-    @@media (max-width: 768px) {
-        .row.mb-4, .row:not(.mb-4) {
-            padding: 0 20px;
-        }
-
-        .analog-clock-container {
-            width: 160px !important;
-            height: 160px !important;
-        }
-
-        #analog-clock {
-            width: 160px;
-            height: 160px;
-        }
-
-        .calendar-day {
-            width: 28px;
-            height: 28px;
-            font-size: 12px;
-        }
-
-        .summary-box {
-            padding: 18px 20px !important;
-        }
-
-        .summary-title {
-            font-size: 14px !important;
-        }
-
-        .summary-time {
-            font-size: 18px !important;
-            line-height: 27px;
-        }
-
-        .btn-lg.w-100.py-3,
-        .btn-outline-primary.btn-lg.w-100.py-3,
-        .btn-danger.btn-lg.w-100.py-3 {
-            height: 40px !important;
-            padding: 8px 16px !important;
-        }
-
-            .btn-lg.w-100.py-3 h4,
-            .btn-outline-primary.btn-lg.w-100.py-3 h4,
-            .btn-danger.btn-lg.w-100.py-3 h4 {
-                font-size: 14px !important;
-                line-height: 21px;
-            }
-
-            .btn-lg.w-100.py-3 small,
-            .btn-outline-primary.btn-lg.w-100.py-3 small,
-            .btn-danger.btn-lg.w-100.py-3 small {
-                font-size: 11px !important;
-                line-height: 16px;
-            }
-        /* Responsive pagination */
-        .pagination-container {
-            flex-direction: column;
-            gap: 15px;
-            padding: 15px 20px;
-        }
-
-        .pagination-info {
-            margin-left: 0;
-            order: -1;
-        }
-
-        .pagination .page-item .page-link {
-            padding: 6px 12px;
-            margin: 0 2px;
-            min-width: 36px;
-            font-size: 13px;
-        }
-
-        .page-arrow {
-            width: 32px;
-            height: 32px;
-        }
     }
 </style>
 
@@ -1538,25 +1387,35 @@
                                                 string statusClass = "";
                                                 string statusText = "";
 
-                                                if (record.ClockInTime.HasValue && record.ClockInTime.Value != null)
+                                                if (!string.IsNullOrEmpty(record.Status))
                                                 {
-                                                    TimeSpan workStartTime = new TimeSpan(9, 0, 0);
-                                                    var clockInTime = record.ClockInTime.Value;
+                                                    string status = record.Status.ToLower();
 
-                                                    if (clockInTime <= workStartTime)
+                                                    switch (status)
                                                     {
-                                                        statusClass = "status-on-time";
-                                                        statusText = "On Time";
-                                                    }
-                                                    else
-                                                    {
-                                                        statusClass = "status-late";
-                                                        statusText = "Late";
+                                                        case "on time":
+                                                        case "present":
+                                                            statusClass = "status-on-time";
+                                                            statusText = "On Time";
+                                                            break;
+                                                        case "late":
+                                                            statusClass = "status-late";
+                                                            statusText = "Late";
+                                                            break;
+                                                        case "absent":
+                                                            statusClass = "status-absent";
+                                                            statusText = "Absent";
+                                                            break;
+                                                        default:
+                                                            statusClass = "status-on-time";
+                                                            statusText = record.Status;
+                                                            break;
                                                     }
                                                 }
-                                                else
+                                                else if (record.ClockInTime.HasValue)
                                                 {
-                                                    statusText = "No Clock In";
+                                                    statusClass = "status-on-time";
+                                                    statusText = "Present";
                                                 }
 
                                                 <tr data-date="@record.Date.ToString("yyyy-MM-dd")"
@@ -2144,8 +2003,6 @@
             }
         }
 
-        // Function to update table with new data
-                // Function to update table with new data
         function updateTableWithData(data) {
             const tbody = document.getElementById('attendanceTableBody');
 
@@ -2164,31 +2021,38 @@
             let rowsHtml = '';
 
             data.forEach(record => {
-                // Determine status
+                // Use the status from the server (already calculated correctly in the controller)
                 let statusClass = "";
                 let statusText = "";
 
-                if (record.clockInTime && record.clockInTime !== '-') {
-                    // Parse the time string (e.g., "09:15 AM")
-                    const timeMatch = record.clockInTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-                    if (timeMatch) {
-                        let hours = parseInt(timeMatch[1]);
-                        const minutes = parseInt(timeMatch[2]);
-                        const ampm = timeMatch[3].toUpperCase();
+                // Check if record has a status field from the server
+                if (record.status) {
+                    const status = record.status.toLowerCase();
 
-                        // Convert to 24-hour format for comparison
-                        if (ampm === 'PM' && hours < 12) hours += 12;
-                        if (ampm === 'AM' && hours === 12) hours = 0;
-
-                        // Compare with 9:00 AM
-                        if (hours < 9 || (hours === 9 && minutes === 0)) {
+                    switch(status) {
+                        case 'on time':
+                        case 'present':
                             statusClass = "status-on-time";
                             statusText = "On Time";
-                        } else {
+                            break;
+                        case 'late':
                             statusClass = "status-late";
                             statusText = "Late";
-                        }
+                            break;
+                        case 'absent':
+                            statusClass = "status-absent";
+                            statusText = "Absent";
+                            break;
+                        default:
+                            // If status exists but doesn't match known values
+                            statusClass = "status-on-time";
+                            statusText = record.status;
+                            break;
                     }
+                } else if (record.clockInTime && record.clockInTime !== '-') {
+                    // Fallback: If no status from server, assume present
+                    statusClass = "status-on-time";
+                    statusText = "Present";
                 } else {
                     statusText = "No Clock In";
                 }
@@ -2783,91 +2647,91 @@
             // If user is already clocked in today, calculate elapsed time
             @if (todayAttendance?.ClockInTime != null && todayAttendance?.ClockOutTime == null)
             {
-                        <text>
-                        try {
-                            const now = new Date();
-                            const todayStr = now.toISOString().split('T')[0];
-                            const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
-                            const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+                                <text>
+                                try {
+                                    const now = new Date();
+                                    const todayStr = now.toISOString().split('T')[0];
+                                    const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                                    const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
 
-                            if (!isNaN(clockInDateTime.getTime())) {
-                                const elapsedSeconds = Math.floor((now - clockInDateTime) / 1000);
-                                workingSeconds = Math.max(0, elapsedSeconds);
+                                    if (!isNaN(clockInDateTime.getTime())) {
+                                        const elapsedSeconds = Math.floor((now - clockInDateTime) / 1000);
+                                        workingSeconds = Math.max(0, elapsedSeconds);
 
-                                // If user is on break, calculate break time
-                                @if (todayAttendance?.IsOnBreak == true && todayAttendance?.BreakStartTime != null)
-                                {
-                                            <text>
-                                            const breakStartStr = '@todayAttendance.BreakStartTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")';
-                                            const breakStartDateTime = new Date(breakStartStr);
+                                        // If user is on break, calculate break time
+                                        @if (todayAttendance?.IsOnBreak == true && todayAttendance?.BreakStartTime != null)
+                                        {
+                                                            <text>
+                                                            const breakStartStr = '@todayAttendance.BreakStartTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")';
+                                                            const breakStartDateTime = new Date(breakStartStr);
 
-                                            if (!isNaN(breakStartDateTime.getTime())) {
-                                                const breakElapsedSeconds = Math.floor((now - breakStartDateTime) / 1000);
-                                                breakSeconds = Math.max(0, breakElapsedSeconds);
-                                                startBreakTimer(); // Start the actual timer
-                                            } else {
-                                                startWorkingTimer();
-                                            }
-                                            </text>
+                                                            if (!isNaN(breakStartDateTime.getTime())) {
+                                                                const breakElapsedSeconds = Math.floor((now - breakStartDateTime) / 1000);
+                                                                breakSeconds = Math.max(0, breakElapsedSeconds);
+                                                                startBreakTimer(); // Start the actual timer
+                                                            } else {
+                                                                startWorkingTimer();
+                                                            }
+                                                            </text>
+                                        }
+                                        // NEW: If user has taken break and ended it, show total break time
+                                        else if (todayAttendance?.HasTakenBreak == true && todayAttendance?.TotalBreakTime != null)
+                                        {
+                                                            <text>
+                                                            const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                                            const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                                            const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                                            breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                                            updateBreakTimeDisplay();
+                                                            startWorkingTimer();
+                                                            </text>
+                                        }
+                                        else
+                                        {
+                                                            <text>
+                                                            startWorkingTimer();
+                                                            </text>
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('Error calculating elapsed time:', e);
+                                    showToast('Error calculating elapsed time. Please refresh the page.', 'error');
                                 }
-                                // NEW: If user has taken break and ended it, show total break time
-                                else if (todayAttendance?.HasTakenBreak == true && todayAttendance?.TotalBreakTime != null)
-                                {
-                                            <text>
-                                            const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
-                                            const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
-                                            const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
-                                            breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
-                                            updateBreakTimeDisplay();
-                                            startWorkingTimer();
-                                            </text>
-                                }
-                                else
-                                {
-                                            <text>
-                                            startWorkingTimer();
-                                            </text>
-                                }
-                            }
-                        } catch (e) {
-                            console.error('Error calculating elapsed time:', e);
-                            showToast('Error calculating elapsed time. Please refresh the page.', 'error');
-                        }
-                        </text>
+                                </text>
             }
             else if (todayAttendance?.ClockOutTime != null)
             {
-                        <text>
-                        try {
-                            const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
-                            const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
-                            const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
+                                <text>
+                                try {
+                                    const todayStr = '@DateTime.Today.ToString("yyyy-MM-dd")';
+                                    const clockInTimeStr = '@todayAttendance.ClockInTime.Value.Hours.ToString("00"):@todayAttendance.ClockInTime.Value.Minutes.ToString("00"):@todayAttendance.ClockInTime.Value.Seconds.ToString("00")';
+                                    const clockOutTimeStr = '@todayAttendance.ClockOutTime.Value.Hours.ToString("00"):@todayAttendance.ClockOutTime.Value.Minutes.ToString("00"):@todayAttendance.ClockOutTime.Value.Seconds.ToString("00")';
 
-                            const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
-                            const clockOutDateTime = new Date(todayStr + 'T' + clockOutTimeStr);
+                                    const clockInDateTime = new Date(todayStr + 'T' + clockInTimeStr);
+                                    const clockOutDateTime = new Date(todayStr + 'T' + clockOutTimeStr);
 
-                            if (!isNaN(clockInDateTime.getTime()) && !isNaN(clockOutDateTime.getTime())) {
-                                const totalSeconds = Math.floor((clockOutDateTime - clockInDateTime) / 1000);
-                                workingSeconds = Math.max(0, totalSeconds);
-                                updateWorkingTimeDisplay();
-                            }
+                                    if (!isNaN(clockInDateTime.getTime()) && !isNaN(clockOutDateTime.getTime())) {
+                                        const totalSeconds = Math.floor((clockOutDateTime - clockInDateTime) / 1000);
+                                        workingSeconds = Math.max(0, totalSeconds);
+                                        updateWorkingTimeDisplay();
+                                    }
 
-                            // Calculate break time if any
-                            @if (todayAttendance?.TotalBreakTime != null)
-                            {
-                                        <text>
-                                        const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
-                                        const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
-                                        const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
-                                        breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
-                                        updateBreakTimeDisplay();
-                                        </text>
-                            }
-                        } catch (e) {
-                            console.error('Error calculating completed time:', e);
-                            showToast('Error calculating completed time. Please refresh the page.', 'error');
-                        }
-                        </text>
+                                    // Calculate break time if any
+                                    @if (todayAttendance?.TotalBreakTime != null)
+                                    {
+                                                        <text>
+                                                        const breakHours = @todayAttendance.TotalBreakTime.Value.Hours;
+                                                        const breakMinutes = @todayAttendance.TotalBreakTime.Value.Minutes;
+                                                        const breakSecs = @todayAttendance.TotalBreakTime.Value.Seconds;
+                                                        breakSeconds = breakHours * 3600 + breakMinutes * 60 + breakSecs;
+                                                        updateBreakTimeDisplay();
+                                                        </text>
+                                    }
+                                } catch (e) {
+                                    console.error('Error calculating completed time:', e);
+                                    showToast('Error calculating completed time. Please refresh the page.', 'error');
+                                }
+                                </text>
             }
 
             updateWorkingTimeDisplay();

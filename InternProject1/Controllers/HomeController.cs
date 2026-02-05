@@ -118,15 +118,17 @@ public class HomeController : Controller
             .ToList();
 
         // 1. On-Time Percentage Calculation
-        TimeSpan onTimeThreshold = TimeSpan.FromHours(9); // 9:00 AM
+        // Use the Status field from database (already calculated based on shift schedules with grace period)
 
         int currentOnTimeCount = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
-            .Count(a => a.ClockInTime.Value <= onTimeThreshold);
+            .Count(a => !string.IsNullOrEmpty(a.Status) &&
+                       (a.Status.ToLower() == "on time" || a.Status.ToLower() == "present"));
 
         int previousOnTimeCount = previousMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
-            .Count(a => a.ClockInTime.Value <= onTimeThreshold);
+            .Count(a => !string.IsNullOrEmpty(a.Status) &&
+                       (a.Status.ToLower() == "on time" || a.Status.ToLower() == "present"));
 
         int currentTotalWithClockIn = currentMonthAttendances.Count(a => a.ClockInTime.HasValue);
         int previousTotalWithClockIn = previousMonthAttendances.Count(a => a.ClockInTime.HasValue);
@@ -147,13 +149,15 @@ public class HomeController : Controller
         ViewBag.OnTimeChangeDirection = onTimeChange >= 0 ? "up" : "down";
 
         // 2. Late Percentage Calculation
+        // Use the Status field from database
+
         int currentLateCount = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
-            .Count(a => a.ClockInTime.Value > onTimeThreshold);
+            .Count(a => !string.IsNullOrEmpty(a.Status) && a.Status.ToLower() == "late");
 
         int previousLateCount = previousMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
-            .Count(a => a.ClockInTime.Value > onTimeThreshold);
+            .Count(a => !string.IsNullOrEmpty(a.Status) && a.Status.ToLower() == "late");
 
         double currentLatePercentage = currentTotalWithClockIn > 0
             ? Math.Round((double)currentLateCount / currentTotalWithClockIn * 100)
