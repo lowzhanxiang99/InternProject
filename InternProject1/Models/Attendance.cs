@@ -30,6 +30,7 @@ namespace InternProject1.Models
         public int? Shift_ID_Used { get; set; }            // Which shift ID they used
         public bool Used_Default_Shift { get; set; } = false; // Was it a default shift?
         public string? IPAddress { get; set; }
+        public string? UserAgent { get; set; }
 
         [StringLength(100)]
         public string? Location_Lat_Long { get; set; }

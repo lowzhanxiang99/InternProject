@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="wwwroot\uploads\mc\" />
     <Folder Include="wwwroot\uploads\profiles\" />
   </ItemGroup>
 

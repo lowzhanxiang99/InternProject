@@ -5,7 +5,10 @@
 
         @* --- HEADER SECTION --- *@
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h5 class="fw-bold m-0">My Leave Status History</h5>
+            <div>
+                <h5 class="fw-bold m-0">My Leave Status History</h5>
+                <p class="text-muted small m-0">Track and manage your submitted leave applications</p>
+            </div>
             <a asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-3 px-3">
                 <i class="bi bi-arrow-left me-1"></i> Back to Menu
             </a>
@@ -17,16 +20,18 @@
                 <thead class="text-secondary small border-bottom" style="background-color: #f8f9fa;">
                     <tr>
                         <th class="py-3 ps-3">Request ID</th>
+                        <th class="py-3">Type</th>
                         <th class="py-3">Status</th>
                         <th class="py-3">Period</th>
                         <th class="py-3">Reason</th>
+                        <th class="py-3 text-center">Attachment</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="4" class="text-center py-5 text-muted small">No leave records found.</td>
+                            <td colspan="6" class="text-center py-5 text-muted small">No leave records found.</td>
                         </tr>
                     }
                     else
@@ -36,6 +41,9 @@
                             <tr class="history-row">
                                 <td class="py-3 ps-3">
                                     <span class="fw-bold text-primary">REQ-@item.Leave_ID</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border fw-medium">@item.LeaveType</span>
                                 </td>
                                 <td>
                                     @if (item.Status == "Approve")
@@ -63,7 +71,22 @@
                                     <span class="fw-semibold text-dark">@item.End_Date.ToString("dd MMM yyyy")</span>
                                 </td>
                                 <td class="small text-muted">
-                                    @(string.IsNullOrEmpty(item.Reasons) ? "No reason provided" : item.Reasons)
+                                    <div class="text-truncate" style="max-width: 200px;" title="@item.Reasons">
+                                        @(string.IsNullOrEmpty(item.Reasons) ? "No reason provided" : item.Reasons)
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    @* FIX: Changed Leave_ID_MC_Proof to AttachmentPath *@
+                                    @if (!string.IsNullOrEmpty(item.AttachmentPath))
+                                    {
+                                        <a href="@Url.Content(item.AttachmentPath)" target="_blank" class="btn btn-sm btn-light border rounded-circle shadow-sm" title="View Proof">
+                                            <i class="bi bi-paperclip text-primary"></i>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">-</span>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -74,29 +97,44 @@
 
         @* --- PAGINATION CONTROLS --- *@
         <div class="d-flex justify-content-between align-items-center mt-4 border-top pt-3">
-            <div class="small text-muted" id="pageInfo">
-                @* Info text injected by JS *@
-            </div>
+            <div class="small text-muted" id="pageInfo"></div>
             <nav aria-label="Page navigation">
-                <ul class="pagination pagination-sm m-0" id="paginationControls">
-                    @* Buttons injected by JS *@
-                </ul>
+                <ul class="pagination pagination-sm m-0" id="paginationControls"></ul>
             </nav>
         </div>
 
         @* --- EXPORT ACTION --- *@
         <div class="d-flex justify-content-end mt-3">
             <a asp-controller="Leave" asp-action="ExportMyStatusExcel"
-               class="btn btn-sm px-4 shadow-sm d-flex align-items-center"
-               style="background-color: #DDE7F2; border-radius: 8px; border: none; font-weight: 600; font-size: 0.8rem; color: #333; text-decoration: none;">
-                <i class="bi bi-file-earmark-excel me-2"></i> Export My Records
+               class="btn btn-sm px-4 shadow-sm d-flex align-items-center export-btn">
+                <i class="bi bi-file-earmark-excel me-2 text-success"></i> Export My Records
             </a>
         </div>
     </div>
 </div>
 
 <style>
-    /* Styling for the pagination look */
+    /* Row Hover Effect */
+    .history-row:hover {
+        background-color: #fbfcfd;
+        transition: background-color 0.2s ease;
+    }
+
+    .export-btn {
+        background-color: #DDE7F2;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: #333;
+        transition: transform 0.2s;
+    }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            background-color: #cfdbe9;
+        }
+
     .pagination .page-link {
         color: #555;
         border: 1px solid #eee;
@@ -111,11 +149,7 @@
         color: white;
     }
 
-    .pagination .page-item.disabled .page-link {
-        background-color: #f8f9fa;
-        color: #ccc;
-    }
-    /* Hide rows by default, JS will toggle them */
+    /* Important: Set initial state for JS pagination */
     .history-row {
         display: none;
     }
@@ -157,15 +191,15 @@
                 const prevLi = document.createElement('li');
                 prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
                 prevLi.innerHTML = `<a class="page-link" href="javascript:void(0)">Previous</a>`;
-                prevLi.addEventListener('click', () => { if(currentPage > 1) displayPage(currentPage - 1); });
+                prevLi.onclick = () => { if(currentPage > 1) displayPage(currentPage - 1); };
                 paginationControls.appendChild(prevLi);
 
-                // Page Numbers (Condensed logic)
+                // Page Numbers
                 for (let i = 1; i <= pageCount; i++) {
                     const li = document.createElement('li');
                     li.className = `page-item ${i === currentPage ? 'active' : ''}`;
                     li.innerHTML = `<a class="page-link" href="javascript:void(0)">${i}</a>`;
-                    li.addEventListener('click', () => displayPage(i));
+                    li.onclick = () => displayPage(i);
                     paginationControls.appendChild(li);
                 }
 
@@ -173,11 +207,10 @@
                 const nextLi = document.createElement('li');
                 nextLi.className = `page-item ${currentPage === pageCount ? 'disabled' : ''}`;
                 nextLi.innerHTML = `<a class="page-link" href="javascript:void(0)">Next</a>`;
-                nextLi.addEventListener('click', () => { if(currentPage < pageCount) displayPage(currentPage + 1); });
+                nextLi.onclick = () => { if(currentPage < pageCount) displayPage(currentPage + 1); };
                 paginationControls.appendChild(nextLi);
             }
 
-            // Initialization
             if (rows.length > 0) {
                 displayPage(1);
             } else {

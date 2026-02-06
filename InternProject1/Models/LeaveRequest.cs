@@ -35,5 +35,6 @@ namespace InternProject1.Models
         public virtual Employee? Employee { get; set; }
         public string? Reason { get; set; }
         public string? Email { get; set; }
+        public string? AttachmentPath { get; set; }
     }
 }
