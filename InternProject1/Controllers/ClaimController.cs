@@ -20,6 +20,8 @@ public class ClaimController : Controller
         _emailService = emailService;
     }
 
+    // --- USER SECTION ---
+
     public async Task<IActionResult> Index()
     {
         int? userId = HttpContext.Session.GetInt32("UserID");
@@ -43,7 +45,7 @@ public class ClaimController : Controller
 
         ModelState.Remove("Status");
         ModelState.Remove("CreatedAt");
-        ModelState.Remove("Employee"); // Prevent validation errors on navigation property
+        ModelState.Remove("Employee");
 
         if (ModelState.IsValid)
         {
@@ -65,7 +67,7 @@ public class ClaimController : Controller
             claim.Employee_ID = userId.Value;
             claim.Status = "Pending";
             claim.CreatedAt = DateTime.Now;
-            claim.Claim_Date = DateTime.Now; // Matches your model property
+            claim.Claim_Date = DateTime.Now;
 
             _context.Claims.Add(claim);
             await _context.SaveChangesAsync();
@@ -83,13 +85,15 @@ public class ClaimController : Controller
     [HttpPost]
     public IActionResult AdminLogin(string email, string password)
     {
+        // Strict credential check as requested
         if (email == "admin@gmail.com" && password == "admin123")
         {
             HttpContext.Session.SetString("IsClaimAdmin", "true");
-            return RedirectToAction("AdminApproval");
+            // Redirect to History as the primary admin landing page
+            return RedirectToAction("History");
         }
 
-        ViewBag.Error = "Invalid Admin Credentials";
+        ViewBag.Error = "Invalid Admin Credentials. Request Rejected.";
         return View();
     }
 
@@ -97,6 +101,23 @@ public class ClaimController : Controller
     {
         HttpContext.Session.Remove("IsClaimAdmin");
         return RedirectToAction("Index", "Home");
+    }
+
+    // NEW FUNCTION: Claim History (Admin Only)
+    // Shows ALL claims (Approved, Rejected, Pending)
+    public async Task<IActionResult> History()
+    {
+        if (HttpContext.Session.GetString("IsClaimAdmin") != "true")
+        {
+            return RedirectToAction("AdminLogin");
+        }
+
+        var allClaimsHistory = await _context.Claims
+            .Include(c => c.Employee)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+
+        return View(allClaimsHistory);
     }
 
     public async Task<IActionResult> AdminApproval()
@@ -120,7 +141,6 @@ public class ClaimController : Controller
     {
         if (HttpContext.Session.GetString("IsClaimAdmin") != "true") return Unauthorized();
 
-        // Fetches claim and joins with Employee table
         var claim = await _context.Claims
             .Include(c => c.Employee)
             .FirstOrDefaultAsync(c => c.Claim_ID == claimId);
@@ -130,7 +150,6 @@ public class ClaimController : Controller
             claim.Status = status;
             await _context.SaveChangesAsync();
 
-            // Email Logic using Employee_Email
             if (claim.Employee != null && !string.IsNullOrEmpty(claim.Employee.Employee_Email))
             {
                 try
@@ -142,18 +161,30 @@ public class ClaimController : Controller
                                      <p>Status Date: {DateTime.Now:dd-MM-yyyy}</p>";
 
                     await _emailService.SendEmailAsync(claim.Employee.Employee_Email, subject, body);
-                    TempData["SuccessMessage"] = $"Claim {status} and notification sent to {claim.Employee.Employee_Email}.";
+                    TempData["SuccessMessage"] = $"Claim {status} and notification sent.";
                 }
                 catch (Exception)
                 {
-                    TempData["SuccessMessage"] = $"Claim {status}, but the email system encountered an error.";
+                    TempData["SuccessMessage"] = $"Claim {status}, but email failed.";
                 }
-            }
-            else
-            {
-                TempData["SuccessMessage"] = $"Claim {status} (No email sent: Recipient address missing).";
             }
         }
         return RedirectToAction("AdminApproval");
+    }
+
+    // NEW FUNCTION: Admin can delete/modify history entries
+    [HttpPost]
+    public async Task<IActionResult> DeleteClaim(int id)
+    {
+        if (HttpContext.Session.GetString("IsClaimAdmin") != "true") return Unauthorized();
+
+        var claim = await _context.Claims.FindAsync(id);
+        if (claim != null)
+        {
+            _context.Claims.Remove(claim);
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = "Claim record removed from history.";
+        }
+        return RedirectToAction("History");
     }
 }

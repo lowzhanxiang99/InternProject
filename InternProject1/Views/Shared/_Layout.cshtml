@@ -16,7 +16,6 @@
         profilePicturePath = employee?.ProfilePicturePath;
     }
 
-    // Logic to determine if the Claim menu should be expanded by default
     var currentController = ViewContext.RouteData.Values["Controller"]?.ToString();
     var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
     bool isClaimActive = currentController == "Claim";
@@ -71,7 +70,6 @@
             padding: 2rem;
         }
 
-        /* Hide scrollbars */
         #sidebar-wrapper::-webkit-scrollbar,
         #page-content-wrapper::-webkit-scrollbar {
             display: none;
@@ -83,7 +81,6 @@
             -ms-overflow-style: none;
         }
 
-        /* Sidebar Nav Styles */
         .nav-link {
             color: #495057;
             display: flex;
@@ -102,7 +99,6 @@
                 border-radius: 8px;
             }
 
-        /* Submenu Styling */
         .nav-submenu-container {
             background-color: #fbfbfb;
             border-radius: 8px;
@@ -153,7 +149,6 @@
             display: block;
         }
 
-        /* PRINT LOGIC: Hides Sidebar */
         @@media print {
             #sidebar-wrapper {
                 display: none !important;
@@ -210,6 +205,7 @@
                     <i class="bi bi-grid-fill me-2"></i> Dashboard
                 </a>
 
+                @* --- CLAIMS SECTION --- *@
                 <div class="mb-1">
                     <a class="nav-link p-3 d-flex justify-content-between align-items-center @(isClaimActive ? "fw-bold text-primary" : "")"
                        data-bs-toggle="collapse" href="#claimSubmenu" role="button" aria-expanded="@(isClaimActive ? "true" : "false")">
@@ -220,14 +216,20 @@
                         <ul class="nav flex-column">
                             <li>
                                 <a asp-controller="Claim" asp-action="Index"
-                                   class="nav-link nav-submenu-item py-2 @(currentController == "Claim" && currentAction == "Index" ? "active-sub" : "")">
-                                    Claim Application
+                                   class="nav-link nav-submenu-item py-2 @(currentAction == "Index" ? "active-sub" : "")">
+                                    <i class="bi bi-file-earmark-plus me-2"></i> Claim Application
                                 </a>
                             </li>
                             <li>
-                                <a asp-controller="Claim" asp-action="AdminLogin"
-                                   class="nav-link nav-submenu-item py-2 @(currentController == "Claim" && (currentAction == "AdminLogin" || currentAction == "AdminApproval") ? "active-sub" : "")">
-                                    Admin Approval
+                                <a asp-controller="Claim" asp-action="History"
+                                   class="nav-link nav-submenu-item py-2 @(currentAction == "History" ? "active-sub" : "")">
+                                    <i class="bi bi-clock-history me-2"></i> Claim History (Admin)
+                                </a>
+                            </li>
+                            <li>
+                                <a asp-controller="Claim" asp-action="AdminApproval"
+                                   class="nav-link nav-submenu-item py-2 @(currentAction == "AdminApproval" || currentAction == "AdminLogin" ? "active-sub" : "")">
+                                    <i class="bi bi-check2-square me-2"></i> Admin Approval
                                 </a>
                             </li>
                         </ul>

@@ -204,7 +204,7 @@ namespace InternProject1.Controllers
 
             if (todayAttendance != null)
             {
-                TempData["Error"] = "You have already clocked in today!";
+                TempData["Error"] = "You have already taken leave for today!";
                 return RedirectToAction(nameof(Index));
             }
 
@@ -262,8 +262,6 @@ namespace InternProject1.Controllers
 
             // GET SCHEDULED TIMES FOR TODAY (considers ShiftSchedule)
             var (scheduledStartTime, scheduledEndTime) = shiftToUse.GetTimeForDate(DateTime.Today);
-
-            // SHIFT-BASED ON TIME/LATE LOGIC using scheduled times with 1-minute grace period
             TimeSpan currentTime = DateTime.Now.TimeOfDay;
 
             // Add 1-minute grace period: On Time if within 59 seconds after scheduled start

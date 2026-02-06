@@ -76,19 +76,25 @@ namespace InternProject1.Controllers
                 .ToListAsync();
 
             // ========== TIME-OFF CALCULATION ==========
-            var onLeaveEmployeeIds = await _context.LeaveRequests
-                .Where(l => l.Status.ToLower() == "approve" &&
-                           l.Start_Date.Date <= today.Date &&
-                           l.End_Date.Date >= today.Date)
-                .Select(l => l.Employee_ID)
+            var timeOffCount = todayAttendance
+                .Where(a => a.Status != null &&
+                       (a.Status.ToLower().Contains("leave") || a.Status.ToLower() == "on leave" || a.Status.ToLower().Contains("time off")))
+                .Select(a => a.Employee_ID)
                 .Distinct()
-                .ToListAsync();
+                .Count();
 
-            var timeOffCount = onLeaveEmployeeIds.Count;
+            // Get employee IDs on leave for filtering
+            var onLeaveEmployeeIds = todayAttendance
+                .Where(a => a.Status != null &&
+                       (a.Status.ToLower().Contains("leave") || a.Status.ToLower() == "on leave" || a.Status.ToLower().Contains("time off")))
+                .Select(a => a.Employee_ID)
+                .Distinct()
+                .ToList();
 
             // ========== TODAY'S CALCULATIONS ==========
             var totalEmployees = employees.Count;
 
+            // Get clocked-in employees (excluding those on leave)
             var clockedInEmployeeIds = todayAttendance
                 .Where(a => a.ClockInTime != null && !onLeaveEmployeeIds.Contains(a.Employee_ID))
                 .Select(a => a.Employee_ID)
@@ -97,7 +103,7 @@ namespace InternProject1.Controllers
 
             var presentCount = clockedInEmployeeIds.Count;
 
-            // Calculate absent count ONLY if today is a working day
+            // Calculate absent count ONLY for employees who are NOT on leave
             int absentCount;
 
             if (today.DayOfWeek == DayOfWeek.Sunday)
@@ -107,8 +113,9 @@ namespace InternProject1.Controllers
             }
             else
             {
-                // Working day: Calculate normal absent count
-                absentCount = totalEmployees - timeOffCount - presentCount;
+                // Working day: Calculate absent count only for employees NOT on leave
+                var employeesExpectedToWork = totalEmployees - timeOffCount;
+                absentCount = Math.Max(0, employeesExpectedToWork - presentCount);
             }
 
             // Calculate on-time and late counts using shift times WITH SCHEDULE OVERRIDES
@@ -199,13 +206,13 @@ namespace InternProject1.Controllers
                 // ALSO check Attendance table status for leave
                 var onLeaveFromAttendance = dayAttendance
                     .Where(a => a.Status != null &&
-                           (a.Status.ToLower().Contains("leave")))
+                           (a.Status.ToLower().Contains("leave") || a.Status.ToLower() == "on leave" || a.Status.ToLower().Contains("time off")))
                     .Select(a => a.Employee_ID)
                     .Distinct()
                     .ToList();
 
-                // Combine both sources
-                var allOnLeaveThisDay = onLeaveThisDay.Union(onLeaveFromAttendance).Distinct().ToList();
+                // Use ONLY attendance table for leave (since you said leave status is in attendance)
+                var allOnLeaveThisDay = onLeaveFromAttendance.Distinct().ToList();
 
                 // Count unique employees who clocked in (excluding those on leave)
                 var uniquePresentEmployees = dayAttendance
@@ -283,12 +290,13 @@ namespace InternProject1.Controllers
 
                 var onLeaveFromAttendance = dayAttendance
                     .Where(a => a.Status != null &&
-                           (a.Status.ToLower().Contains("leave")))
+                           (a.Status.ToLower().Contains("leave") || a.Status.ToLower() == "on leave" || a.Status.ToLower().Contains("time off")))
                     .Select(a => a.Employee_ID)
                     .Distinct()
                     .ToList();
 
-                var allOnLeaveThisDay = onLeaveThisDay.Union(onLeaveFromAttendance).Distinct().ToList();
+                // Use ONLY attendance table for leave
+                var allOnLeaveThisDay = onLeaveFromAttendance.Distinct().ToList();
 
                 var uniquePresentEmployees = dayAttendance
                     .Where(a => a.ClockInTime != null && !allOnLeaveThisDay.Contains(a.Employee_ID))
@@ -337,7 +345,6 @@ namespace InternProject1.Controllers
             }
 
             // ========== HISTORICAL ATTENDANCE RATES ==========
-
             // Last week attendance rate
             var lastWeekTotalDays = lastWeekData.Count(d => d.Date.DayOfWeek != DayOfWeek.Sunday);
             var lastWeekPresentCount = lastWeekData.Sum(d => d.Present);
