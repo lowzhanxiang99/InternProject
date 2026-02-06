@@ -1,0 +1,86 @@
+﻿@{
+    ViewData["Title"] = "Frequently Asked Questions";
+}
+
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-header bg-white border-bottom p-4">
+            <h3 class="fw-bold mb-0 text-dark"><i class="bi bi-question-circle-fill text-primary me-2"></i> Frequently Asked Questions</h3>
+            <p class="text-muted mb-0">Find answers to common questions about our system.</p>
+        </div>
+        <div class="card-body p-4">
+
+            <div class="accordion accordion-flush" id="faqMain">
+
+                <div class="accordion-item border rounded-3 mb-3">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold fs-5" type="button" data-bs-toggle="collapse" data-bs-target="#attendanceFaq">
+                            ⏱ Attendance (Check-In / Check-Out)
+                        </button>
+                    </h2>
+                    <div id="attendanceFaq" class="accordion-collapse collapse" data-bs-parent="#faqMain">
+                        <div class="accordion-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>Why can’t I check in / check out?</strong><br> - Contact Admin</li>
+                                <li class="list-group-item"><strong>I forgot to check in or check out—what should I do?</strong><br> - Contact Admin</li>
+                                <li class="list-group-item"><strong>Which time is used—the system time or my phone time?</strong><br> - The system time</li>
+                                <li class="list-group-item"><strong>Why is my attendance marked late even though I arrived on time?</strong><br> - Click-In late so its marked late</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item border rounded-3 mb-3">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold fs-5" type="button" data-bs-toggle="collapse" data-bs-target="#leaveFaq">
+                            📅 Leave Application
+                        </button>
+                    </h2>
+                    <div id="leaveFaq" class="accordion-collapse collapse" data-bs-parent="#faqMain">
+                        <div class="accordion-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>How do I apply for leave?</strong><br> - Click on Leave Application -> choice Leave Application -> fill in the information</li>
+                                <li class="list-group-item"><strong>What types of leave are available?</strong><br> - Click on Leave Application -> inside will show all the types</li>
+                                <li class="list-group-item"><strong>How long does leave approval take?</strong><br> - Almost within 3 days</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item border rounded-3 mb-3">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold fs-5" type="button" data-bs-toggle="collapse" data-bs-target="#claimFaq">
+                            🧾 Claim Module
+                        </button>
+                    </h2>
+                    <div id="claimFaq" class="accordion-collapse collapse" data-bs-parent="#faqMain">
+                        <div class="accordion-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>How do I submit a claim?</strong><br> - Claims -> Claim Application -> Enter information</li>
+                                <li class="list-group-item"><strong>How long does claim approval take?</strong><br> - Almost within 3 days</li>
+                                <li class="list-group-item"><strong>Why is my claim rejected or pending?</strong><br> - Please wait for 3 working days, if more than 3 days still no result, please contact admin</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item border rounded-3 mb-3">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold fs-5" type="button" data-bs-toggle="collapse" data-bs-target="#securityFaq">
+                            🔐 System & Security
+                        </button>
+                    </h2>
+                    <div id="securityFaq" class="accordion-collapse collapse" data-bs-parent="#faqMain">
+                        <div class="accordion-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>Can I log in on multiple devices?</strong><br> - Yes</li>
+                                <li class="list-group-item"><strong>What should I do if I suspect unauthorized access?</strong><br> - Contact Admin</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>

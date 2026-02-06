@@ -14,6 +14,11 @@ public class HomeController : Controller
         _context = context;
     }
 
+    public IActionResult FAQ()
+    {
+        return View();
+    }
+
     public async Task<IActionResult> Index()
     {
         var userId = HttpContext.Session.GetInt32("UserID");
