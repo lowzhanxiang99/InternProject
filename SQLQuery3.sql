@@ -1,0 +1,1 @@
+﻿ALTER TABLE Attendances ADD UserAgent NVARCHAR(MAX) NULL;

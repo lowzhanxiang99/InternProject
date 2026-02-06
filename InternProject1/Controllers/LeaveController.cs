@@ -15,11 +15,13 @@ public class LeaveController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly IEmailService _emailService;
+    private readonly IWebHostEnvironment _environment;
 
-    public LeaveController(ApplicationDbContext context, IEmailService emailService)
+    public LeaveController(ApplicationDbContext context, IEmailService emailService, IWebHostEnvironment environment)
     {
         _context = context;
         _emailService = emailService;
+        _environment = environment;
     }
 
     public IActionResult Index() => View();
@@ -53,12 +55,23 @@ public class LeaveController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Apply(LeaveRequest leave)
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Apply(LeaveRequest leave, IFormFile? MCAttachment)
     {
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        if (leave.Start_Date.Date < DateTime.Today || leave.End_Date.Date < DateTime.Today) return View("Error");
+        if (leave.Start_Date.Date < DateTime.Today || leave.End_Date.Date < DateTime.Today)
+        {
+            TempData["ErrorMessage"] = "Leave dates cannot be in the past.";
+            return RedirectToAction(nameof(Apply));
+        }
+
+        if ((leave.LeaveType == "MC" || leave.LeaveType == "Medical Leave") && MCAttachment == null)
+        {
+            TempData["ErrorMessage"] = "A Medical Certificate (MC) attachment is required for this leave type.";
+            return RedirectToAction(nameof(Apply));
+        }
 
         bool isDuplicate = await _context.LeaveRequests.AnyAsync(l =>
             l.Employee_ID == userId &&
@@ -74,9 +87,34 @@ public class LeaveController : Controller
         var employee = await _context.Employees.FindAsync(userId);
         if (employee == null) return View("Error");
 
-        // --- FIXED: Use Employee_Email from your Model to populate the LeaveRequest ---
         leave.Email = employee.Employee_Email;
-        // ------------------------------------------------------------------------------
+        leave.Employee_ID = userId.Value;
+        leave.Status = "Pending";
+        leave.Request_Date = DateTime.Now;
+
+        if (MCAttachment != null && MCAttachment.Length > 0)
+        {
+            try
+            {
+                string uploadFolder = Path.Combine(_environment.WebRootPath, "uploads", "mc");
+                if (!Directory.Exists(uploadFolder)) Directory.CreateDirectory(uploadFolder);
+
+                string uniqueFileName = Guid.NewGuid().ToString() + "_" + MCAttachment.FileName;
+                string filePath = Path.Combine(uploadFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await MCAttachment.CopyToAsync(fileStream);
+                }
+
+                leave.AttachmentPath = "/uploads/mc/" + uniqueFileName;
+            }
+            catch (Exception)
+            {
+                TempData["ErrorMessage"] = "Failed to upload MC attachment. Please try again.";
+                return RedirectToAction(nameof(Apply));
+            }
+        }
 
         int requestedDays = (leave.End_Date.Date - leave.Start_Date.Date).Days + 1;
         bool hasInsufficientBalance = false;
@@ -99,10 +137,6 @@ public class LeaveController : Controller
         if (hasInsufficientBalance)
             leave.Reasons = "[SALARY DEDUCTION ADVISORY] " + leave.Reasons;
 
-        leave.Employee_ID = userId.Value;
-        leave.Status = "Pending";
-        leave.Request_Date = DateTime.Now;
-
         _context.Add(leave);
         await _context.SaveChangesAsync();
         return View("Success");
@@ -115,10 +149,24 @@ public class LeaveController : Controller
 
         var history = await _context.LeaveRequests
             .Where(l => l.Employee_ID == userId)
-            .OrderBy(l => l.Leave_ID)
+            .OrderByDescending(l => l.Request_Date)
             .ToListAsync();
 
         return View(history);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportMyStatusExcel()
+    {
+        var userId = HttpContext.Session.GetInt32("UserID");
+        if (userId == null) return RedirectToAction("Login", "Account");
+
+        var history = await _context.LeaveRequests
+            .Where(l => l.Employee_ID == userId)
+            .OrderByDescending(l => l.Request_Date)
+            .ToListAsync();
+
+        return GenerateExcelFile(history, $"My_Leave_Status_{DateTime.Now:yyyyMMdd}.xlsx");
     }
 
     // --- ADMIN SECTION ---
@@ -133,7 +181,7 @@ public class LeaveController : Controller
             HttpContext.Session.SetString("IsManager", "true");
             return RedirectToAction("Approval");
         }
-        ViewBag.Error = "Warning ! Only Authorized Users Are Allowed To Log In.";
+        ViewBag.Error = "Warning! Only Authorized Users Are Allowed To Log In.";
         return View();
     }
 
@@ -185,7 +233,8 @@ public class LeaveController : Controller
             startDate = request.Start_Date.ToString("dd-MM-yy"),
             endDate = request.End_Date.ToString("dd-MM-yy"),
             reasons = request.Reasons,
-            status = request.Status
+            status = request.Status,
+            attachmentPath = request.AttachmentPath
         });
     }
 
@@ -193,45 +242,28 @@ public class LeaveController : Controller
     public async Task<IActionResult> UpdateStatus(int id, string status)
     {
         var request = await _context.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Leave_ID == id);
-
         if (request == null) return NotFound();
 
-        if (status == "Approve" && request.Status != "Approve")
+        string oldStatus = request.Status;
+        int totalDays = (request.End_Date.Date - request.Start_Date.Date).Days + 1;
+
+        // Logic 1: Moving TO Approve (Deduct balance and add attendance)
+        if (status == "Approve" && oldStatus != "Approve")
         {
-            int totalDays = (request.End_Date.Date - request.Start_Date.Date).Days + 1;
-
-            if (request.LeaveType == "Annual") request.Employee.AnnualLeaveDays -= totalDays;
-            else if (request.LeaveType == "MC") request.Employee.MCDays -= totalDays;
-            else if (request.LeaveType == "Compassionate") request.Employee.EmergencyLeaveDays -= totalDays;
-            else if (request.LeaveType == "Other") request.Employee.OtherLeaveDays -= totalDays;
-            else if (request.LeaveType == "Maternity Leave") request.Employee.MaternityLeaveDays -= totalDays;
-
-            for (DateTime date = request.Start_Date.Date; date <= request.End_Date.Date; date = date.AddDays(1))
-            {
-                var existingRecord = await _context.Attendances
-                    .FirstOrDefaultAsync(a => a.Employee_ID == request.Employee_ID && a.Date.Date == date);
-
-                if (existingRecord == null)
-                {
-                    _context.Attendances.Add(new Attendance
-                    {
-                        Employee_ID = request.Employee_ID,
-                        Date = date,
-                        Status = "Leave",
-                        ClockInTime = null
-                    });
-                }
-                else
-                {
-                    existingRecord.Status = "Leave";
-                }
-            }
+            AdjustLeaveBalance(request.Employee, request.LeaveType, -totalDays); // Minus
+            await SyncAttendanceRecords(request, true); // Add logs
+        }
+        // Logic 2: Moving FROM Approve TO Reject (Refund balance and remove attendance)
+        else if (status == "Reject" && oldStatus == "Approve")
+        {
+            AdjustLeaveBalance(request.Employee, request.LeaveType, totalDays); // Plus back
+            await SyncAttendanceRecords(request, false); // Remove logs
         }
 
         request.Status = status;
         await _context.SaveChangesAsync();
 
-        // --- FIXED: Check Employee_Email instead of Email ---
+        // Email Notification Logic
         if (request.Employee != null && !string.IsNullOrEmpty(request.Employee.Employee_Email))
         {
             try
@@ -242,7 +274,6 @@ public class LeaveController : Controller
                                  <p>Your leave request (REQ-{id}) for <b>{request.LeaveType}</b> has been <b>{status}</b>.</p>
                                  <p>Dates: {request.Start_Date:dd-MM-yyyy} to {request.End_Date:dd-MM-yyyy}</p>";
 
-                // --- FIXED: Send to Employee_Email ---
                 await _emailService.SendEmailAsync(request.Employee.Employee_Email, subject, body);
                 TempData["Success"] = $"Request REQ-{id} updated to {status} and email sent.";
             }
@@ -251,12 +282,44 @@ public class LeaveController : Controller
                 TempData["Success"] = $"Status updated to {status}, but email failed to send.";
             }
         }
-        else
-        {
-            TempData["Success"] = $"Request REQ-{id} updated to {status} (No email sent: Email address missing).";
-        }
-
         return RedirectToAction(nameof(Approval));
+    }
+
+    // --- HELPER METHODS ---
+
+    private void AdjustLeaveBalance(Employee emp, string leaveType, int days)
+    {
+        if (leaveType == "Annual") emp.AnnualLeaveDays += days;
+        else if (leaveType == "MC") emp.MCDays += days;
+        else if (leaveType == "Compassionate") emp.EmergencyLeaveDays += days;
+        else if (leaveType == "Other") emp.OtherLeaveDays += days;
+        else if (leaveType == "Maternity Leave") emp.MaternityLeaveDays += days;
+    }
+
+    private async Task SyncAttendanceRecords(LeaveRequest request, bool isAdding)
+    {
+        for (DateTime date = request.Start_Date.Date; date <= request.End_Date.Date; date = date.AddDays(1))
+        {
+            var existingRecord = await _context.Attendances
+                .FirstOrDefaultAsync(a => a.Employee_ID == request.Employee_ID && a.Date.Date == date);
+
+            if (isAdding)
+            {
+                if (existingRecord == null)
+                {
+                    _context.Attendances.Add(new Attendance { Employee_ID = request.Employee_ID, Date = date, Status = "Leave" });
+                }
+                else { existingRecord.Status = "Leave"; }
+            }
+            else
+            {
+                // If rejecting previously approved leave, remove the "Leave" record or reset it
+                if (existingRecord != null && existingRecord.Status == "Leave")
+                {
+                    _context.Attendances.Remove(existingRecord);
+                }
+            }
+        }
     }
 
     public async Task<IActionResult> EditEntitlements(int id)
@@ -308,9 +371,17 @@ public class LeaveController : Controller
     {
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Leave Records");
-        worksheet.Cell(1, 1).Value = "ID"; worksheet.Cell(1, 2).Value = "Status";
-        worksheet.Cell(1, 3).Value = "Type"; worksheet.Cell(1, 4).Value = "Start Date";
-        worksheet.Cell(1, 5).Value = "End Date"; worksheet.Cell(1, 6).Value = "Reason";
+
+        worksheet.Cell(1, 1).Value = "ID";
+        worksheet.Cell(1, 2).Value = "Status";
+        worksheet.Cell(1, 3).Value = "Type";
+        worksheet.Cell(1, 4).Value = "Start Date";
+        worksheet.Cell(1, 5).Value = "End Date";
+        worksheet.Cell(1, 6).Value = "Reason";
+
+        var headerRange = worksheet.Range("A1:F1");
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
 
         for (int i = 0; i < data.Count; i++)
         {
@@ -322,6 +393,7 @@ public class LeaveController : Controller
             worksheet.Cell(i + 2, 5).Value = item.End_Date.ToString("dd-MM-yyyy");
             worksheet.Cell(i + 2, 6).Value = item.Reasons;
         }
+
         worksheet.Columns().AdjustToContents();
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);

@@ -19,7 +19,7 @@ public class HomeController : Controller
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        // Get current user claims to show in the Dashboard "My Claims" section
+        // --- Get current user claims to show in the Dashboard "My Claims" section ---
         var userClaims = await _context.Claims
             .Where(c => c.Employee_ID == userId)
             .ToListAsync();
@@ -54,63 +54,66 @@ public class HomeController : Controller
         int otherUsed = userLeaves.Where(l => l.LeaveType == "Other").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
 
         // 3. Logic Fix: Handle Overflow (prevent negative available balance)
-        // If Annual Used (7) > Total Annual (5), cap used at 5 and move 2 to unpaid.
         int displayAnnualUsed = rawAnnualUsed > totalAnnual ? totalAnnual : rawAnnualUsed;
         int annualOverflow = rawAnnualUsed > totalAnnual ? rawAnnualUsed - totalAnnual : 0;
 
         // 4. Set ViewBag for Leave Cards
-        // Annual Leave Card
         ViewBag.AnnualLeave = $"{displayAnnualUsed:D2}/{totalAnnual:D2}";
-        ViewBag.AnnualAvailable = totalAnnual - displayAnnualUsed; // Result: 00 instead of -02
-        ViewBag.AnnualUsed = rawAnnualUsed; // Keep actual total for reference if needed
+        ViewBag.AnnualAvailable = totalAnnual - displayAnnualUsed;
+        ViewBag.AnnualUsed = rawAnnualUsed;
 
-        // MC Leave Card
         ViewBag.MCLeave = $"{mcUsed:D2}/{totalMC:D2}";
         ViewBag.MCAvailable = Math.Max(0, totalMC - mcUsed);
         ViewBag.MCUsed = mcUsed;
 
-        // Compassionate Leave Card
         ViewBag.CompassionateLeave = $"{compassionateUsed:D2}/{totalCompassionate:D2}";
         ViewBag.CompassionateAvailable = Math.Max(0, totalCompassionate - compassionateUsed);
         ViewBag.CompassionateUsed = compassionateUsed;
 
-        // Maternity Leave Card
         ViewBag.MaternityLeave = $"{maternityUsed:D2}/{totalMaternity:D2}";
         ViewBag.MaternityAvailable = Math.Max(0, totalMaternity - maternityUsed);
         ViewBag.MaternityUsed = maternityUsed;
 
-        // Other Leave Card
         ViewBag.OtherLeave = $"{otherUsed:D2}/{totalOther:D2}";
         ViewBag.OtherAvailable = Math.Max(0, totalOther - otherUsed);
         ViewBag.OtherUsed = otherUsed;
 
-        // Unpaid Leave (Includes raw unpaid requests + overflow from annual leave)
         ViewBag.UnpaidUsed = rawUnpaidUsed + annualOverflow;
 
-        // Attendance Insights
+        // --- Attendance Insights ---
         CalculateAttendanceInsights(userId.Value);
-
 
         return View();
     }
 
+    // --- NEW: My Attendance History with Fingerprint Tracking ---
+    public async Task<IActionResult> AttendanceHistory()
+    {
+        var userId = HttpContext.Session.GetInt32("UserID");
+        if (userId == null) return RedirectToAction("Login", "Account");
+
+        var logs = await _context.Attendances
+            .Where(a => a.Employee_ID == userId)
+            .OrderByDescending(a => a.Date)
+            .ToListAsync();
+
+        return View(logs);
+    }
+
     private void CalculateAttendanceInsights(int userId)
     {
-        // Get current month and year for comparison
         var now = DateTime.Now;
         var currentMonth = now.Month;
         var currentYear = now.Year;
         var previousMonth = currentMonth == 1 ? 12 : currentMonth - 1;
         var previousYear = currentMonth == 1 ? currentYear - 1 : currentYear;
 
-        // Get attendance records for current month
         var currentMonthAttendances = _context.Attendances
             .Where(a => a.Employee_ID == userId
                 && a.Date.Month == currentMonth
                 && a.Date.Year == currentYear)
             .ToList();
 
-        // Get attendance records for previous month (for comparison)
         var previousMonthAttendances = _context.Attendances
             .Where(a => a.Employee_ID == userId
                 && a.Date.Month == previousMonth
@@ -118,8 +121,6 @@ public class HomeController : Controller
             .ToList();
 
         // 1. On-Time Percentage Calculation
-        // Use the Status field from database (already calculated based on shift schedules with grace period)
-
         int currentOnTimeCount = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
             .Count(a => !string.IsNullOrEmpty(a.Status) &&
@@ -149,8 +150,6 @@ public class HomeController : Controller
         ViewBag.OnTimeChangeDirection = onTimeChange >= 0 ? "up" : "down";
 
         // 2. Late Percentage Calculation
-        // Use the Status field from database
-
         int currentLateCount = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
             .Count(a => !string.IsNullOrEmpty(a.Status) && a.Status.ToLower() == "late");
@@ -175,7 +174,6 @@ public class HomeController : Controller
         ViewBag.LateChangeDirection = lateChange >= 0 ? "up" : "down";
 
         // 3. Total Break Hours Calculation
-        // Use TotalBreakTime from your model
         TimeSpan currentMonthBreakTotal = currentMonthAttendances
             .Where(a => a.TotalBreakTime.HasValue)
             .Select(a => a.TotalBreakTime.Value)
@@ -194,21 +192,15 @@ public class HomeController : Controller
         ViewBag.BreakChangeDirection = breakChangePercentage >= 0 ? "up" : "down";
 
         // 4. Total Working Hours Calculation
-        // Calculate working hours from ClockInTime to ClockOutTime
         TimeSpan currentMonthWorkTotal = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
             .Select(a =>
             {
-                // Calculate work duration (excluding breaks)
                 TimeSpan workDuration = a.ClockOutTime.Value - a.ClockInTime.Value;
-
-                // Subtract break time if available
                 if (a.TotalBreakTime.HasValue)
                 {
                     workDuration = workDuration.Subtract(a.TotalBreakTime.Value);
                 }
-
-                // Ensure non-negative
                 return workDuration.TotalSeconds > 0 ? workDuration : TimeSpan.Zero;
             })
             .Aggregate(TimeSpan.Zero, (total, next) => total + next);
@@ -233,7 +225,6 @@ public class HomeController : Controller
         ViewBag.WorkChange = (int)workChangePercentage;
         ViewBag.WorkChangeDirection = workChangePercentage >= 0 ? "up" : "down";
 
-        // Additional useful stats you might want to display
         ViewBag.TotalWorkingDays = currentMonthAttendances.Count(a => a.ClockInTime.HasValue);
         ViewBag.AverageDailyHours = currentMonthAttendances.Count(a => a.ClockInTime.HasValue) > 0
             ? FormatTimeSpan(TimeSpan.FromHours(currentMonthWorkTotal.TotalHours / currentMonthAttendances.Count(a => a.ClockInTime.HasValue)))
