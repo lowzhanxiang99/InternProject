@@ -13,5 +13,7 @@
         // --- ADD NEW TWO LINES ---
         public int HolidayCount { get; set; }
         public int SundayCount { get; set; }
+        public string? LeaveDates { get; set; } // Stores dates as a string like "05 Feb, 06 Feb"
+        public List<string> LeaveDatesList { get; set; } = new List<string>();
     }
 }

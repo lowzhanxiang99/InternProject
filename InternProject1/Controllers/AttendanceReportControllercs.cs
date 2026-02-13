@@ -1,18 +1,19 @@
-﻿using InternProject1.Data;
+﻿using ClosedXML.Excel;
+using InternProject1.Data;
+using InternProject1.Migrations;
 using InternProject1.Models;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Hosting;
-using ClosedXML.Excel;
-using System.IO;
 using SelectPdf;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System;
-using System.Globalization;
-using System.Diagnostics;
 
 namespace InternProject1.Controllers;
 
@@ -20,6 +21,7 @@ public class AttendanceReportController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _webHostEnvironment;
+    private byte[] imageArray;
 
     public AttendanceReportController(ApplicationDbContext context, IWebHostEnvironment webHostEnvironment)
     {
@@ -30,30 +32,30 @@ public class AttendanceReportController : Controller
     private HashSet<DateTime> GetMalaysiaHolidays(int year)
     {
         var baseHolidays = new List<DateTime>
-        {
-            new DateTime(year, 1, 1),
-            new DateTime(year, 1, 29),
-            new DateTime(year, 1, 30),
-            new DateTime(year, 2, 1),
-            new DateTime(year, 3, 20),
-            new DateTime(year, 3, 21),
-            new DateTime(year, 5, 1),
-            new DateTime(year, 5, 27),
-            new DateTime(year, 5, 31),
-            new DateTime(year, 6, 1),
-            new DateTime(year, 8, 31),
-            new DateTime(year, 9, 16),
-            new DateTime(year, 11, 8),
-            new DateTime(year, 12, 25)
-        };
+    {
+        new DateTime(year, 1, 1),   // New Year's Day
+        new DateTime(year, 2, 1),   // Federal Territory Day (Kuala Lumpur)
+        new DateTime(year, 2, 17),  // Chinese New Year (Day 1) - NEW 2026 DATE
+        new DateTime(year, 2, 18),  // Chinese New Year (Day 2) - NEW 2026 DATE
+        new DateTime(year, 3, 20),  // Hari Raya Aidilfitri (Day 1)
+        new DateTime(year, 3, 21),  // Hari Raya Aidilfitri (Day 2)
+        new DateTime(year, 5, 1),   // Labour Day
+        new DateTime(year, 5, 27),  // Hari Raya Haji
+        new DateTime(year, 5, 31),  // Wesak Day
+        new DateTime(year, 6, 1),   // Agong's Birthday
+        new DateTime(year, 8, 31),  // Merdeka Day
+        new DateTime(year, 9, 16),  // Malaysia Day
+        new DateTime(year, 11, 8),  // Deepavali
+        new DateTime(year, 12, 25)  // Christmas Day
+        };
 
         var finalHolidays = new HashSet<DateTime>();
         foreach (var holiday in baseHolidays)
         {
-            finalHolidays.Add(holiday);
-            if (holiday.DayOfWeek == DayOfWeek.Sunday)
+            finalHolidays.Add(holiday.Date); // Ensure .Date is used
+            if (holiday.DayOfWeek == DayOfWeek.Sunday)
             {
-                finalHolidays.Add(holiday.AddDays(1));
+                finalHolidays.Add(holiday.AddDays(1).Date);
             }
         }
         return finalHolidays;
@@ -73,7 +75,6 @@ public class AttendanceReportController : Controller
         return View("AdminLogin");
     }
 
-    // --- FIXED: Merged Index Method to avoid AmbiguousMatchException ---
     public async Task<IActionResult> Index(string? month)
     {
         if (HttpContext.Session.GetString("IsAdminAuthenticated") != "true")
@@ -81,25 +82,22 @@ public class AttendanceReportController : Controller
             return RedirectToAction("AdminLogin");
         }
 
-        // Default to current month if null
         if (string.IsNullOrEmpty(month))
             month = DateTime.Now.ToString("MMMM yyyy");
 
-        // Fetch the summary analytics data
         var reportData = await GetReportData(month);
 
         var allEmployees = await _context.Employees
-            .OrderBy(e => e.First_Name)
-            .Select(e => new { e.Employee_ID, FullName = e.First_Name + " " + e.Last_Name })
-            .ToListAsync();
+          .OrderBy(e => e.First_Name)
+          .Select(e => new { e.Employee_ID, FullName = e.First_Name + " " + e.Last_Name })
+          .ToListAsync();
 
         ViewBag.EmployeeList = allEmployees;
         ViewBag.SelectedMonth = month;
 
-        // Generate months for the current year
         ViewBag.MonthsList = Enumerable.Range(1, 12)
-            .Select(i => new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM yyyy"))
-            .ToList();
+          .Select(i => new DateTime(DateTime.Now.Year, i, 1).ToString("MMMM yyyy"))
+          .ToList();
 
         return View(reportData);
     }
@@ -120,12 +118,12 @@ public class AttendanceReportController : Controller
         foreach (var emp in employees)
         {
             var records = await _context.Attendances
-                .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Year == targetYear)
-                .ToListAsync();
+              .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Year == targetYear)
+              .ToListAsync();
 
             var approvedLeaves = await _context.LeaveRequests
-                .Where(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve" && (l.Start_Date.Year == targetYear || l.End_Date.Year == targetYear))
-                .ToListAsync();
+              .Where(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve" && (l.Start_Date.Year == targetYear || l.End_Date.Year == targetYear))
+              .ToListAsync();
 
             int totalYearlyLeaveDays = 0;
             foreach (var leave in approvedLeaves)
@@ -182,8 +180,8 @@ public class AttendanceReportController : Controller
         }
 
         int lastDayToProcess = (parsedDate.Year < today.Year || (parsedDate.Year == today.Year && parsedDate.Month < today.Month))
-            ? daysInFullMonth
-            : (parsedDate.Year == today.Year && parsedDate.Month == today.Month) ? today.Day : 0;
+          ? daysInFullMonth
+          : (parsedDate.Year == today.Year && parsedDate.Month == today.Month) ? today.Day : 0;
 
         int workDaysSoFar = 0;
         for (int d = 1; d <= lastDayToProcess; d++)
@@ -199,17 +197,19 @@ public class AttendanceReportController : Controller
         foreach (var emp in employees)
         {
             var records = await _context.Attendances
-                    .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
-                    .ToListAsync();
+                .Where(a => a.Employee_ID == emp.Employee_ID && a.Date.Month == targetMonth && a.Date.Year == targetYear)
+                .ToListAsync();
 
             int attCount = records.Count(a => a.Date.Date <= today && a.ClockInTime.HasValue && a.Date.DayOfWeek != DayOfWeek.Sunday);
             int lateCount = records.Count(a => a.Date.Date <= today && (a.Status != null && a.Status.ToLower() == "late") && a.ClockInTime.HasValue);
 
             var approvedLeaves = await _context.LeaveRequests
-                .Where(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve" && l.Start_Date <= monthEndDate && l.End_Date >= monthStartDate)
-                .ToListAsync();
+              .Where(l => l.Employee_ID == emp.Employee_ID && l.Status == "Approve" && l.Start_Date <= monthEndDate && l.End_Date >= monthStartDate)
+              .ToListAsync();
 
             int leaveDaysThisMonth = 0;
+            var leaveDatesList = new List<string>();
+
             foreach (var leave in approvedLeaves)
             {
                 for (var date = leave.Start_Date.Date; date <= leave.End_Date.Date; date = date.AddDays(1))
@@ -217,7 +217,10 @@ public class AttendanceReportController : Controller
                     if (date >= monthStartDate && date <= monthEndDate && date.DayOfWeek != DayOfWeek.Sunday && !malaysiaHolidays.Contains(date.Date))
                     {
                         if (!records.Any(r => r.Date.Date == date.Date && r.ClockInTime.HasValue && r.Date.Date <= today))
+                        {
                             leaveDaysThisMonth++;
+                            leaveDatesList.Add(date.ToString("dd MMM"));
+                        }
                     }
                 }
             }
@@ -229,6 +232,7 @@ public class AttendanceReportController : Controller
                 AttendanceCount = attCount,
                 LateCount = lateCount,
                 LeaveCount = leaveDaysThisMonth,
+                LeaveDatesList = leaveDatesList,
                 AbsentCount = Math.Max(0, workDaysSoFar - (attCount + leaveDaysThisMonth)),
                 HolidayCount = totalHolidaysInMonth,
                 SundayCount = totalSundaysInMonth
@@ -303,14 +307,18 @@ public class AttendanceReportController : Controller
         int workingDays = firstRecord != null ? (totalDaysInMonth - firstRecord.SundayCount - firstRecord.HolidayCount) : 0;
 
         string logoBase64 = "";
-        string logoPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "Alpine Logo.png");
-
-        if (System.IO.File.Exists(logoPath))
+        // Use Path.GetFullPath to ensure we are looking at the absolute system path
+        string rootPath = _webHostEnvironment.WebRootPath;
+        string path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "Alpine_Logo.png");
+       
+        if (System.IO.File.Exists(path))
         {
             try
             {
-                byte[] imageBytes = System.IO.File.ReadAllBytes(logoPath);
-                logoBase64 = "data:image/png;base64," + Convert.ToBase64String(imageBytes);
+                byte[] imageBytes = System.IO.File.ReadAllBytes(path);
+                string extension = Path.GetExtension(path).Replace(".", "").ToLower();
+                // Ensure the mime-type matches (png vs jpg)
+                logoBase64 = Convert.ToBase64String(imageArray);
             }
             catch (Exception ex)
             {
@@ -319,61 +327,130 @@ public class AttendanceReportController : Controller
         }
 
         string htmlContent = $@"
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Arial', sans-serif; padding: 20px; color: #333; }}
-                .header-container {{ width: 100%; border-bottom: 3px solid #4A77A5; padding-bottom: 10px; margin-bottom: 20px; }}
-                .logo-box {{ float: left; width: 250px; height: 80px; }}
-                .logo-img {{ height: 70px; width: auto; }}
-                .address-box {{ float: right; text-align: right; font-size: 10px; color: #444; width: 350px; line-height: 1.4; }}
-                .clearfix {{ clear: both; }}
-                .report-title {{ text-align: center; margin: 20px 0; }}
-                .report-title h2 {{ color: #4A77A5; font-size: 24px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }}
-                .stats-grid {{ background-color: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 11px; margin-bottom: 25px; }}
-                .data-table {{ width: 100%; border-collapse: collapse; }}
-                .data-table th {{ background-color: #4A77A5; color: white; padding: 12px 5px; font-size: 11px; border: 1px solid #4A77A5; }}
-                .data-table td {{ border: 1px solid #ddd; padding: 8px 5px; text-align: center; font-size: 10px; }}
-                .name-column {{ text-align: left; padding-left: 10px; font-weight: bold; }}
-                .total-row {{ background-color: #f2f2f2; font-weight: bold; font-size: 11px; }}
-                .footer {{ margin-top: 60px; }}
-                .signature-box {{ float: right; width: 220px; border-top: 1px solid #000; text-align: center; padding-top: 5px; font-size: 11px; }}
-                .timestamp {{ float: left; font-size: 9px; color: #888; margin-top: 15px; }}
-            </style>
-        </head>
-        <body>
-            <div class='header-container'>
-                <div class='logo-box'>
-                    {(string.IsNullOrEmpty(logoBase64)
-                        ? "<h1 style='color:#4A77A5; margin:0;'>ALPINE</h1>"
-                        : $"<img src='{logoBase64}' class='logo-img' />")}
-                </div>
-                <div class='address-box'>
-                    <strong>Alpine Software Solutions</strong><br/>
-                    126-3, 12, Jalan Genting Kelang, Taman Danau Kota,<br/>
-                    53300 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur<br/>
-                    Phone: 011-3933 2219
-                </div>
-                <div class='clearfix'></div>
+    <html>
+    <head>
+        <style>
+            @page {{ margin: 0; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; color: #333; background-color: #fff; }}
+            .container {{ padding: 40px; }}
+            
+            /* Modern Header */
+            .header {{ display: flex; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }}
+            .logo-section {{ float: left; width: 50%; }}
+            .info-section {{ float: right; width: 50%; text-align: right; font-size: 12px; color: #7f8c8d; line-height: 1.5; }}
+            .company-name {{ color: #2c3e50; font-size: 28px; font-weight: bold; margin: 0; letter-spacing: -1px; }}
+            
+            .clearfix {{ clear: both; }}
+
+            /* Title Section */
+            .report-header {{ text-align: center; margin-bottom: 35px; }}
+            .report-header h1 {{ font-size: 22px; color: #2c3e50; text-transform: uppercase; margin: 0; letter-spacing: 2px; }}
+            .report-header p {{ color: #3498db; font-size: 14px; font-weight: bold; margin-top: 5px; }}
+
+            /* Dashboard Stats */
+            .stats-container {{ 
+    width: 100%; 
+    margin-bottom: 30px; 
+    display: block;
+}}
+.stat-box {{ 
+    float: left; 
+    width: 23%; /* Adjusted to fit 4 boxes perfectly */
+    background: #f8f9fa; 
+    border: 1px solid #e9ecef; 
+    padding: 15px 0; 
+    margin-right: 2%; 
+    text-align: center; 
+    border-radius: 8px; 
+}}
+.stat-box.last {{
+    margin-right: 0;
+}}
+.stat-box.highlight {{ 
+    background: #2c3e50; 
+    color: white; 
+    border: 1px solid #2c3e50; 
+}}
+.stat-label {{ 
+    display: block; 
+    font-size: 10px; 
+    text-transform: uppercase; 
+    color: #95a5a6; 
+    margin-bottom: 5px; 
+}}
+.stat-box.highlight .stat-label {{ 
+    color: #bdc3c7; 
+}}
+.stat-value {{ 
+    display: block; 
+    font-size: 18px; 
+    font-weight: bold; 
+}}
+
+            /* Professional Table */
+            .data-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
+            .data-table th {{ background-color: #2c3e50; color: #ffffff; padding: 12px 10px; text-transform: uppercase; font-size: 11px; text-align: center; border: none; }}
+            .data-table th:first-child {{ border-radius: 8px 0 0 0; text-align: left; }}
+            .data-table th:last-child {{ border-radius: 0 8px 0 0; }}
+            .data-table td {{ padding: 10px; border-bottom: 1px solid #eee; font-size: 11px; text-align: center; color: #2c3e50; }}
+            .data-table tr:nth-child(even) {{ background-color: #fcfcfc; }}
+            .data-table .emp-name {{ text-align: left; font-weight: bold; color: #34495e; }}
+            .absent-alert {{ color: #e74c3c; font-weight: bold; background: #fdedec; border-radius: 4px; padding: 2px 5px; }}
+
+            /* Footer */
+            .footer {{ margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; }}
+            .meta-info {{ float: left; font-size: 10px; color: #95a5a6; }}
+            .signature {{ float: right; width: 200px; text-align: center; }}
+            .sig-line {{ border-top: 1px solid #2c3e50; margin-top: 40px; padding-top: 5px; font-size: 11px; font-weight: bold; color: #2c3e50; }}
+        </style>
+    </head>
+    <body>
+        <div class='container'>
+           <div class='header'>
+    <div class='logo-section' style='float: left; width: 40%;'>
+        {(string.IsNullOrEmpty(logoBase64)
+            ? "<h1 class='company-name' style='margin:0;'>ALPINE</h1>"
+            : $"<img src='data:image/png;base64,{logoBase64}' style='height:70px; width:auto; display:block;' />")}
+    </div>
+    <div class='info-section' style='float: right; width: 50%; text-align: right;'>
+        <strong style='color:#2c3e50;'>Alpine Software Solutions</strong><br/>
+        <span style='font-size:10px;'>126-3, 12, Jalan Genting Kelang, Taman Danau Kota,<br/>
+        53300 Kuala Lumpur, Malaysia<br/>
+        Contact: 011-3933 2219</span>
+    </div>
+    <div class='clearfix' style='clear:both;'></div>
+</div>
+
+            <div class='report-header'>
+                <h1>Monthly Attendance Summary</h1>
+                <p>Period: {month}</p>
             </div>
 
-            <div class='report-title'>
-                <h2>ATTENDANCE ANALYTICS REPORT</h2>
-                <p>For the Month of <strong>{month}</strong></p>
-            </div>
-
-            <div class='stats-grid'>
-                Total Days: <strong>{totalDaysInMonth}</strong> | 
-                Sundays: <strong>{firstRecord?.SundayCount}</strong> | 
-                Holidays: <strong>{firstRecord?.HolidayCount}</strong> | 
-                <span style='color:#4A77A5; font-weight:bold;'>Expected Working Days: {workingDays}</span>
-            </div>
+           <div class='stats-container'>
+    <div class='stat-box'>
+        <span class='stat-label'>Total Days</span>
+        <span class='stat-value'>{totalDaysInMonth}</span>
+    </div>
+    <div class='stat-box'>
+        <span class='stat-label'>Holidays</span>
+        <span class='stat-value'>{firstRecord?.HolidayCount}</span>
+    </div>
+    <div class='stat-box'>
+        <span class='stat-label'>Sundays</span>
+        <span class='stat-value'>{firstRecord?.SundayCount}</span>
+    </div>
+    <div class='stat-box highlight last'>
+        <span class='stat-label'>Required Work Days</span>
+        <span class='stat-value'>{workingDays}</span>
+    </div>
+    <div class='clearfix'></div>
+</div>
 
             <table class='data-table'>
                 <thead>
                     <tr>
-                        <th class='name-column'>Employee Name</th>
-                        <th>Attendance</th>
+                        <th style='width: 30%;'>Employee Name</th>
+                        <th>Present</th>
                         <th>Late</th>
                         <th>Leave</th>
                         <th>Absent</th>
@@ -387,19 +464,19 @@ public class AttendanceReportController : Controller
         {
             htmlContent += $@"
                 <tr>
-                    <td class='name-column'>{item.Name}</td>
+                    <td class='emp-name'>{item.Name}</td>
                     <td>{item.AttendanceCount}</td>
                     <td>{item.LateCount}</td>
                     <td>{item.LeaveCount}</td>
-                    <td {(item.AbsentCount > 0 ? "style='color:red; font-weight:bold;'" : "")}>{item.AbsentCount}</td>
+                    <td><span class='{(item.AbsentCount > 0 ? "absent-alert" : "")}'>{item.AbsentCount}</span></td>
                     <td>{item.HolidayCount}</td>
                     <td>{item.SundayCount}</td>
                 </tr>";
         }
 
         htmlContent += $@"
-                <tr class='total-row'>
-                    <td class='name-column'>COMPANY TOTAL</td>
+                <tr style='background: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;'>
+                    <td class='emp-name'>ORGANIZATION TOTAL</td>
                     <td>{data.Sum(x => x.AttendanceCount)}</td>
                     <td>{data.Sum(x => x.LateCount)}</td>
                     <td>{data.Sum(x => x.LeaveCount)}</td>
@@ -411,22 +488,30 @@ public class AttendanceReportController : Controller
             </table>
 
             <div class='footer'>
-                <div class='timestamp'>Generated on: {DateTime.Now:dd MMM yyyy HH:mm}</div>
-                <div class='signature-box'>Manager Signature</div>
+                <div class='meta-info'>
+                    Generated securely by Alpine System<br/>
+                    Date: {DateTime.Now:dd MMM yyyy} | Time: {DateTime.Now:HH:mm}
+                </div>
+                <div class='signature'>
+                    <div class='sig-line'>Authorized Signature</div>
+                </div>
                 <div class='clearfix'></div>
             </div>
-        </body>
-        </html>";
+        </div>
+    </body>
+    </html>";
 
         HtmlToPdf converter = new HtmlToPdf();
         converter.Options.PdfPageSize = PdfPageSize.A4;
         converter.Options.WebPageWidth = 1024;
+        converter.Options.MarginTop = 0;
+        converter.Options.MarginBottom = 0;
 
         PdfDocument doc = converter.ConvertHtmlString(htmlContent);
         byte[] pdfFile = doc.Save();
         doc.Close();
 
-        return File(pdfFile, "application/pdf", $"Attendance_Report_{month.Replace(" ", "")}.pdf");
+        return File(pdfFile, "application/pdf", $"Attendance_Report_{month.Replace(" ", "_")}.pdf");
     }
 
     public async Task<IActionResult> EmployeeDetails(int id, string month)
@@ -448,17 +533,36 @@ public class AttendanceReportController : Controller
         }
 
         var logs = await _context.Attendances
-            .Where(a => a.Employee_ID == id &&
-                        a.Date.Month == parsedDate.Month &&
-                        a.Date.Year == parsedDate.Year)
-            .OrderBy(a => a.Date)
-            .ToListAsync();
+          .Where(a => a.Employee_ID == id &&
+                a.Date.Month == parsedDate.Month &&
+                a.Date.Year == parsedDate.Year)
+          .OrderBy(a => a.Date)
+          .ToListAsync();
 
         ViewBag.EmployeeName = employee.First_Name + " " + employee.Last_Name;
         ViewBag.EmployeeId = id;
         ViewBag.SelectedMonth = month;
 
         return View(logs);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AddManualAttendance(int EmployeeId, DateTime Date, TimeSpan ClockInTime, TimeSpan ClockOutTime, string Status)
+    {
+        var newAttendance = new Attendance
+        {
+            Employee_ID = EmployeeId,
+            Date = Date,
+            ClockInTime = ClockInTime,
+            ClockOutTime = ClockOutTime,
+            Status = Status,
+            IPAddress = "Admin Entry" // To distinguish from auto-logs
+        };
+
+        _context.Attendances.Add(newAttendance);
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("EmployeeDetails", new { id = EmployeeId });
     }
 
     public IActionResult Logout()

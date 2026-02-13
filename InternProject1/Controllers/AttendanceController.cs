@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace InternProject1.Controllers
 {
@@ -19,6 +20,34 @@ namespace InternProject1.Controllers
         {
             _context = context;
             _logger = logger;
+        }
+
+        public async Task<IActionResult> SummaryReport()
+        {
+            // 1. 获取所有员工
+            var employees = await _context.Employees.ToListAsync();
+
+            // 2. 将每个员工的数据转换为 StaffSummaryViewModel
+            var summaryList = employees.Select(e => new StaffSummaryViewModel
+            {
+                Employee_ID = e.Employee_ID,
+                Name = e.Employee_Email.Split('@')[0], // 暂时用 Email 前缀当名字
+
+                // 统计总出勤天数
+                AttendanceCount = _context.Attendances.Count(a => a.Employee_ID == e.Employee_ID),
+
+                // 统计迟到次数 (假设 9:00 AM 之后算迟到)
+                LateCount = _context.Attendances.Count(a =>
+                    a.Employee_ID == e.Employee_ID &&
+                    a.ClockInTime > new TimeSpan(9, 0, 0)),
+
+                // 统计已批准的请假次数
+                LeaveCount = _context.LeaveRequests.Count(l =>
+                    l.Employee_ID == e.Employee_ID &&
+                    l.Status == "Approved")
+            }).ToList();
+
+            return View(summaryList); // 把这个列表发给你的 View 页面
         }
 
         // Helper method to get current user ID

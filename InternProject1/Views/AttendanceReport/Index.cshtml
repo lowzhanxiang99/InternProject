@@ -14,15 +14,17 @@
     var totalSundays = Model?.FirstOrDefault()?.SundayCount ?? 0;
 
     bool hasData = Model != null && Model.Any();
+
+    // --- NEW LOGIC: Filter employees who have leave counts > 0 ---
+    var leaveDetails = Model?.Where(s => s.LeaveCount > 0).ToList() ?? new List<InternProject1.Models.StaffSummaryViewModel>();
 }
 
 <div class="container-fluid p-0" style="background-color: #f4f7f6; min-height: 100vh;">
-    @* Header with Month & Yearly Selection *@
+    @* Header Section *@
     <div class="text-center py-3 mb-3 shadow-sm" style="background: linear-gradient(135deg, #BDD2E7 0%, #9bbad9 100%);">
         <h5 class="fw-bold m-0 text-dark">ATTENDANCE ANALYTICS</h5>
 
         <div class="d-flex align-items-center justify-content-center gap-2 mt-2">
-            @* Monthly Dropdown *@
             <div class="dropdown">
                 <button class="btn btn-white btn-sm dropdown-toggle shadow-sm px-3 py-1 border-0"
                         type="button" id="dateDropdown" data-bs-toggle="dropdown" aria-expanded="false"
@@ -40,7 +42,6 @@
                 </ul>
             </div>
 
-            @* NEW: Yearly Report Button *@
             <a asp-action="YearlyReport" asp-route-year="2026" class="btn btn-primary btn-sm shadow-sm px-3 py-1 border-0"
                style="border-radius: 20px; font-size: 0.75rem; background-color: #4A77A5;">
                 <i class="bi bi-graph-up me-1"></i> Yearly Report
@@ -52,23 +53,30 @@
         @* Summary Cards *@
         <div class="row g-2 mb-4 justify-content-center">
             @{
+                // --- UPDATED: Added ModalTarget to distinguish which modal to open ---
                 var cardItems = new[] {
-                        new { Title = "Attendance", Count = totalAttendance.ToString(), Color = "#4A77A5", Desc = "Present", Icon = "bi-person-check-fill" },
-                        new { Title = "Late", Count = totalLate.ToString(), Color = "#FFCC00", Desc = "Late In", Icon = "bi-clock-history" },
-                        new { Title = "Leave", Count = totalLeave.ToString(), Color = "#99CCFF", Desc = "On Leave", Icon = "bi-calendar-check" },
-                        new { Title = "Absent", Count = totalAbsent.ToString(), Color = "#FF6666", Desc = "Absent", Icon = "bi-exclamation-triangle" },
-                        new { Title = "Holidays", Count = totalHolidays.ToString(), Color = "#6c757d", Desc = "Public", Icon = "bi-flag-fill" },
-                        new { Title = "Sundays", Count = totalSundays.ToString(), Color = "#adb5bd", Desc = "Weekend", Icon = "bi-calendar-event" }
+                        new { Title = "Attendance", Count = totalAttendance.ToString(), Color = "#4A77A5", Desc = "Present", Clickable = false, ModalTarget = "" },
+                        new { Title = "Late", Count = totalLate.ToString(), Color = "#FFCC00", Desc = "Late In", Clickable = false, ModalTarget = "" },
+                        new { Title = "Leave", Count = totalLeave.ToString(), Color = "#99CCFF", Desc = "On Leave", Clickable = true, ModalTarget = "#leaveDetailsModal" },
+                        new { Title = "Absent", Count = totalAbsent.ToString(), Color = "#FF6666", Desc = "Absent", Clickable = false, ModalTarget = "" },
+                        new { Title = "Holidays", Count = totalHolidays.ToString(), Color = "#6c757d", Desc = "Public", Clickable = true, ModalTarget = "#malaysiaHolidayModal" },
+                        new { Title = "Sundays", Count = totalSundays.ToString(), Color = "#adb5bd", Desc = "Weekend", Clickable = false, ModalTarget = "" }
                         };
             }
 
             @foreach (var item in cardItems)
             {
                 <div class="col-4 col-md-2">
-                    <div class="p-2 border-0 text-center shadow-sm h-100" style="background-color: white; border-radius: 12px; border-bottom: 4px solid @item.Color !important;">
+                    <div class="p-2 border-0 text-center shadow-sm h-100 @(item.Clickable ? "holiday-card-trigger" : "")"
+                         style="background-color: white; border-radius: 12px; border-bottom: 4px solid @item.Color !important; cursor: @(item.Clickable ? "pointer" : "default"); transition: all 0.2s;"
+                         @(item.Clickable ? $"data-bs-toggle=modal data-bs-target={item.ModalTarget}" : "")>
                         <p class="text-uppercase mb-1 text-muted" style="font-size: 0.6rem; font-weight: 700;">@item.Title</p>
                         <h4 class="fw-bold m-0" style="color: #333;">@item.Count</h4>
                         <div class="d-flex align-items-center justify-content-center mt-1 fw-semibold" style="color: @item.Color; font-size: 0.65rem;">
+                            @if (item.Clickable)
+                            {
+                                <i class="bi bi-search me-1"></i>
+                            }
                             @item.Desc
                         </div>
                     </div>
@@ -135,6 +143,129 @@
     </div>
 </div>
 
+@* --- UPDATED MODAL: STAFF ON LEAVE WITH SPECIFIC DATES --- *@
+<div class="modal fade" id="leaveDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 15px;">
+            <div class="modal-header border-0 bg-info text-white" style="border-radius: 15px 15px 0 0; background-color: #99CCFF !important;">
+                <h6 class="modal-title fw-bold text-dark"><i class="bi bi-person-walking me-2"></i>Staff on Leave - @selectedMonthLabel</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light sticky-top">
+                            <tr class="text-muted small">
+                                <th class="ps-4">Employee Name</th>
+                                <th class="text-center">Days Taken</th>
+                                <th>Specific Dates</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (leaveDetails.Any())
+                            {
+                                foreach (var staff in leaveDetails)
+                                {
+                                    <tr>
+                                        <td class="ps-4 fw-bold">@staff.Name</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-light text-primary border">@staff.LeaveCount Days</span>
+                                        </td>
+                                        <td>
+                                            @if (staff.LeaveDatesList != null && staff.LeaveDatesList.Any())
+                                            {
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @foreach (var date in staff.LeaveDatesList)
+                                                    {
+                                                        <span class="badge rounded-pill border text-dark fw-normal" style="font-size: 0.7rem; background-color: #f8f9fa;">@date</span>
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <small class="text-muted italic">No dates provided</small>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted">No leave records found.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light py-2">
+                <button type="button" class="btn btn-sm btn-secondary px-4" data-bs-dismiss="modal" style="border-radius: 8px;">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* --- UPDATED MODAL: MALAYSIA HOLIDAYS 2026 --- *@
+<div class="modal fade" id="malaysiaHolidayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 15px;">
+            <div class="modal-header border-0 bg-dark text-white" style="border-radius: 15px 15px 0 0;">
+                <h6 class="modal-title fw-bold"><i class="bi bi-calendar-check me-2"></i>Official Malaysia Holidays 2026</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive" style="max-height: 500px;">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead class="bg-light sticky-top">
+                            <tr class="text-muted small">
+                                <th class="ps-4">Date</th>
+                                <th>Holiday Name</th>
+                                <th>Type</th>
+                                <th class="text-center">Observed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="ps-4 fw-bold">1 Jan (Thu)</td><td>New Year's Day</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr class="table-info"> <td class="ps-4 fw-bold">1 Feb (Sun)</td><td>Thaipusam / FT Day</td><td>State</td><td class="text-center">Yes</td></tr>
+                            <tr class="table-light"> <td class="ps-4 fw-bold">2 Feb (Mon)</td><td>Thaipusam Holiday</td><td>State</td><td class="text-center">Yes</td></tr>
+                            <tr class="table-light"> <td class="ps-4 fw-bold">3 Feb (Tue)</td><td>FT Day Holiday</td><td>State</td><td class="text-center">Yes</td></tr>
+                            <tr><td class="ps-4 fw-bold">17 Feb (Tue)</td><td>Chinese New Year</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr><td class="ps-4 fw-bold">18 Feb (Wed)</td><td>Chinese New Year (Day 2)</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr><td class="ps-4 fw-bold">7 Mar (Sat)</td><td>Nuzul Al-Quran</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr><td class="ps-4 fw-bold">21 Mar (Sat)</td><td>Hari Raya Aidilfitri</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr class="table-info"> <td class="ps-4 fw-bold">22 Mar (Sun)</td><td>Hari Raya Aidilfitri (Day 2)</td><td>Federal</td><td class="text-center">Yes</td></tr>
+                            <tr class="table-light"> <td class="ps-4 fw-bold">23 Mar (Mon)</td><td>Hari Raya Aidilfitri Holiday</td><td>Federal</td><td class="text-center">Yes</td></tr>
+                            <tr><td class="ps-4 fw-bold">1 May (Fri)</td><td>Labour Day</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr><td class="ps-4 fw-bold">27 May (Wed)</td><td>Hari Raya Haji</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr class="table-info"> <td class="ps-4 fw-bold">31 May (Sun)</td><td>Wesak Day</td><td>Federal</td><td class="text-center">Yes</td></tr>
+                            <tr class="table-light"> <td class="ps-4 fw-bold">1 Jun (Mon)</td><td>Wesak Day / Agong's Bday</td><td>Federal</td><td class="text-center">Yes</td></tr>
+                            <tr><td class="ps-4 fw-bold">17 Jun (Wed)</td><td>Awal Muharram</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr><td class="ps-4 fw-bold">25 Aug (Tue)</td><td>Prophet Muhammad's Bday</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr><td class="ps-4 fw-bold">31 Aug (Mon)</td><td>Merdeka Day</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr><td class="ps-4 fw-bold">16 Sep (Wed)</td><td>Malaysia Day</td><td>Federal</td><td class="text-center">-</td></tr>
+                            <tr class="table-info"> <td class="ps-4 fw-bold">8 Nov (Sun)</td><td>Deepavali</td><td>Federal</td><td class="text-center">Yes</td></tr>
+                            <tr class="table-light"> <td class="ps-4 fw-bold">9 Nov (Mon)</td><td>Deepavali Holiday</td><td>Federal</td><td class="text-center">Yes</td></tr>
+                            <tr><td class="ps-4 fw-bold">25 Dec (Fri)</td><td>Christmas Day</td><td>Federal</td><td class="text-center">-</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light py-2">
+                <small class="text-muted me-auto ps-2">* Includes Replacement Holidays for Sundays</small>
+                <button type="button" class="btn btn-sm btn-outline-dark px-4" data-bs-dismiss="modal" style="border-radius: 8px;">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .holiday-card-trigger:hover {
+        background-color: #f0f0f0 !important;
+        transform: scale(1.03);
+    }
+</style>
+
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -169,8 +300,18 @@
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: {
-                            y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { stepSize: @(totalAttendance > 50 ? 20 : 1), font: { size: 10 } } },
-                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#f0f0f0' },
+                                ticks: {
+                                    stepSize: 1,
+                                    font: { size: 10 }
+                                }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 10 } }
+                            }
                         }
                     }
                 });

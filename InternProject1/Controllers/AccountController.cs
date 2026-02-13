@@ -11,23 +11,26 @@ namespace InternProject1.Controllers;
 
 public class AccountController : Controller
 {
+    // 1. 统一声明所有需要用到的私有变量
     private readonly ApplicationDbContext _context;
     private readonly IConfiguration _configuration;
 
-    public AccountController(ApplicationDbContext context, IConfiguration configuration)
+    // 构造函数只注入本地数据库和配置
+    public AccountController(
+        ApplicationDbContext context,
+        IConfiguration configuration)
     {
         _context = context;
         _configuration = configuration;
     }
 
-    // --- REGISTRATION ---
-    public IActionResult Register() => View();
-
+    // --- REGISTRATION (恢复纯本地模式) ---
     [HttpPost]
     public async Task<IActionResult> Register(Employee employee)
     {
         if (ModelState.IsValid)
         {
+            // 只存本地数据库，不再管云端
             _context.Add(employee);
             await _context.SaveChangesAsync();
             return RedirectToAction("Login");

@@ -45,6 +45,13 @@
                     </ul>
                 </div>
             </div>
+
+            @* --- NEW: Manual Attendance Entry Button (Right Side) --- *@
+            <div class="col-md-6 text-end">
+                <button type="button" class="btn btn-primary shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#manualAttendanceModal" style="border-radius: 10px; font-weight: 500; background-color: #4A77A5; border: none;">
+                    <i class="bi bi-plus-circle me-1"></i> Manual Attendance Entry
+                </button>
+            </div>
         </div>
 
         @* Search and Navigation *@
@@ -173,7 +180,6 @@
                     {
                         <tr>
                             <td colspan="6" class="py-5 text-muted">
-                                @* Increased Colspan to 6 *@
                                 <i class="bi bi-info-circle d-block mb-2" style="font-size: 1.5rem;"></i>
                                 No records found for @currentMonth.
                             </td>
@@ -181,6 +187,52 @@
                     }
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+@* --- MODAL FOR MANUAL ATTENDANCE ENTRY --- *@
+<div class="modal fade" id="manualAttendanceModal" tabindex="-1" aria-labelledby="manualAttendanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header text-white" style="background-color: #4A77A5;">
+                <h5 class="modal-title" id="manualAttendanceModalLabel"><i class="bi bi-clock-history me-2"></i>Manual Attendance Entry</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="AddManualAttendance" asp-controller="AttendanceReport" method="post">
+                <div class="modal-body p-4">
+                    <input type="hidden" name="EmployeeId" value="@ViewBag.EmployeeId" />
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Select Date</label>
+                        <input type="date" name="Date" class="form-control" required style="border-radius: 8px;" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">Clock In Time</label>
+                            <input type="time" name="ClockInTime" class="form-control" required style="border-radius: 8px;" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">Clock Out Time</label>
+                            <input type="time" name="ClockOutTime" class="form-control" required style="border-radius: 8px;" />
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-muted">Entry Remark/Status</label>
+                        <select name="Status" class="form-select" style="border-radius: 8px;">
+                            <option value="Present">Present (Manual)</option>
+                            <option value="Late">Late (Manual)</option>
+                        </select>
+                        <small class="text-muted mt-2 d-block">IP Address will be recorded as "Admin Entry".</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light p-3">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4" style="border-radius: 8px; background-color: #4A77A5; border: none;">Save Record</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

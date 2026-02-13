@@ -21,11 +21,24 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
         }
+
+    /* Fix for long text in chat */
+    #chatHistory .bg-white, #chatHistory .bg-primary {
+        word-wrap: break-word;
+        white-space: pre-line;
+    }
 </style>
 
 <div class="container-fluid py-4 px-4">
-    <div class="mb-4">
-        <h4 class="fw-bold">Welcome Back, @(ViewBag.UserName ?? "User")!</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0">Welcome Back, @(ViewBag.UserName ?? "User")!</h4>
+
+        <button class="btn btn-white shadow-sm border rounded-pill px-4 d-flex align-items-center"
+                data-bs-toggle="modal" data-bs-target="#aiChatModal"
+                style="transition: all 0.3s ease; background-color: white;">
+            <i class="bi bi-robot text-primary fs-5 me-2"></i>
+            <span class="fw-bold" style="font-size: 0.9rem;">Alpine AI</span>
+        </button>
     </div>
 
     <p class="text-secondary fw-bold mb-3">Leave Balance</p>
@@ -331,3 +344,127 @@
         </div>
     </div>
 </div>
+
+@* AI CHAT MODAL *@
+<div class="modal fade" id="aiChatModal" tabindex="-1" aria-labelledby="aiChatModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+            <div class="modal-header border-bottom-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold" id="aiChatModalLabel">
+                    <i class="bi bi-stars text-primary me-2"></i>Alpine AI Help
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4">
+                <div id="chatHistory" class="p-3 mb-3" style="height: 350px; overflow-y: auto; background-color: #f8f9fa; border-radius: 12px; border: 1px solid #eee;">
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">AI Assistant</small>
+                        <div class="bg-white border p-2 rounded-3 shadow-sm mt-1" style="max-width: 85%;">
+                            Hello! I am your Alpine Assistant. How can I help you with your Attendance, Leave, or Claims today?
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group mb-3 shadow-sm" style="border-radius: 10px; overflow: hidden;">
+                    <input type="text" id="chatInput" class="form-control border-0 py-2 ps-3" placeholder="Type your problem here..." style="background-color: #f1f3f5;">
+                    <button class="btn btn-primary px-3" id="btnChatSend">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            const $chatHistory = $('#chatHistory');
+            const $chatInput = $('#chatInput');
+            const $btnSend = $('#btnChatSend');
+
+            // Function to scroll chat to bottom
+            function scrollToBottom() {
+                $chatHistory.scrollTop($chatHistory[0].scrollHeight);
+            }
+
+            $btnSend.click(async function () {
+                let msg = $chatInput.val().trim();
+                if (!msg) return;
+
+                // 1. Show User Message
+                $chatHistory.append(`
+                    <div class="text-end mb-3">
+                        <small class="text-muted fw-bold">You</small>
+                        <div class="bg-primary text-white p-2 rounded-3 shadow-sm mt-1 d-inline-block text-start" style="max-width: 85%;">
+                            ${msg}
+                        </div>
+                    </div>
+                `);
+
+                $chatInput.val('');
+                scrollToBottom();
+
+                // 2. Add temporary "Thinking" indicator
+                const typingId = "typing_" + Date.now();
+                $chatHistory.append(`
+                    <div class="mb-3" id="${typingId}">
+                        <small class="text-muted fw-bold">AI Assistant</small>
+                        <div class="bg-white border p-2 rounded-3 shadow-sm mt-1" style="max-width: 85%;">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2 text-muted small">Thinking...</span>
+                        </div>
+                    </div>
+                `);
+                scrollToBottom();
+
+                try {
+                    const response = await fetch('/Home/AskGemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg })
+                    });
+
+                    const data = await response.json();
+
+                    // Remove the typing indicator
+                    $(`#${typingId}`).remove();
+
+                    // Logic to extract the text regardless of how your controller returns it
+                    let reply = "";
+                    if (data.reply) {
+                        reply = data.reply;
+                    } else if (data.candidates && data.candidates[0].content.parts[0].text) {
+                        reply = data.candidates[0].content.parts[0].text;
+                    } else {
+                        reply = "I received the data, but couldn't parse the text. Check the console.";
+                        console.log("Unexpected data structure:", data);
+                    }
+
+                    // 3. Show AI Reply
+                    $chatHistory.append(`
+                        <div class="mb-3">
+                            <small class="text-muted fw-bold">AI Assistant</small>
+                            <div class="bg-white border p-2 rounded-3 shadow-sm mt-1" style="max-width: 85%;">
+                                ${reply}
+                            </div>
+                        </div>
+                    `);
+                    scrollToBottom();
+
+                } catch (err) {
+                    $(`#${typingId}`).remove();
+                    console.error("AI Error:", err);
+                    $chatHistory.append(`<div class="text-danger small mb-3">Error connecting to AI. Please try again later.</div>`);
+                    scrollToBottom();
+                }
+            });
+
+            $chatInput.keypress(function (e) {
+                if (e.which == 13) {
+                    e.preventDefault(); // Prevents page reload or accidental form submission
+                    $btnSend.click();
+                }
+            });
+        });
+    </script>
+}

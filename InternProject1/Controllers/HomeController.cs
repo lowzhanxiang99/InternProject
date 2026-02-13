@@ -1,17 +1,21 @@
-using Microsoft.AspNetCore.Mvc;
-using InternProject1.Data;
-using Microsoft.EntityFrameworkCore;
+﻿using InternProject1.Data;
 using InternProject1.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
+using System.Text;
 
 namespace InternProject1.Controllers;
 
 public class HomeController : Controller
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public HomeController(ApplicationDbContext context)
+    public HomeController(ApplicationDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
     public IActionResult FAQ()
@@ -24,33 +28,24 @@ public class HomeController : Controller
         var userId = HttpContext.Session.GetInt32("UserID");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        // --- Get current user claims to show in the Dashboard "My Claims" section ---
-        var userClaims = await _context.Claims
-            .Where(c => c.Employee_ID == userId)
-            .ToListAsync();
-
-        // Fetch Claim Counts
+        // --- 保留你原本的所有计算逻辑 ---
+        var userClaims = await _context.Claims.Where(c => c.Employee_ID == userId).ToListAsync();
         ViewBag.PendingClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Pending");
         ViewBag.ApprovedClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Approved");
         ViewBag.RejectedClaims = await _context.Claims.CountAsync(c => c.Employee_ID == userId && c.Status == "Rejected");
-
         ViewBag.UserName = HttpContext.Session.GetString("UserName");
 
         var employee = await _context.Employees.FindAsync(userId);
         if (employee == null) return RedirectToAction("Login", "Account");
 
-        var userLeaves = await _context.LeaveRequests
-            .Where(l => l.Employee_ID == userId && l.Status == "Approve")
-            .ToListAsync();
+        var userLeaves = await _context.LeaveRequests.Where(l => l.Employee_ID == userId && l.Status == "Approve").ToListAsync();
 
-        // 1. Get Entitlements from DB
         int totalAnnual = employee.AnnualLeaveDays;
         int totalMC = employee.MCDays;
         int totalCompassionate = employee.EmergencyLeaveDays;
         int totalMaternity = employee.MaternityLeaveDays;
         int totalOther = employee.OtherLeaveDays;
 
-        // 2. Calculate raw USED days from the database
         int rawAnnualUsed = userLeaves.Where(l => l.LeaveType == "Annual" || l.LeaveType == "Annual Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
         int mcUsed = userLeaves.Where(l => l.LeaveType == "MC" || l.LeaveType == "Medical Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
         int compassionateUsed = userLeaves.Where(l => l.LeaveType == "Compassionate" || l.LeaveType == "Emergency").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
@@ -58,11 +53,9 @@ public class HomeController : Controller
         int rawUnpaidUsed = userLeaves.Where(l => l.LeaveType == "Unpaid" || l.LeaveType == "Unpaid Leave").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
         int otherUsed = userLeaves.Where(l => l.LeaveType == "Other").Sum(l => (l.End_Date - l.Start_Date).Days + 1);
 
-        // 3. Logic Fix: Handle Overflow (prevent negative available balance)
         int displayAnnualUsed = rawAnnualUsed > totalAnnual ? totalAnnual : rawAnnualUsed;
         int annualOverflow = rawAnnualUsed > totalAnnual ? rawAnnualUsed - totalAnnual : 0;
 
-        // 4. Set ViewBag for Leave Cards
         ViewBag.AnnualLeave = $"{displayAnnualUsed:D2}/{totalAnnual:D2}";
         ViewBag.AnnualAvailable = totalAnnual - displayAnnualUsed;
         ViewBag.AnnualUsed = rawAnnualUsed;
@@ -85,13 +78,11 @@ public class HomeController : Controller
 
         ViewBag.UnpaidUsed = rawUnpaidUsed + annualOverflow;
 
-        // --- Attendance Insights ---
         CalculateAttendanceInsights(userId.Value);
 
         return View();
     }
 
-    // --- NEW: My Attendance History with Fingerprint Tracking ---
     public async Task<IActionResult> AttendanceHistory()
     {
         var userId = HttpContext.Session.GetInt32("UserID");
@@ -125,7 +116,6 @@ public class HomeController : Controller
                 && a.Date.Year == previousYear)
             .ToList();
 
-        // 1. On-Time Percentage Calculation
         int currentOnTimeCount = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
             .Count(a => !string.IsNullOrEmpty(a.Status) &&
@@ -154,7 +144,6 @@ public class HomeController : Controller
         ViewBag.OnTimeChange = onTimeChange;
         ViewBag.OnTimeChangeDirection = onTimeChange >= 0 ? "up" : "down";
 
-        // 2. Late Percentage Calculation
         int currentLateCount = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue)
             .Count(a => !string.IsNullOrEmpty(a.Status) && a.Status.ToLower() == "late");
@@ -178,7 +167,6 @@ public class HomeController : Controller
         ViewBag.LateChange = lateChange;
         ViewBag.LateChangeDirection = lateChange >= 0 ? "up" : "down";
 
-        // 3. Total Break Hours Calculation
         TimeSpan currentMonthBreakTotal = currentMonthAttendances
             .Where(a => a.TotalBreakTime.HasValue)
             .Select(a => a.TotalBreakTime.Value)
@@ -196,7 +184,6 @@ public class HomeController : Controller
         ViewBag.BreakChange = (int)breakChangePercentage;
         ViewBag.BreakChangeDirection = breakChangePercentage >= 0 ? "up" : "down";
 
-        // 4. Total Working Hours Calculation
         TimeSpan currentMonthWorkTotal = currentMonthAttendances
             .Where(a => a.ClockInTime.HasValue && a.ClockOutTime.HasValue)
             .Select(a =>
@@ -243,5 +230,75 @@ public class HomeController : Controller
         int seconds = timeSpan.Seconds;
 
         return $"{hours:D2} Hours {minutes:D2} Minutes {seconds:D2} Seconds";
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AskGemini([FromBody] ChatRequest request)
+    {
+        var apiKey = _configuration["GeminiConfig:ApiKey"];
+        // Using the 2.5 Flash model active in 2026
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+
+        using var client = new HttpClient();
+
+        var payload = new
+        {
+            system_instruction = new
+            {
+                parts = new[] {
+                new {
+                    text = "You are the official AI Assistant for the 'Attendance and Leave Application'. " +
+                           "You ONLY answer questions related to: " +
+                           "1. Attendance tracking (Clock-in/out, hours, fingerprints). " +
+                           "2. Leave Applications (Annual, Medical, Maternity, Unpaid). " +
+                           "3. Expense Claims management. " +
+                           "IMPORTANT NAVIGATION & FALLBACK RULES: " +
+                           "If you do not know the answer or the user asks for help/FAQ/Support, you MUST guide them with these exact words: " +
+                           "'I'm sorry, I don't have that specific information. Please look at the sidebar on the left and scroll to the very bottom. " +
+                           "There you will find links for the FAQ and Technical Support to contact our Admin team.'"
+                }
+            }
+            },
+            contents = new[]
+            {
+            new { parts = new[] { new { text = request.Message } } }
+        }
+        };
+
+        try
+        {
+            var response = await client.PostAsJsonAsync(url, payload);
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Handle 503 (Overloaded)
+                if ((int)response.StatusCode == 503)
+                    return Json(new { reply = "Google's servers are busy right now. Please wait a minute and try again." });
+
+                // NEW: Handle 429 (Rate Limit/Quota Exceeded)
+                if ((int)response.StatusCode == 429)
+                {
+                    return Json(new
+                    {
+                        reply = "I've reached my daily limit for AI responses. " +
+                                              "Please look at the sidebar on the left and scroll to the very bottom to find the FAQ " +
+                                              "or contact the Technical Support Team for manual help."
+                    });
+                }
+
+                return Json(new { reply = $"API Error: {response.StatusCode}. Please try again later." });
+            }
+
+            var data = System.Text.Json.Nodes.JsonNode.Parse(responseString);
+            // Safe navigation to prevent the 'candidates' definition error seen in your screenshot
+            string reply = data?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
+
+            return Json(new { reply = reply ?? "The model returned an empty response." });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { reply = "System Error: " + ex.Message });
+        }
     }
 }
